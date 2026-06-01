@@ -42,7 +42,9 @@ export default function HeroStatusCard({ month, total, remaining, budget, fixedM
         </div>
         <div className="hero-card-remaining">還有 {fmt(remaining)} 可以使用</div>
       </div>
-      <div className="hero-card-illustration">🐻</div>
+      <div className="hero-card-illustration">
+        <img src="/hero-illustration.png" alt="" aria-hidden="true" />
+      </div>
     </div>
   )
 }

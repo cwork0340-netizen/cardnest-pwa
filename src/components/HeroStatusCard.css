@@ -87,13 +87,16 @@
 }
 
 .hero-card-illustration {
-  width: 80px;
-  height: 80px;
-  border-radius: 16px;
-  background: rgba(94, 124, 226, 0.08);
+  width: 140px;
+  height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
   flex-shrink: 0;
+}
+
+.hero-card-illustration img {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
 }
