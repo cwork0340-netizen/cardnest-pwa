@@ -1,0 +1,104 @@
+.cdf {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cdf-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cdf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cdf-row {
+  display: flex;
+  gap: 12px;
+}
+
+.cdf-field-half {
+  flex: 1;
+}
+
+.cdf-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.cdf-input {
+  height: 44px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  padding: 0 12px;
+  background: var(--color-surface);
+  color: var(--color-text-main);
+  font-size: 15px;
+  outline: none;
+  width: 100%;
+  font-family: inherit;
+}
+
+.cdf-input:focus {
+  border-color: var(--color-primary);
+}
+
+.cdf-input::-webkit-inner-spin-button,
+.cdf-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+/* Color picker row */
+.cdf-color-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+}
+
+.cdf-color-picker {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 12px;
+  padding: 2px;
+  background: var(--color-surface);
+  cursor: pointer;
+  outline: none;
+}
+
+.cdf-color-value {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  font-family: monospace;
+}
+
+/* Error */
+.cdf-error {
+  font-size: 13px;
+  color: var(--color-danger);
+  text-align: center;
+}
+
+/* Actions */
+.cdf-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cdf-cancel {
+  width: 100%;
+  height: 44px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}

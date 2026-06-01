@@ -1,0 +1,39 @@
+.credit-card-summary-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.credit-card-summary-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.credit-card-summary-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.credit-card-summary-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.credit-card-summary-status {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.credit-card-summary-bar {
+  margin-bottom: 8px;
+}
+
+.credit-card-summary-detail {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}

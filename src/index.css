@@ -1,0 +1,246 @@
+:root {
+  /* Colors */
+  --color-bg: #F8F5EF;
+  --color-surface: #FFFFFF;
+  --color-surface-warm: #FFFCF7;
+
+  --color-primary: #5E7CE2;
+  --color-primary-hover: #4D6FD8;
+  --color-primary-soft: #EEF2FF;
+
+  --color-text-main: #2F2A25;
+  --color-text-secondary: #7C746B;
+  --color-text-muted: #AAA198;
+
+  --color-border: rgba(47, 42, 37, 0.08);
+  --color-border-strong: rgba(47, 42, 37, 0.14);
+
+  --color-success: #6FA37C;
+  --color-success-soft: #EAF5EE;
+
+  --color-warning: #D49A45;
+  --color-warning-soft: #FFF4DE;
+
+  --color-danger: #D96B5F;
+  --color-danger-soft: #FCEBE8;
+
+  --color-subscription: #5E7CE2;
+  --color-installment: #D49A45;
+  --color-transaction: #6FA37C;
+
+  /* Shadows */
+  --shadow-card: 0 8px 28px rgba(72, 56, 38, 0.06);
+  --shadow-floating: 0 12px 32px rgba(72, 56, 38, 0.12);
+
+  /* Spacing */
+  --page-padding-x: 20px;
+  --section-gap: 24px;
+  --card-gap: 12px;
+  --card-padding: 16px;
+  --hero-padding: 20px;
+
+  /* Radius */
+  --radius-card: 24px;
+  --radius-hero: 28px;
+  --radius-button: 16px;
+  --radius-pill: 999px;
+  --radius-sheet: 28px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Noto Sans TC", "PingFang TC", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* App container */
+.app-root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-page {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 16px var(--page-padding-x) 96px;
+  width: 100%;
+  flex: 1;
+}
+
+/* Card base */
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(47, 42, 37, 0.04);
+}
+
+/* Buttons */
+.button-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  border-radius: var(--radius-button);
+  background: var(--color-primary);
+  color: #FFFFFF;
+  font-size: 16px;
+  font-weight: 600;
+  width: 100%;
+  transition: background 160ms ease, transform 80ms ease;
+}
+
+.button-primary:active {
+  background: var(--color-primary-hover);
+  transform: scale(0.98);
+}
+
+.button-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  border-radius: var(--radius-button);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 15px;
+  font-weight: 600;
+  width: 100%;
+  transition: opacity 160ms ease;
+}
+
+.button-secondary:active {
+  opacity: 0.8;
+}
+
+.button-danger-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  border-radius: var(--radius-button);
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  width: 100%;
+  transition: background 160ms ease;
+}
+
+.button-danger-outline:active {
+  background: var(--color-danger-soft);
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-success {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.badge-warning {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.badge-danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.badge-neutral {
+  background: #F2EFE9;
+  color: var(--color-text-secondary);
+}
+
+.badge-primary {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+/* Progress bar */
+.progress-track {
+  height: 8px;
+  background: #E8EDF8;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 240ms ease;
+}
+
+.progress-fill-safe {
+  background: var(--color-primary);
+}
+
+.progress-fill-warning {
+  background: var(--color-warning);
+}
+
+.progress-fill-danger {
+  background: var(--color-danger);
+}
+
+/* Section */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+}
+
+.section + .section {
+  margin-top: var(--section-gap);
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 12px 0;
+}

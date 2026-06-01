@@ -1,0 +1,68 @@
+.plans-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.plans-header {
+  margin-bottom: 16px;
+}
+
+.plans-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+/* Segmented tabs */
+.segmented-tabs {
+  background: #F2EFE9;
+  border-radius: 999px;
+  padding: 4px;
+  display: flex;
+  gap: 0;
+}
+
+.segmented-tab {
+  flex: 1;
+  height: 36px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.segmented-tab-active {
+  background: #FFFFFF;
+  color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(72, 56, 38, 0.06);
+}
+
+/* FAB */
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: 88px;
+  height: 52px;
+  padding: 0 20px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: #FFFFFF;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: var(--shadow-floating);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 90;
+  border: none;
+  cursor: pointer;
+  transition: transform 80ms ease;
+}
+
+.fab:active {
+  transform: scale(0.96);
+}

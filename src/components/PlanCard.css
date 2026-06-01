@@ -1,0 +1,155 @@
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plan-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.plan-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.plan-badge {
+  align-self: flex-start;
+  margin-bottom: 2px;
+}
+
+.badge-installment {
+  background: var(--color-warning-soft);
+  color: var(--color-installment);
+}
+
+.plan-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.plan-card-name {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.plan-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.plan-right-installment {
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.plan-amount {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.plan-period {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.plan-amount-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.plan-amount-twd {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.plan-next {
+  font-size: 13px;
+}
+
+/* installment progress */
+.plan-progress-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plan-progress-text {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.plan-remaining-total {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+/* installment action buttons */
+.plan-installment-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* delete button */
+.plan-delete-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.plan-delete-btn:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+/* check button */
+.plan-check-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 2px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.plan-check-btn:active {
+  transform: scale(0.88);
+}
+
+.plan-check-btn-done {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #FFFFFF;
+  transform: scale(1.08);
+}
