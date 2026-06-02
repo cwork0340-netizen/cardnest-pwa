@@ -265,6 +265,15 @@ export default function App() {
   const handleSaveCard = useCallback((updated) => setCards(p => p.map(c => c.id === updated.id ? updated : c)), [])
   const handleDeleteCard = useCallback((id) => setCards(p => p.filter(c => c.id !== id)), [])
 
+  const handleClearData = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEY)
+    setCards([])
+    setPlans([])
+    setTransactions([])
+    setFxSettings({ usdRate: 32.5, feeRate: 1.5 })
+    setTab('dashboard')
+  }, [])
+
   const fixedMonthlyAmount = plans
     .filter(p => p.daysLeft <= 30 && (p.type === 'subscription' || (p.type === 'installment' && !p.paid)))
     .reduce((s, p) => s + p.amount, 0)
@@ -313,6 +322,7 @@ export default function App() {
         onAddCard={handleAddCard}
         onSaveCard={handleSaveCard}
         onDeleteCard={handleDeleteCard}
+        onClearData={handleClearData}
         googleUser={googleUser}
         syncStatus={syncStatus}
         onGoogleLogin={handleGoogleLogin}

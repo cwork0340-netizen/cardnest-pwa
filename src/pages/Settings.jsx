@@ -4,17 +4,11 @@ import SectionHeader from '../components/SectionHeader'
 import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 
-export default function Settings({ showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard }) {
+export default function Settings({ showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard, onClearData, googleUser, syncStatus, onGoogleLogin, onGoogleLogout, onGoogleSync }) {
   const [editingCard, setEditingCard] = useState(null)
   const [showAddCard, setShowAddCard] = useState(false)
   const [deletingCardId, setDeletingCardId] = useState(null)
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
-
-  function handleClearData() {
-    localStorage.removeItem('cardnest_v1')
-    window.location.reload()
-  }
   const [usdRate, setUsdRate] = useState(String(fxSettings?.usdRate ?? 32.5))
   const [feeRate, setFeeRate] = useState(String(fxSettings?.feeRate ?? 1.5))
   const [fxUpdated, setFxUpdated] = useState('')
@@ -123,14 +117,34 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
         </div>
       </div>
 
-      {/* Google Sheets */}
+      {/* Google 帳號 */}
       <div className="section">
-        <SectionHeader title="Google Sheets 連結" />
+        <SectionHeader title="Google 帳號" />
         <div className="card">
-          <p className="settings-desc">連結後，帳務資料自動同步至 Google Sheets</p>
-          <button className="button-secondary" style={{ marginTop: 12 }} onClick={() => showToast('即將推出')}>
-            連結 Google Sheets
-          </button>
+          {googleUser?.accessToken ? (
+            <>
+              <div className="google-user-row">
+                <span className="google-user-email">{googleUser.email}</span>
+                <span className={`google-sync-badge google-sync-${syncStatus}`}>
+                  {syncStatus === 'syncing' ? '同步中...' : syncStatus === 'error' ? '⚠ 同步失敗' : '✓ 已同步'}
+                </span>
+              </div>
+              <div className="google-actions">
+                <button className="button-secondary google-action-btn" onClick={onGoogleSync}>重新同步</button>
+                <button className="settings-delete-btn" onClick={onGoogleLogout}>中斷連結</button>
+              </div>
+            </>
+          ) : googleUser?.email ? (
+            <>
+              <p className="settings-desc">{googleUser.email}（已中斷連結）</p>
+              <button className="button-secondary" style={{ marginTop: 12 }} onClick={onGoogleLogin}>重新連結</button>
+            </>
+          ) : (
+            <>
+              <p className="settings-desc">連結後，帳務資料自動同步至 Google Sheets，換手機也不怕</p>
+              <button className="button-secondary" style={{ marginTop: 12 }} onClick={onGoogleLogin}>連結 Google 帳號</button>
+            </>
+          )}
         </div>
       </div>
 
@@ -145,30 +159,13 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
               <p className="settings-logout-sub">所有信用卡、計畫、刷卡記錄都會清空，無法復原。</p>
               <div className="settings-logout-actions">
                 <button className="settings-logout-cancel" onClick={() => setShowClearConfirm(false)}>取消</button>
-                <button className="settings-logout-confirm-btn" onClick={handleClearData}>確定清除</button>
+                <button className="settings-logout-confirm-btn" onClick={onClearData}>確定清除</button>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* 帳號 */}
-      <div className="section">
-        <SectionHeader title="帳號" />
-        <div className="card">
-          <button className="button-danger-outline" onClick={() => setShowLogoutConfirm(true)}>登出</button>
-          {showLogoutConfirm && (
-            <div className="settings-logout-confirm">
-              <p className="settings-logout-msg">確定要登出嗎？</p>
-              <p className="settings-logout-sub">你的資料仍會保留在 Google Sheets。</p>
-              <div className="settings-logout-actions">
-                <button className="settings-logout-cancel" onClick={() => setShowLogoutConfirm(false)}>取消</button>
-                <button className="settings-logout-confirm-btn" onClick={() => { showToast('已登出'); setShowLogoutConfirm(false) }}>確定登出</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   )
 }
