@@ -5,7 +5,9 @@ import Dashboard from './pages/Dashboard'
 import Plans from './pages/Plans'
 import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
-import { cards as mockCards, plans as mockPlans, transactions as mockTx } from './data/mock'
+import Onboarding from './pages/Onboarding'
+import { loadAuthState, saveAuthState, isTokenValid, getUserInfo, requestToken, revokeToken, whenGoogleReady } from './services/googleAuth'
+import { findOrCreateSpreadsheet, syncToSheets, loadFromSheets, hasSheetData } from './services/sheetsSync'
 
 const STORAGE_KEY = 'cardnest_v1'
 
@@ -88,14 +90,58 @@ export default function App() {
   const [tab, setTab] = useState('dashboard')
   const [toast, setToast] = useState(null) // { message, onUndo? }
   const toastTimer = useRef(null)
-  const [cards, setCards] = useState(stored?.cards ?? mockCards)
-  const [plans, setPlans] = useState(stored?.plans ?? mockPlans)
-  const [transactions, setTransactions] = useState(stored?.transactions ?? mockTx)
+  const [cards, setCards] = useState(stored?.cards ?? [])
+  const [plans, setPlans] = useState(stored?.plans ?? [])
+  const [transactions, setTransactions] = useState(stored?.transactions ?? [])
   const [fxSettings, setFxSettings] = useState(stored?.fxSettings ?? { usdRate: 32.5, feeRate: 1.5 })
+
+  // Google auth state
+  const [googleUser, setGoogleUser] = useState(() => loadAuthState())
+  const [syncStatus, setSyncStatus] = useState('idle') // 'idle' | 'syncing' | 'done' | 'error'
+  const googleUserRef = useRef(googleUser)
+  useEffect(() => { googleUserRef.current = googleUser }, [googleUser])
+
+  // Sync control refs
+  const isFirstRender = useRef(true)
+  const loadingFromSheets = useRef(false)
+  const syncDebounce = useRef(null)
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings }))
   }, [cards, plans, transactions, fxSettings])
+
+  // Auto-sync to Sheets on data change
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    if (loadingFromSheets.current) return
+    const gUser = googleUserRef.current
+    if (!isTokenValid(gUser)) return
+
+    clearTimeout(syncDebounce.current)
+    syncDebounce.current = setTimeout(async () => {
+      setSyncStatus('syncing')
+      try {
+        await syncToSheets(gUser.accessToken, gUser.sheetId, { cards, plans, transactions, fxSettings })
+        setSyncStatus('done')
+      } catch {
+        setSyncStatus('error')
+      }
+    }, 1500)
+  }, [cards, plans, transactions, fxSettings])
+
+  // Silent token refresh on mount if token expired
+  useEffect(() => {
+    const auth = loadAuthState()
+    if (!auth || isTokenValid(auth)) return
+    whenGoogleReady(() => {
+      requestToken((response) => {
+        if (response.error) return
+        const newAuth = { ...auth, accessToken: response.access_token, expiresAt: Date.now() + response.expires_in * 1000 }
+        saveAuthState(newAuth)
+        setGoogleUser(newAuth)
+      }, '')
+    })
+  }, [])
 
   const showToast = useCallback((message) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -108,6 +154,74 @@ export default function App() {
     setToast({ message, onUndo })
     toastTimer.current = setTimeout(() => setToast(null), 5000)
   }, [])
+
+  // Google auth handlers
+  const handleGoogleLogin = useCallback(() => {
+    if (!window.google?.accounts?.oauth2) {
+      showToast('Google 登入載入中，請稍後再試')
+      return
+    }
+    requestToken(async (response) => {
+      if (response.error) {
+        if (response.error !== 'popup_closed_by_user') {
+          showToast(`Google 登入失敗：${response.error}`)
+        }
+        return
+      }
+      try {
+        const accessToken = response.access_token
+        const expiresAt = Date.now() + response.expires_in * 1000
+        const userInfo = await getUserInfo(accessToken)
+        const existingSheetId = loadAuthState()?.sheetId ?? null
+        const sheetId = await findOrCreateSpreadsheet(accessToken, existingSheetId)
+        const auth = { email: userInfo.email, accessToken, expiresAt, sheetId }
+        saveAuthState(auth)
+        setGoogleUser(auth)
+
+        const sheetsData = await loadFromSheets(accessToken, sheetId)
+        if (hasSheetData(sheetsData)) {
+          loadingFromSheets.current = true
+          setCards(sheetsData.cards)
+          setPlans(sheetsData.plans)
+          setTransactions(sheetsData.transactions)
+          setFxSettings(sheetsData.fxSettings)
+          setTimeout(() => { loadingFromSheets.current = false }, 0)
+          showToast('已從 Google Sheets 同步')
+        } else {
+          const snapCards = cards, snapPlans = plans, snapTx = transactions, snapFx = fxSettings
+          await syncToSheets(accessToken, sheetId, { cards: snapCards, plans: snapPlans, transactions: snapTx, fxSettings: snapFx })
+          setSyncStatus('done')
+          showToast('資料已備份到 Google Sheets')
+        }
+      } catch {
+        showToast('Google 連結失敗，請稍後再試')
+      }
+    })
+  }, [showToast, cards, plans, transactions, fxSettings])
+
+  const handleGoogleLogout = useCallback(() => {
+    const auth = loadAuthState()
+    revokeToken(auth?.accessToken)
+    const kept = { email: auth?.email, sheetId: auth?.sheetId, accessToken: null, expiresAt: null }
+    saveAuthState(kept)
+    setGoogleUser(kept)
+    setSyncStatus('idle')
+    showToast('已中斷 Google 連結')
+  }, [showToast])
+
+  const handleGoogleSync = useCallback(async () => {
+    const gUser = googleUserRef.current
+    if (!isTokenValid(gUser)) { showToast('請重新連結 Google 帳號'); return }
+    setSyncStatus('syncing')
+    try {
+      await syncToSheets(gUser.accessToken, gUser.sheetId, { cards, plans, transactions, fxSettings })
+      setSyncStatus('done')
+      showToast('同步完成')
+    } catch {
+      setSyncStatus('error')
+      showToast('同步失敗，請稍後再試')
+    }
+  }, [cards, plans, transactions, fxSettings, showToast])
 
   // Plans handlers
   const handleAddPlan = useCallback((plan) => setPlans(p => [plan, ...p]), [])
@@ -199,8 +313,22 @@ export default function App() {
         onAddCard={handleAddCard}
         onSaveCard={handleSaveCard}
         onDeleteCard={handleDeleteCard}
+        googleUser={googleUser}
+        syncStatus={syncStatus}
+        onGoogleLogin={handleGoogleLogin}
+        onGoogleLogout={handleGoogleLogout}
+        onGoogleSync={handleGoogleSync}
       />
     ),
+  }
+
+  if (cards.length === 0 && tab !== 'settings') {
+    return (
+      <div className="app-root">
+        <Onboarding onStart={() => setTab('settings')} />
+        {toast && <Toast message={toast.message} onUndo={toast.onUndo} />}
+      </div>
+    )
   }
 
   return (
