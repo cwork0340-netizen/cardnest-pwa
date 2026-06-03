@@ -9,13 +9,12 @@ import CategoryBreakdownCard from '../components/CategoryBreakdownCard'
 import TrendChartCard from '../components/TrendChartCard'
 import EmptyState from '../components/EmptyState'
 
-export default function Dashboard({ currentMonth, notices, cards, categories, trends }) {
+export default function Dashboard({ greeting, dateLabel, currentMonth, notices, cards, categories, trends }) {
   return (
     <div className="dashboard">
       <PageHeader
-        greeting="早安，Chia"
-        month={currentMonth.name}
-        lastSync={currentMonth.lastSync}
+        greeting={greeting}
+        dateLabel={dateLabel}
       />
 
       <HeroStatusCard

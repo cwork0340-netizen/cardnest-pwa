@@ -4,7 +4,7 @@ import SectionHeader from '../components/SectionHeader'
 import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 
-export default function Settings({ showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard, onClearData, googleUser, syncStatus, onGoogleLogin, onGoogleLogout, onGoogleSync }) {
+export default function Settings({ showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard, onClearData }) {
   const [editingCard, setEditingCard] = useState(null)
   const [showAddCard, setShowAddCard] = useState(false)
   const [deletingCardId, setDeletingCardId] = useState(null)
@@ -114,37 +114,6 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
               查今日匯率 →
             </a>
           </div>
-        </div>
-      </div>
-
-      {/* Google 帳號 */}
-      <div className="section">
-        <SectionHeader title="Google 帳號" />
-        <div className="card">
-          {googleUser?.accessToken ? (
-            <>
-              <div className="google-user-row">
-                <span className="google-user-email">{googleUser.email}</span>
-                <span className={`google-sync-badge google-sync-${syncStatus}`}>
-                  {syncStatus === 'syncing' ? '同步中...' : syncStatus === 'error' ? '⚠ 同步失敗' : '✓ 已同步'}
-                </span>
-              </div>
-              <div className="google-actions">
-                <button className="button-secondary google-action-btn" onClick={onGoogleSync}>重新同步</button>
-                <button className="settings-delete-btn" onClick={onGoogleLogout}>中斷連結</button>
-              </div>
-            </>
-          ) : googleUser?.email ? (
-            <>
-              <p className="settings-desc">{googleUser.email}（已中斷連結）</p>
-              <button className="button-secondary" style={{ marginTop: 12 }} onClick={onGoogleLogin}>重新連結</button>
-            </>
-          ) : (
-            <>
-              <p className="settings-desc">連結後，帳務資料自動同步至 Google Sheets，換手機也不怕</p>
-              <button className="button-secondary" style={{ marginTop: 12 }} onClick={onGoogleLogin}>連結 Google 帳號</button>
-            </>
-          )}
         </div>
       </div>
 
