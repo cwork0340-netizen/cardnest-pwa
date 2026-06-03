@@ -12,9 +12,17 @@ const TABS = [
   { key: 'installment', label: '分期' },
 ]
 
-export default function Plans({ showToast, plans, cards, fxSettings, onAddPlan, onDeletePlan, onMarkPaid }) {
+export default function Plans({ showToast, plans, cards, fxSettings, onAddPlan, onUpdatePlan, onDeletePlan, onMarkPaid }) {
   const [activeTab, setActiveTab] = useState('all')
   const [showAddSheet, setShowAddSheet] = useState(false)
+  const [editingPlan, setEditingPlan] = useState(null)
+
+  const sheetOpen = showAddSheet || !!editingPlan
+
+  function closeSheet() {
+    setShowAddSheet(false)
+    setEditingPlan(null)
+  }
 
   const filteredPlans = activeTab === 'all'
     ? plans
@@ -31,10 +39,15 @@ export default function Plans({ showToast, plans, cards, fxSettings, onAddPlan, 
     showToast('已從清單移除')
   }
 
-  function handleAddPlan(newPlan) {
-    onAddPlan(newPlan)
-    showToast('新的計畫已加入')
-    setShowAddSheet(false)
+  function handleSubmit(plan) {
+    if (editingPlan) {
+      onUpdatePlan(plan)
+      showToast('計畫已更新')
+    } else {
+      onAddPlan(plan)
+      showToast('新的計畫已加入')
+    }
+    closeSheet()
   }
 
   return (
@@ -75,6 +88,7 @@ export default function Plans({ showToast, plans, cards, fxSettings, onAddPlan, 
               plan={plan}
               onMarkPaid={handleMarkPaid}
               onDelete={handleDelete}
+              onEdit={setEditingPlan}
             />
           ))
         )}
@@ -89,15 +103,16 @@ export default function Plans({ showToast, plans, cards, fxSettings, onAddPlan, 
       </button>
 
       <BottomSheet
-        open={showAddSheet}
-        onClose={() => setShowAddSheet(false)}
-        title="新增計畫"
+        open={sheetOpen}
+        onClose={closeSheet}
+        title={editingPlan ? '修改計畫' : '新增計畫'}
       >
         <AddPlanForm
-          onSubmit={handleAddPlan}
-          onClose={() => setShowAddSheet(false)}
+          onSubmit={handleSubmit}
+          onClose={closeSheet}
           cards={cards}
           fxSettings={fxSettings}
+          initialValues={editingPlan}
         />
       </BottomSheet>
     </div>

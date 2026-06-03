@@ -38,6 +38,54 @@ function getGreeting(hour) {
   return '晚安'
 }
 
+// "6/15" → 當前年份的 Date 物件
+function parseMonthDay(md) {
+  if (!md) return null
+  const [m, d] = md.split('/').map(Number)
+  if (!m || !d) return null
+  return new Date(new Date().getFullYear(), m - 1, d)
+}
+
+// 建立本週（週日起算）七天的扣款行事曆，事件以卡片顏色標示
+function buildWeekDays(plans, cards) {
+  const colorByCard = {}
+  cards.forEach(c => { colorByCard[c.name] = c.color })
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const weekStart = new Date(today)
+  weekStart.setDate(today.getDate() - today.getDay()) // 週日
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 7)
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(weekStart)
+    date.setDate(weekStart.getDate() + i)
+    return { date, isToday: date.getTime() === today.getTime(), events: [] }
+  })
+
+  plans.forEach(p => {
+    const stillActive = p.type === 'subscription'
+      ? (p.active ?? true)
+      : (p.paidCount < p.totalCount)
+    if (!stillActive) return
+    const dt = parseMonthDay(p.nextDate)
+    if (!dt) return
+    dt.setHours(0, 0, 0, 0)
+    if (dt < weekStart || dt >= weekEnd) return
+    const idx = Math.round((dt - weekStart) / 86400000)
+    days[idx].events.push({
+      id: p.id,
+      name: p.name,
+      card: p.card,
+      amount: p.amount,
+      color: colorByCard[p.card] ?? '#5E7CE2',
+    })
+  })
+
+  return days
+}
+
 function computeDashboard(transactions, cards, fixedMonthlyAmount = 0) {
   const totalSpent = transactions.reduce((s, tx) => s + tx.amount, 0)
   const totalBudget = cards.reduce((s, c) => s + c.budget, 0)
@@ -119,6 +167,7 @@ export default function App() {
 
   // Plans handlers
   const handleAddPlan = useCallback((plan) => setPlans(p => [plan, ...p]), [])
+  const handleUpdatePlan = useCallback((updated) => setPlans(p => p.map(pl => pl.id === updated.id ? updated : pl)), [])
   const handleDeletePlan = useCallback((id) => {
     setPlans(prev => {
       const idx = prev.findIndex(x => x.id === id)
@@ -138,6 +187,7 @@ export default function App() {
 
   // Transactions handlers
   const handleAddTransaction = useCallback((tx) => setTransactions(p => [tx, ...p]), [])
+  const handleUpdateTransaction = useCallback((updated) => setTransactions(p => p.map(t => t.id === updated.id ? updated : t)), [])
   const handleDeleteTransaction = useCallback((id) => {
     setTransactions(prev => {
       const idx = prev.findIndex(x => x.id === id)
@@ -173,9 +223,7 @@ export default function App() {
     .reduce((s, p) => s + p.amount, 0)
 
   const { currentMonth, enrichedCards, categories, trends } = computeDashboard(transactions, cards, fixedMonthlyAmount)
-  const notices = plans
-    .filter(p => p.daysLeft <= 7)
-    .sort((a, b) => a.daysLeft - b.daysLeft)
+  const weekDays = buildWeekDays(plans, enrichedCards)
 
   const now = new Date()
   const greeting = getGreeting(now.getHours())
@@ -187,7 +235,7 @@ export default function App() {
         greeting={greeting}
         dateLabel={dateLabel}
         currentMonth={currentMonth}
-        notices={notices}
+        weekDays={weekDays}
         cards={enrichedCards}
         categories={categories}
         trends={trends}
@@ -200,6 +248,7 @@ export default function App() {
         cards={cards}
         fxSettings={fxSettings}
         onAddPlan={handleAddPlan}
+        onUpdatePlan={handleUpdatePlan}
         onDeletePlan={handleDeletePlan}
         onMarkPaid={handleMarkPaid}
       />
@@ -210,6 +259,7 @@ export default function App() {
         transactions={transactions}
         cards={cards}
         onAddTransaction={handleAddTransaction}
+        onUpdateTransaction={handleUpdateTransaction}
         onDeleteTransaction={handleDeleteTransaction}
       />
     ),

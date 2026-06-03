@@ -105,6 +105,35 @@
   gap: 8px;
 }
 
+/* subscription action buttons */
+.plan-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+/* edit button */
+.plan-edit-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.plan-edit-btn:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
 /* delete button */
 .plan-delete-btn {
   width: 28px;
