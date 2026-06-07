@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CardNest 更新預覽</title>
+<style>
+  :root{
+    --color-bg:#F8F5EF; --color-surface:#FFFFFF;
+    --color-primary:#5E7CE2; --color-primary-soft:#EEF2FF;
+    --color-text-main:#2F2A25; --color-text-secondary:#7C746B; --color-text-muted:#AAA198;
+    --color-border:rgba(47,42,37,0.08);
+    --color-success:#6FA37C; --color-success-soft:#EAF5EE;
+    --color-warning:#D49A45; --color-warning-soft:#FFF4DE;
+    --color-danger:#D96B5F; --color-danger-soft:#FCEBE8;
+    --color-installment:#D49A45;
+    --shadow-card:0 8px 28px rgba(72,56,38,0.06);
+    --shadow-floating:0 12px 32px rgba(72,56,38,0.12);
+    --radius-card:24px; --radius-pill:999px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#ECE7DD; color:var(--color-text-main);
+    font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","PingFang TC",sans-serif;
+    font-size:15px; line-height:1.5; padding:32px 16px 60px; -webkit-font-smoothing:antialiased;
+  }
+  .pagehead{max-width:1240px;margin:0 auto 28px;text-align:center}
+  .pagehead h1{font-size:24px;font-weight:800;margin-bottom:6px}
+  .pagehead p{color:var(--color-text-secondary);font-size:14px}
+  .changelog{
+    max-width:760px;margin:18px auto 0;background:#fff;border-radius:18px;
+    box-shadow:var(--shadow-card);padding:16px 20px;text-align:left;font-size:13.5px;color:var(--color-text-secondary)
+  }
+  .changelog b{color:var(--color-text-main)}
+  .changelog ul{margin:8px 0 0;padding-left:18px}
+  .changelog li{margin:4px 0}
+  .stage{display:flex;flex-wrap:wrap;gap:30px;justify-content:center;align-items:flex-start;max-width:1240px;margin:34px auto 0}
+  .phone-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .phone-label{font-size:13px;font-weight:700;color:var(--color-text-secondary)}
+  .phone{
+    width:372px; background:var(--color-bg); border-radius:40px; padding:14px;
+    box-shadow:0 24px 60px rgba(40,30,20,.22), 0 0 0 10px #1b1b1f, 0 0 0 11px #2c2c30;
+    position:relative; overflow:hidden;
+  }
+  .notch{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:120px;height:24px;background:#1b1b1f;border-radius:0 0 16px 16px;z-index:10}
+  .screen{height:720px;overflow-y:auto;border-radius:28px;background:var(--color-bg);padding:46px 18px 90px;position:relative;scrollbar-width:none}
+  .screen::-webkit-scrollbar{display:none}
+
+  /* shared */
+  .card{background:var(--color-surface);border-radius:var(--radius-card);padding:16px;box-shadow:var(--shadow-card);border:1px solid rgba(47,42,37,0.04)}
+  .section{display:flex;flex-direction:column;gap:12px}
+  .section + .section{margin-top:24px}
+  .section-header{font-size:14px;font-weight:700;color:var(--color-text-main);margin-bottom:2px}
+  .badge{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .badge-primary{background:var(--color-primary-soft);color:var(--color-primary)}
+  .badge-installment{background:var(--color-warning-soft);color:var(--color-installment)}
+  .progress-track{height:8px;background:#E8EDF8;border-radius:999px;overflow:hidden}
+  .progress-fill{height:100%;border-radius:999px;background:var(--color-primary)}
+
+  /* page header */
+  .page-header{margin-bottom:8px}
+  .page-header-greeting{font-size:18px;font-weight:700}
+  .page-header-sub{font-size:13px;color:var(--color-text-muted);margin-top:2px}
+  .page-title{font-size:22px;font-weight:700;margin-bottom:16px}
+
+  /* hero */
+  .hero{background:linear-gradient(135deg,#5E7CE2,#7E9BF0);color:#fff;border-radius:28px;padding:20px;margin-bottom:24px;box-shadow:var(--shadow-floating)}
+  .hero .h-label{font-size:13px;opacity:.85}
+  .hero .h-amount{font-size:32px;font-weight:800;margin:4px 0 2px}
+  .hero .h-sub{font-size:13px;opacity:.9}
+  .hero .h-pill{display:inline-block;margin-top:12px;background:rgba(255,255,255,.22);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600}
+
+  /* week calendar */
+  .week-cal{display:flex;flex-direction:column;gap:12px}
+  .week-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .week-cal-day{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;padding-top:2px}
+  .week-cal-weekday{font-size:11px;color:var(--color-text-muted)}
+  .week-cal-date{font-size:14px;font-weight:600;color:var(--color-text-secondary);width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:999px}
+  .week-cal-day-today .week-cal-weekday{color:var(--color-primary);font-weight:600}
+  .week-cal-day-today .week-cal-date{background:var(--color-primary);color:#fff}
+  .week-cal-events{display:flex;flex-direction:column;gap:3px;width:100%;margin-top:2px}
+  .week-cal-chip{font-size:10px;font-weight:600;line-height:1.35;padding:2px 3px;border-radius:5px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .week-cal-list{display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid var(--color-border)}
+  .week-cal-item{display:flex;align-items:center;gap:10px}
+  .week-cal-item-dot{width:10px;height:10px;border-radius:999px;flex-shrink:0}
+  .week-cal-item-info{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+  .week-cal-item-name{font-size:14px;font-weight:600}
+  .week-cal-item-meta{font-size:12px;color:var(--color-text-muted)}
+  .week-cal-item-amount{font-size:14px;font-weight:700;color:var(--color-text-secondary)}
+
+  /* plan card */
+  .plan-card{display:flex;flex-direction:column;gap:12px}
+  .plan-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .plan-left{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .plan-name{font-size:16px;font-weight:700}
+  .plan-card-name{font-size:13px;color:var(--color-text-muted)}
+  .plan-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+  .plan-amount{font-size:16px;font-weight:700}
+  .plan-period{font-size:13px;font-weight:400;color:var(--color-text-muted)}
+  .plan-next{font-size:13px;color:var(--color-text-muted)}
+  .plan-next.warn{color:var(--color-warning)}
+  .plan-action-btns,.plan-installment-btns{display:flex;align-items:center;gap:4px;margin-top:2px}
+  .iconbtn{width:28px;height:28px;border-radius:999px;background:transparent;border:none;color:var(--color-text-muted);font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .iconbtn.edit{background:var(--color-primary-soft);color:var(--color-primary)}
+  .check-btn{width:32px;height:32px;border-radius:999px;border:2px solid rgba(47,42,37,.14);background:transparent;color:var(--color-text-muted);font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center}
+  .plan-progress-text{font-size:13px;color:var(--color-text-muted)}
+  .plan-remaining-total{font-size:13px;font-weight:600;color:var(--color-text-secondary)}
+  .new-tag{display:inline-block;background:#ffe8c2;color:#9a6a16;font-size:10px;font-weight:700;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+
+  /* transactions */
+  .tx-item{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .tx-left{display:flex;align-items:center;gap:10px;min-width:0}
+  .tx-dot{width:10px;height:10px;border-radius:999px;flex-shrink:0}
+  .tx-name{font-size:15px;font-weight:700}
+  .tx-meta{font-size:13px;color:var(--color-text-muted)}
+  .tx-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+  .tx-amount{font-size:16px;font-weight:700}
+  .tx-note{font-size:13px;color:var(--color-text-muted)}
+  .tx-actions{display:flex;align-items:center;gap:2px}
+
+  /* sheet (form) */
+  .sheet{background:#fff;border-radius:24px;box-shadow:var(--shadow-card);padding:18px}
+  .sheet-title{font-size:17px;font-weight:700;text-align:center;margin-bottom:14px}
+  .apf-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  .apf-field-row{display:flex;gap:12px}
+  .apf-field-row .apf-field{flex:1}
+  .apf-label{font-size:13px;font-weight:600;color:var(--color-text-muted)}
+  .apf-input{height:44px;border:1px solid rgba(47,42,37,.14);border-radius:12px;padding:0 12px;display:flex;align-items:center;color:var(--color-text-main);background:#fff}
+  .apf-input.focus{border-color:var(--color-primary)}
+  .apf-hint{font-size:12px;color:var(--color-primary)}
+  .apf-input .ph{color:var(--color-text-muted)}
+  .btn-primary{height:50px;border-radius:14px;background:var(--color-primary);color:#fff;font-weight:600;display:flex;align-items:center;justify-content:center;margin-top:6px}
+
+  /* bottom nav */
+  .bottom-nav{position:absolute;left:0;right:0;bottom:0;height:72px;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid var(--color-border);display:flex;border-radius:0 0 28px 28px}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--color-text-muted)}
+  .nav-item.active{color:var(--color-primary);font-weight:600}
+  .nav-dot{width:20px;height:20px;border-radius:6px;border:2px solid currentColor}
+  .fab{position:absolute;right:18px;bottom:88px;height:48px;padding:0 18px;border-radius:999px;background:var(--color-primary);color:#fff;font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px;box-shadow:var(--shadow-floating)}
+</style>
+</head>
+<body>
+  <div class="pagehead">
+    <h1>CardNest · 更新後畫面預覽</h1>
+    <p>branch：claude/credit-card-optimization-mjrhQ（已合併進 master）· 以下為靜態示意，使用專案真實樣式</p>
+    <div class="changelog">
+      <b>本次更新重點</b>
+      <ul>
+        <li>① 分期新增「<b>剩餘期數</b>」欄位：中途加入也能正確算出已繳/剩餘總額</li>
+        <li>② 刷卡記錄、訂閱、分期皆可<b>點 ✎ 編輯</b>，不必刪除重建</li>
+        <li>③「今天需要注意」改為<b>本週扣款行事曆</b>：卡片顏色標示、文字為服務名</li>
+        <li>④ 修好原本壞掉的 build、動態問候語、Onboarding 插圖、無障礙與安全區打磨</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="stage">
+
+    <!-- ===== 1. Dashboard ===== -->
+    <div class="phone-wrap">
+      <div class="phone-label">① 總覽 — 本週扣款行事曆</div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="page-header">
+            <div class="page-header-greeting">晚安</div>
+            <div class="page-header-sub">6月7日 星期日</div>
+          </div>
+
+          <div class="hero">
+            <div class="h-label">六月 已使用</div>
+            <div class="h-amount">NT$8,420</div>
+            <div class="h-sub">預算 NT$50,000 · 還剩 NT$41,580</div>
+            <span class="h-pill">六月目前很穩</span>
+          </div>
+
+          <div class="section">
+            <div class="section-header">本週扣款</div>
+            <div class="card week-cal">
+              <div class="week-cal-grid">
+                <div class="week-cal-day"><span class="week-cal-weekday">日</span><span class="week-cal-date">1</span><div class="week-cal-events"></div></div>
+                <div class="week-cal-day"><span class="week-cal-weekday">一</span><span class="week-cal-date">2</span><div class="week-cal-events"><span class="week-cal-chip" style="background:rgba(94,124,226,.1);color:#5E7CE2">Netflix</span></div></div>
+                <div class="week-cal-day"><span class="week-cal-weekday">二</span><span class="week-cal-date">3</span><div class="week-cal-events"></div></div>
+                <div class="week-cal-day"><span class="week-cal-weekday">三</span><span class="week-cal-date">4</span><div class="week-cal-events"><span class="week-cal-chip" style="background:rgba(111,163,124,.12);color:#6FA37C">Spotify</span></div></div>
+                <div class="week-cal-day"><span class="week-cal-weekday">五</span><span class="week-cal-date">6</span><div class="week-cal-events"></div></div>
+                <div class="week-cal-day week-cal-day-today"><span class="week-cal-weekday">六</span><span class="week-cal-date">7</span><div class="week-cal-events"><span class="week-cal-chip" style="background:rgba(212,154,69,.14);color:#D49A45">iPhone</span></div></div>
+                <div class="week-cal-day"><span class="week-cal-weekday">日</span><span class="week-cal-date">8</span><div class="week-cal-events"></div></div>
+              </div>
+              <div class="week-cal-list">
+                <div class="week-cal-item">
+                  <span class="week-cal-item-dot" style="background:#5E7CE2"></span>
+                  <div class="week-cal-item-info"><span class="week-cal-item-name">Netflix</span><span class="week-cal-item-meta">6/2 週一 · 永豐卡</span></div>
+                  <span class="week-cal-item-amount">NT$390</span>
+                </div>
+                <div class="week-cal-item">
+                  <span class="week-cal-item-dot" style="background:#6FA37C"></span>
+                  <div class="week-cal-item-info"><span class="week-cal-item-name">Spotify</span><span class="week-cal-item-meta">6/4 週三 · 玉山卡</span></div>
+                  <span class="week-cal-item-amount">NT$180</span>
+                </div>
+                <div class="week-cal-item">
+                  <span class="week-cal-item-dot" style="background:#D49A45"></span>
+                  <div class="week-cal-item-info"><span class="week-cal-item-name">iPhone 15 分期</span><span class="week-cal-item-meta">6/7 週六 · 中信 LINE Pay</span></div>
+                  <span class="week-cal-item-amount">NT$2,450</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-header">各卡狀態</div>
+            <div class="card">
+              <div class="tx-item">
+                <div class="tx-left"><span class="tx-dot" style="background:#5E7CE2"></span><div class="tx-right" style="align-items:flex-start"><span class="tx-name">永豐卡</span><span class="tx-meta">還有 NT$2,160 可用</span></div></div>
+                <span class="badge badge-installment">接近上限</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bottom-nav">
+            <div class="nav-item active"><span class="nav-dot"></span>總覽</div>
+            <div class="nav-item"><span class="nav-dot"></span>訂閱分期</div>
+            <div class="nav-item"><span class="nav-dot"></span>刷卡</div>
+            <div class="nav-item"><span class="nav-dot"></span>設定</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 2. Plans ===== -->
+    <div class="phone-wrap">
+      <div class="phone-label">② 訂閱分期 — 剩餘期數 + 可編輯</div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="page-title">計畫管理</div>
+
+          <div class="section">
+            <div class="section-header">分期付款</div>
+
+            <div class="card plan-card">
+              <div class="plan-row">
+                <div class="plan-left">
+                  <span class="badge badge-installment" style="align-self:flex-start;margin-bottom:2px">分期</span>
+                  <span class="plan-name">iPhone 15 分期 <span class="new-tag">中途加入</span></span>
+                  <span class="plan-card-name">中信 LINE Pay 卡</span>
+                </div>
+                <div class="plan-right">
+                  <span class="plan-amount">NT$2,450<span class="plan-period"> / 期</span></span>
+                  <span class="plan-next warn">下次 6/15</span>
+                  <div class="plan-installment-btns">
+                    <button class="iconbtn edit">✎</button>
+                    <button class="check-btn">○</button>
+                    <button class="iconbtn">✕</button>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div class="progress-track"><div class="progress-fill" style="width:33%"></div></div>
+                <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">
+                  <span class="plan-progress-text">已付 8/24 期，還剩 16 期</span>
+                  <span class="plan-remaining-total">剩餘總額 NT$39,200</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card plan-card">
+              <div class="plan-row">
+                <div class="plan-left">
+                  <span class="badge badge-primary" style="align-self:flex-start;margin-bottom:2px">訂閱</span>
+                  <span class="plan-name">Netflix</span>
+                  <span class="plan-card-name">永豐卡</span>
+                </div>
+                <div class="plan-right">
+                  <span class="plan-amount">NT$390<span class="plan-period"> / 月</span></span>
+                  <span class="plan-next">下次扣款 6/2，已過</span>
+                  <div class="plan-action-btns">
+                    <button class="iconbtn edit">✎</button>
+                    <button class="iconbtn">✕</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="fab">＋ 新增計畫</div>
+          <div class="bottom-nav">
+            <div class="nav-item"><span class="nav-dot"></span>總覽</div>
+            <div class="nav-item active"><span class="nav-dot"></span>訂閱分期</div>
+            <div class="nav-item"><span class="nav-dot"></span>刷卡</div>
+            <div class="nav-item"><span class="nav-dot"></span>設定</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 3. Add installment form ===== -->
+    <div class="phone-wrap">
+      <div class="phone-label">③ 新增分期 — 總期數 + 剩餘期數</div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen" style="background:#efeae0">
+          <div class="sheet">
+            <div class="sheet-title">新增計畫</div>
+            <div class="apf-field">
+              <span class="apf-label">名稱</span>
+              <div class="apf-input">iPhone 15 分期</div>
+            </div>
+            <div class="apf-field">
+              <span class="apf-label">信用卡</span>
+              <div class="apf-input">中信 LINE Pay 卡 ▾</div>
+            </div>
+            <div class="apf-field">
+              <span class="apf-label">每期金額</span>
+              <div class="apf-input">2450</div>
+            </div>
+            <div class="apf-field-row">
+              <div class="apf-field">
+                <span class="apf-label">總期數</span>
+                <div class="apf-input">24</div>
+              </div>
+              <div class="apf-field">
+                <span class="apf-label">剩餘期數</span>
+                <div class="apf-input focus">16</div>
+                <span class="apf-hint">中途加入可填，預設為整筆未繳</span>
+              </div>
+            </div>
+            <div class="apf-field">
+              <span class="apf-label">下次繳款日</span>
+              <div class="apf-input">2025-06-15</div>
+            </div>
+            <div class="btn-primary">新增計畫</div>
+          </div>
+
+          <div style="margin-top:20px">
+            <div class="phone-label" style="text-align:center;margin-bottom:10px">④ 刷卡記錄 — 每筆可編輯 ✎ / 刪除 ✕</div>
+            <div class="card" style="margin-bottom:12px">
+              <div class="tx-item">
+                <div class="tx-left"><span class="tx-dot" style="background:#A380C6"></span><div><div class="tx-name">全聯</div><div class="tx-meta">6/7 · 玉山卡</div></div></div>
+                <div class="tx-right"><span class="tx-amount">-NT$654</span></div>
+                <div class="tx-actions"><button class="iconbtn edit">✎</button><button class="iconbtn">✕</button></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="tx-item">
+                <div class="tx-left"><span class="tx-dot" style="background:#5E7CE2"></span><div><div class="tx-name">星巴克</div><div class="tx-meta">6/4 · 永豐卡</div></div></div>
+                <div class="tx-right"><span class="tx-amount">-NT$185</span></div>
+                <div class="tx-actions"><button class="iconbtn edit">✎</button><button class="iconbtn">✕</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
