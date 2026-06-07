@@ -15,9 +15,10 @@
   gap: 0;
 }
 
-.onboarding-icon {
-  font-size: 72px;
-  line-height: 1;
+.onboarding-hero {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
   margin-bottom: 24px;
 }
 

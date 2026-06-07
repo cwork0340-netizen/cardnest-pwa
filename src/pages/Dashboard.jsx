@@ -2,20 +2,18 @@ import './Dashboard.css'
 import PageHeader from '../components/PageHeader'
 import SectionHeader from '../components/SectionHeader'
 import HeroStatusCard from '../components/HeroStatusCard'
-import NoticeItem from '../components/NoticeItem'
+import WeekCalendar from '../components/WeekCalendar'
 import BudgetCard from '../components/BudgetCard'
 import CreditCardSummaryCard from '../components/CreditCardSummaryCard'
 import CategoryBreakdownCard from '../components/CategoryBreakdownCard'
 import TrendChartCard from '../components/TrendChartCard'
-import EmptyState from '../components/EmptyState'
 
-export default function Dashboard({ currentMonth, notices, cards, categories, trends }) {
+export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays, cards, categories, trends }) {
   return (
     <div className="dashboard">
       <PageHeader
-        greeting="早安，Chia"
-        month={currentMonth.name}
-        lastSync={currentMonth.lastSync}
+        greeting={greeting}
+        dateLabel={dateLabel}
       />
 
       <HeroStatusCard
@@ -30,22 +28,8 @@ export default function Dashboard({ currentMonth, notices, cards, categories, tr
       />
 
       <div className="section" style={{ marginTop: 'var(--section-gap)' }}>
-        <SectionHeader title="今天需要注意" />
-        {notices.length === 0 ? (
-          <EmptyState icon="✅" title="近期沒有即將扣款" description="目前訂閱都還早，安心" />
-        ) : (
-          notices.map((n) => (
-            <div className="card" key={n.id}>
-              <NoticeItem
-                name={n.name}
-                card={n.card}
-                amount={n.amount}
-                daysLeft={n.daysLeft}
-                status={n.status}
-              />
-            </div>
-          ))
-        )}
+        <SectionHeader title="本週扣款" />
+        <WeekCalendar days={weekDays} />
       </div>
 
       <div className="section">

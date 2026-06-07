@@ -4,7 +4,12 @@ export default function Onboarding({ onStart }) {
   return (
     <div className="onboarding">
       <div className="onboarding-inner">
-        <div className="onboarding-icon">🐻</div>
+        <img
+          className="onboarding-hero"
+          src="/hero-illustration.png"
+          alt=""
+          aria-hidden="true"
+        />
         <h1 className="onboarding-title">CardNest</h1>
         <p className="onboarding-subtitle">信用卡帳務小窩</p>
         <p className="onboarding-desc">

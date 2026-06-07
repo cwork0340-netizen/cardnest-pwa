@@ -6,8 +6,6 @@ import Plans from './pages/Plans'
 import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
 import Onboarding from './pages/Onboarding'
-import { loadAuthState, saveAuthState, isTokenValid, getUserInfo, requestToken, revokeToken, whenGoogleReady } from './services/googleAuth'
-import { findOrCreateSpreadsheet, syncToSheets, loadFromSheets, hasSheetData } from './services/sheetsSync'
 
 const STORAGE_KEY = 'cardnest_v1'
 
@@ -21,6 +19,7 @@ function loadStorage() {
 }
 
 const MONTH_NAMES = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月']
+const WEEKDAY_NAMES = ['日','一','二','三','四','五','六']
 const CATEGORY_COLORS = {
   餐飲: '#5E7CE2', 購物: '#D49A45', 訂閱: '#6FA37C',
   日常: '#A380C6', 交通: '#D96B5F', 娛樂: '#D49A45', 其他: '#AAA198',
@@ -30,6 +29,62 @@ const TREND_BASE = [
   { month: '2月', amount: 25380 }, { month: '3月', amount: 36120 },
   { month: '4月', amount: 33880 }, { month: '5月', amount: 39140 },
 ]
+
+function getGreeting(hour) {
+  if (hour < 5) return '夜深了，記得早點休息'
+  if (hour < 11) return '早安'
+  if (hour < 13) return '午安'
+  if (hour < 18) return '午後好'
+  return '晚安'
+}
+
+// "6/15" → 當前年份的 Date 物件
+function parseMonthDay(md) {
+  if (!md) return null
+  const [m, d] = md.split('/').map(Number)
+  if (!m || !d) return null
+  return new Date(new Date().getFullYear(), m - 1, d)
+}
+
+// 建立本週（週日起算）七天的扣款行事曆，事件以卡片顏色標示
+function buildWeekDays(plans, cards) {
+  const colorByCard = {}
+  cards.forEach(c => { colorByCard[c.name] = c.color })
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const weekStart = new Date(today)
+  weekStart.setDate(today.getDate() - today.getDay()) // 週日
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 7)
+
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(weekStart)
+    date.setDate(weekStart.getDate() + i)
+    return { date, isToday: date.getTime() === today.getTime(), events: [] }
+  })
+
+  plans.forEach(p => {
+    const stillActive = p.type === 'subscription'
+      ? (p.active ?? true)
+      : (p.paidCount < p.totalCount)
+    if (!stillActive) return
+    const dt = parseMonthDay(p.nextDate)
+    if (!dt) return
+    dt.setHours(0, 0, 0, 0)
+    if (dt < weekStart || dt >= weekEnd) return
+    const idx = Math.round((dt - weekStart) / 86400000)
+    days[idx].events.push({
+      id: p.id,
+      name: p.name,
+      card: p.card,
+      amount: p.amount,
+      color: colorByCard[p.card] ?? '#5E7CE2',
+    })
+  })
+
+  return days
+}
 
 function computeDashboard(transactions, cards, fixedMonthlyAmount = 0) {
   const totalSpent = transactions.reduce((s, tx) => s + tx.amount, 0)
@@ -71,7 +126,6 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0) {
   const estimatedTotal = totalSpent + fixedMonthlyAmount
   const currentMonth = {
     name: monthName,
-    lastSync: '剛剛',
     total: totalSpent,
     budget: totalBudget,
     remaining,
@@ -95,53 +149,9 @@ export default function App() {
   const [transactions, setTransactions] = useState(stored?.transactions ?? [])
   const [fxSettings, setFxSettings] = useState(stored?.fxSettings ?? { usdRate: 32.5, feeRate: 1.5 })
 
-  // Google auth state
-  const [googleUser, setGoogleUser] = useState(() => loadAuthState())
-  const [syncStatus, setSyncStatus] = useState('idle') // 'idle' | 'syncing' | 'done' | 'error'
-  const googleUserRef = useRef(googleUser)
-  useEffect(() => { googleUserRef.current = googleUser }, [googleUser])
-
-  // Sync control refs
-  const isFirstRender = useRef(true)
-  const loadingFromSheets = useRef(false)
-  const syncDebounce = useRef(null)
-
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings }))
   }, [cards, plans, transactions, fxSettings])
-
-  // Auto-sync to Sheets on data change
-  useEffect(() => {
-    if (isFirstRender.current) { isFirstRender.current = false; return }
-    if (loadingFromSheets.current) return
-    const gUser = googleUserRef.current
-    if (!isTokenValid(gUser)) return
-
-    clearTimeout(syncDebounce.current)
-    syncDebounce.current = setTimeout(async () => {
-      setSyncStatus('syncing')
-      try {
-        await syncToSheets(gUser.accessToken, gUser.sheetId, { cards, plans, transactions, fxSettings })
-        setSyncStatus('done')
-      } catch {
-        setSyncStatus('error')
-      }
-    }, 1500)
-  }, [cards, plans, transactions, fxSettings])
-
-  // Silent token refresh on mount if token expired
-  useEffect(() => {
-    const auth = loadAuthState()
-    if (!auth || isTokenValid(auth)) return
-    whenGoogleReady(() => {
-      requestToken((response) => {
-        if (response.error) return
-        const newAuth = { ...auth, accessToken: response.access_token, expiresAt: Date.now() + response.expires_in * 1000 }
-        saveAuthState(newAuth)
-        setGoogleUser(newAuth)
-      }, '')
-    })
-  }, [])
 
   const showToast = useCallback((message) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -155,76 +165,9 @@ export default function App() {
     toastTimer.current = setTimeout(() => setToast(null), 5000)
   }, [])
 
-  // Google auth handlers
-  const handleGoogleLogin = useCallback(() => {
-    if (!window.google?.accounts?.oauth2) {
-      showToast('Google 登入載入中，請稍後再試')
-      return
-    }
-    requestToken(async (response) => {
-      if (response.error) {
-        if (response.error !== 'popup_closed_by_user') {
-          showToast(`Google 登入失敗：${response.error}`)
-        }
-        return
-      }
-      try {
-        const accessToken = response.access_token
-        const expiresAt = Date.now() + response.expires_in * 1000
-        const userInfo = await getUserInfo(accessToken)
-        const existingSheetId = loadAuthState()?.sheetId ?? null
-        const sheetId = await findOrCreateSpreadsheet(accessToken, existingSheetId)
-        const auth = { email: userInfo.email, accessToken, expiresAt, sheetId }
-        saveAuthState(auth)
-        setGoogleUser(auth)
-
-        const sheetsData = await loadFromSheets(accessToken, sheetId)
-        if (hasSheetData(sheetsData)) {
-          loadingFromSheets.current = true
-          setCards(sheetsData.cards)
-          setPlans(sheetsData.plans)
-          setTransactions(sheetsData.transactions)
-          setFxSettings(sheetsData.fxSettings)
-          setTimeout(() => { loadingFromSheets.current = false }, 0)
-          showToast('已從 Google Sheets 同步')
-        } else {
-          const snapCards = cards, snapPlans = plans, snapTx = transactions, snapFx = fxSettings
-          await syncToSheets(accessToken, sheetId, { cards: snapCards, plans: snapPlans, transactions: snapTx, fxSettings: snapFx })
-          setSyncStatus('done')
-          showToast('資料已備份到 Google Sheets')
-        }
-      } catch {
-        showToast('Google 連結失敗，請稍後再試')
-      }
-    })
-  }, [showToast, cards, plans, transactions, fxSettings])
-
-  const handleGoogleLogout = useCallback(() => {
-    const auth = loadAuthState()
-    revokeToken(auth?.accessToken)
-    const kept = { email: auth?.email, sheetId: auth?.sheetId, accessToken: null, expiresAt: null }
-    saveAuthState(kept)
-    setGoogleUser(kept)
-    setSyncStatus('idle')
-    showToast('已中斷 Google 連結')
-  }, [showToast])
-
-  const handleGoogleSync = useCallback(async () => {
-    const gUser = googleUserRef.current
-    if (!isTokenValid(gUser)) { showToast('請重新連結 Google 帳號'); return }
-    setSyncStatus('syncing')
-    try {
-      await syncToSheets(gUser.accessToken, gUser.sheetId, { cards, plans, transactions, fxSettings })
-      setSyncStatus('done')
-      showToast('同步完成')
-    } catch {
-      setSyncStatus('error')
-      showToast('同步失敗，請稍後再試')
-    }
-  }, [cards, plans, transactions, fxSettings, showToast])
-
   // Plans handlers
   const handleAddPlan = useCallback((plan) => setPlans(p => [plan, ...p]), [])
+  const handleUpdatePlan = useCallback((updated) => setPlans(p => p.map(pl => pl.id === updated.id ? updated : pl)), [])
   const handleDeletePlan = useCallback((id) => {
     setPlans(prev => {
       const idx = prev.findIndex(x => x.id === id)
@@ -244,6 +187,7 @@ export default function App() {
 
   // Transactions handlers
   const handleAddTransaction = useCallback((tx) => setTransactions(p => [tx, ...p]), [])
+  const handleUpdateTransaction = useCallback((updated) => setTransactions(p => p.map(t => t.id === updated.id ? updated : t)), [])
   const handleDeleteTransaction = useCallback((id) => {
     setTransactions(prev => {
       const idx = prev.findIndex(x => x.id === id)
@@ -279,15 +223,19 @@ export default function App() {
     .reduce((s, p) => s + p.amount, 0)
 
   const { currentMonth, enrichedCards, categories, trends } = computeDashboard(transactions, cards, fixedMonthlyAmount)
-  const notices = plans
-    .filter(p => p.daysLeft <= 7)
-    .sort((a, b) => a.daysLeft - b.daysLeft)
+  const weekDays = buildWeekDays(plans, enrichedCards)
+
+  const now = new Date()
+  const greeting = getGreeting(now.getHours())
+  const dateLabel = `${now.getMonth() + 1}月${now.getDate()}日 星期${WEEKDAY_NAMES[now.getDay()]}`
 
   const pages = {
     dashboard: (
       <Dashboard
+        greeting={greeting}
+        dateLabel={dateLabel}
         currentMonth={currentMonth}
-        notices={notices}
+        weekDays={weekDays}
         cards={enrichedCards}
         categories={categories}
         trends={trends}
@@ -300,6 +248,7 @@ export default function App() {
         cards={cards}
         fxSettings={fxSettings}
         onAddPlan={handleAddPlan}
+        onUpdatePlan={handleUpdatePlan}
         onDeletePlan={handleDeletePlan}
         onMarkPaid={handleMarkPaid}
       />
@@ -310,6 +259,7 @@ export default function App() {
         transactions={transactions}
         cards={cards}
         onAddTransaction={handleAddTransaction}
+        onUpdateTransaction={handleUpdateTransaction}
         onDeleteTransaction={handleDeleteTransaction}
       />
     ),
@@ -323,11 +273,6 @@ export default function App() {
         onSaveCard={handleSaveCard}
         onDeleteCard={handleDeleteCard}
         onClearData={handleClearData}
-        googleUser={googleUser}
-        syncStatus={syncStatus}
-        onGoogleLogin={handleGoogleLogin}
-        onGoogleLogout={handleGoogleLogout}
-        onGoogleSync={handleGoogleSync}
       />
     ),
   }

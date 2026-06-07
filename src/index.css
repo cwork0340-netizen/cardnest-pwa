@@ -244,3 +244,44 @@ input, select, textarea {
   background: var(--color-border);
   margin: 12px 0;
 }
+
+/* Floating action button (shared by Plans / Transactions) */
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  height: 52px;
+  padding: 0 20px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: #FFFFFF;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: var(--shadow-floating);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 90;
+  transition: transform 80ms ease;
+}
+
+.fab:active {
+  transform: scale(0.96);
+}
+
+/* Keyboard focus visibility */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

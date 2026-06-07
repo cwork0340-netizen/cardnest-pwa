@@ -1,0 +1,125 @@
+.week-cal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.week-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.week-cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.week-cal-weekday {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.week-cal-date {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.week-cal-day-today .week-cal-weekday {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.week-cal-day-today .week-cal-date {
+  background: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.week-cal-events {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.week-cal-chip {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 2px 3px;
+  border-radius: 5px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.week-cal-empty {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  text-align: center;
+  padding: 4px 0 2px;
+}
+
+/* agenda list */
+.week-cal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.week-cal-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.week-cal-item-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.week-cal-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.week-cal-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.week-cal-item-meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.week-cal-item-amount {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}

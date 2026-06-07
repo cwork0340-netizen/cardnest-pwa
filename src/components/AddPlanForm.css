@@ -45,6 +45,16 @@
   gap: 6px;
 }
 
+.apf-field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.apf-field-row .apf-field {
+  flex: 1;
+  min-width: 0;
+}
+
 .apf-label {
   font-size: 13px;
   font-weight: 600;

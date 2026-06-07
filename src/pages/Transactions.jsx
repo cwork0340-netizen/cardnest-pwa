@@ -6,12 +6,24 @@ import BottomSheet from '../components/BottomSheet'
 import QuickTransactionForm from '../components/QuickTransactionForm'
 import EmptyState from '../components/EmptyState'
 
-export default function Transactions({ showToast, transactions, cards, onAddTransaction, onDeleteTransaction }) {
+function formatDisplayDate(isoDate) {
+  const [, m, d] = isoDate.split('-')
+  return `${Number(m)}/${Number(d)}`
+}
+
+export default function Transactions({ showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction }) {
   const [showSheet, setShowSheet] = useState(false)
+  const [editingTx, setEditingTx] = useState(null)
+
+  const sheetOpen = showSheet || !!editingTx
+
+  function closeSheet() {
+    setShowSheet(false)
+    setEditingTx(null)
+  }
 
   function handleSubmit({ amount, category, card, date, note }) {
-    const newTx = {
-      id: crypto.randomUUID(),
+    const fields = {
       name: note.trim() || category,
       category,
       card,
@@ -19,19 +31,19 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
       date: formatDisplayDate(date),
       note,
     }
-    onAddTransaction(newTx)
-    showToast('已幫你記好了')
-    setShowSheet(false)
+    if (editingTx) {
+      onUpdateTransaction({ ...editingTx, ...fields })
+      showToast('記錄已更新')
+    } else {
+      onAddTransaction({ id: crypto.randomUUID(), ...fields })
+      showToast('已幫你記好了')
+    }
+    closeSheet()
   }
 
   function handleDelete(id) {
     onDeleteTransaction(id)
     showToast('已從清單移除')
-  }
-
-  function formatDisplayDate(isoDate) {
-    const [, m, d] = isoDate.split('-')
-    return `${Number(m)}/${Number(d)}`
   }
 
   return (
@@ -51,7 +63,7 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
         ) : (
           transactions.map((tx) => (
             <div className="card" key={tx.id}>
-              <TransactionItem tx={tx} onDelete={handleDelete} />
+              <TransactionItem tx={tx} onDelete={handleDelete} onEdit={setEditingTx} />
             </div>
           ))
         )}
@@ -67,14 +79,15 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
       </button>
 
       <BottomSheet
-        open={showSheet}
-        onClose={() => setShowSheet(false)}
-        title="記一筆"
+        open={sheetOpen}
+        onClose={closeSheet}
+        title={editingTx ? '修改記錄' : '記一筆'}
       >
         <QuickTransactionForm
           onSubmit={handleSubmit}
-          onClose={() => setShowSheet(false)}
+          onClose={closeSheet}
           cards={cards}
+          initialValues={editingTx}
         />
       </BottomSheet>
     </div>

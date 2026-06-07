@@ -40,29 +40,3 @@
   color: var(--color-primary);
   box-shadow: 0 2px 8px rgba(72, 56, 38, 0.06);
 }
-
-/* FAB */
-.fab {
-  position: fixed;
-  right: 20px;
-  bottom: 88px;
-  height: 52px;
-  padding: 0 20px;
-  border-radius: 999px;
-  background: var(--color-primary);
-  color: #FFFFFF;
-  font-size: 15px;
-  font-weight: 600;
-  box-shadow: var(--shadow-floating);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 90;
-  border: none;
-  cursor: pointer;
-  transition: transform 80ms ease;
-}
-
-.fab:active {
-  transform: scale(0.96);
-}

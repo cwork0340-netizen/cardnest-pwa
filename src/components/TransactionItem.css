@@ -60,6 +60,14 @@
   color: var(--color-text-muted);
 }
 
+.tx-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.tx-edit-btn,
 .tx-delete-btn {
   width: 28px;
   height: 28px;
@@ -74,6 +82,11 @@
   cursor: pointer;
   flex-shrink: 0;
   transition: color 160ms ease, background 160ms ease;
+}
+
+.tx-edit-btn:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 .tx-delete-btn:hover {

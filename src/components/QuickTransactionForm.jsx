@@ -11,12 +11,21 @@ function todayString() {
   return `${yyyy}-${mm}-${dd}`
 }
 
-export default function QuickTransactionForm({ onSubmit, onClose, cards }) {
-  const [amount, setAmount] = useState('')
-  const [category, setCategory] = useState(CATEGORIES[0])
-  const [card, setCard] = useState(cards[0]?.name ?? '')
-  const [date, setDate] = useState(todayString())
-  const [note, setNote] = useState('')
+// "6/7" → "2025-06-07"（補上當前年份，供 date input 預填）
+function mdToIso(md) {
+  if (!md) return todayString()
+  const [m, d] = md.split('/').map(Number)
+  const y = new Date().getFullYear()
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+export default function QuickTransactionForm({ onSubmit, onClose, cards, initialValues = null }) {
+  const isEditing = !!initialValues
+  const [amount, setAmount] = useState(initialValues ? String(initialValues.amount) : '')
+  const [category, setCategory] = useState(initialValues?.category ?? CATEGORIES[0])
+  const [card, setCard] = useState(initialValues?.card ?? cards[0]?.name ?? '')
+  const [date, setDate] = useState(initialValues ? mdToIso(initialValues.date) : todayString())
+  const [note, setNote] = useState(initialValues?.note ?? '')
   const [error, setError] = useState('')
 
   function handleSubmit(e) {
@@ -95,7 +104,7 @@ export default function QuickTransactionForm({ onSubmit, onClose, cards }) {
       </div>
 
       <div className="qtf-actions">
-        <button type="submit" className="button-primary">記一筆</button>
+        <button type="submit" className="button-primary">{isEditing ? '儲存修改' : '記一筆'}</button>
         <button type="button" className="qtf-cancel" onClick={onClose}>取消</button>
       </div>
     </form>

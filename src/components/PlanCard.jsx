@@ -28,7 +28,7 @@ function AmountDisplay({ plan }) {
   )
 }
 
-export default function PlanCard({ plan, onMarkPaid, onDelete }) {
+export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
   const isSubscription = plan.type === 'subscription'
 
   if (isSubscription) {
@@ -49,7 +49,10 @@ export default function PlanCard({ plan, onMarkPaid, onDelete }) {
               下次扣款 {plan.nextDate}，
               {plan.daysLeft === 0 ? '今天' : plan.daysLeft === 1 ? '明天' : `${plan.daysLeft} 天後`}
             </span>
-            <button className="plan-delete-btn" onClick={() => onDelete(plan.id)} aria-label="刪除">✕</button>
+            <div className="plan-action-btns">
+              <button className="plan-edit-btn" onClick={() => onEdit(plan)} aria-label="編輯">✎</button>
+              <button className="plan-delete-btn" onClick={() => onDelete(plan.id)} aria-label="刪除">✕</button>
+            </div>
           </div>
         </div>
       </div>
@@ -77,6 +80,7 @@ export default function PlanCard({ plan, onMarkPaid, onDelete }) {
             下次 {plan.nextDate}
           </span>
           <div className="plan-installment-btns">
+            <button className="plan-edit-btn" onClick={() => onEdit(plan)} aria-label="編輯">✎</button>
             <button
               className={`plan-check-btn${plan.paid ? ' plan-check-btn-done' : ''}`}
               onClick={() => onMarkPaid(plan.id)}
