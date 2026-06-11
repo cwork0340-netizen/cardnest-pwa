@@ -1,4 +1,5 @@
 import './PlanCard.css'
+import SegmentedProgress from './SegmentedProgress'
 
 function daysLeftColor(daysLeft) {
   if (daysLeft <= 1) return 'var(--color-danger)'
@@ -60,7 +61,6 @@ export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
   }
 
   // installment
-  const progress = plan.paidCount / plan.totalCount
   const remaining = plan.totalCount - plan.paidCount
 
   return (
@@ -93,9 +93,7 @@ export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
         </div>
       </div>
       <div className="plan-progress-area">
-        <div className="progress-track">
-          <div className="progress-fill progress-fill-safe" style={{ width: `${progress * 100}%` }} />
-        </div>
+        <SegmentedProgress paid={plan.paidCount} total={plan.totalCount} />
         <span className="plan-progress-text">已付 {plan.paidCount}/{plan.totalCount} 期，還剩 {remaining} 期</span>
         <span className="plan-remaining-total">
           剩餘總額 {'NT$' + (plan.amount * remaining).toLocaleString()}

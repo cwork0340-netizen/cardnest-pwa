@@ -52,10 +52,8 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
   )
   const [nextDate, setNextDate] = useState(initialValues ? mdToIso(initialValues.nextDate) : todayString())
   const [totalCount, setTotalCount] = useState(initialValues?.totalCount ? String(initialValues.totalCount) : '')
-  const [remainingCount, setRemainingCount] = useState(
-    initialValues?.totalCount != null
-      ? String(initialValues.totalCount - initialValues.paidCount)
-      : ''
+  const [paidCountInput, setPaidCountInput] = useState(
+    initialValues?.paidCount != null ? String(initialValues.paidCount) : ''
   )
   const [error, setError] = useState('')
 
@@ -74,12 +72,12 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
     if (type === 'installment') {
       total = Number(totalCount)
       if (!total || total < 2) { setError('分期總期數至少 2 期'); return }
-      const remaining = remainingCount === '' ? total : Number(remainingCount)
-      if (!remaining || remaining < 1 || remaining > total) {
-        setError('剩餘期數需介於 1 與總期數之間')
+      const paid = paidCountInput === '' ? 0 : Number(paidCountInput)
+      if (!Number.isInteger(paid) || paid < 0 || paid > total) {
+        setError('已繳期數需介於 0 與總期數之間')
         return
       }
-      paidCount = total - remaining
+      paidCount = paid
     }
     setError('')
 
@@ -211,16 +209,16 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
               />
             </div>
             <div className="apf-field">
-              <label className="apf-label">剩餘期數</label>
+              <label className="apf-label">已繳期數</label>
               <input
                 className="apf-input"
                 type="number"
                 inputMode="numeric"
-                placeholder={totalCount || '同總期數'}
-                value={remainingCount}
-                onChange={(e) => setRemainingCount(e.target.value)}
+                placeholder="0"
+                value={paidCountInput}
+                onChange={(e) => setPaidCountInput(e.target.value)}
               />
-              <span className="apf-fx-hint">中途加入可填，預設為整筆未繳</span>
+              <span className="apf-fx-hint">中途加入可填已繳幾期，預設為 0</span>
             </div>
           </div>
         )}

@@ -80,8 +80,8 @@ describe('刷卡記錄：新增 / 編輯 / 刪除', () => {
   })
 })
 
-describe('分期計畫：剩餘期數', () => {
-  it('新增分期時填剩餘期數，會換算已繳期數與剩餘總額', () => {
+describe('分期計畫：已繳期數', () => {
+  it('新增分期時填已繳期數，會算出剩餘期數與剩餘總額', () => {
     seed()
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: '訂閱分期' }))
@@ -91,11 +91,11 @@ describe('分期計畫：剩餘期數', () => {
     fireEvent.click(within(form).getByRole('button', { name: '分期' }))
 
     const inputs = form.querySelectorAll('.apf-input')
-    // [0]名稱 [1]信用卡 [2]金額 [3]總期數 [4]剩餘期數 [5]日期
+    // [0]名稱 [1]信用卡 [2]金額 [3]總期數 [4]已繳期數 [5]日期
     fireEvent.change(inputs[0], { target: { value: '手機分期' } })
     fireEvent.change(inputs[2], { target: { value: '1000' } })
     fireEvent.change(inputs[3], { target: { value: '12' } })
-    fireEvent.change(inputs[4], { target: { value: '4' } })
+    fireEvent.change(inputs[4], { target: { value: '8' } })
 
     fireEvent.click(within(form).getByRole('button', { name: '新增計畫' }))
 
@@ -104,7 +104,7 @@ describe('分期計畫：剩餘期數', () => {
     expect(screen.getByText(/剩餘總額.*NT\$4,000/)).toBeInTheDocument()
   })
 
-  it('剩餘期數留空時預設為整筆未繳（已付 0）', () => {
+  it('已繳期數留空時預設為整筆未繳（已付 0）', () => {
     seed()
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: '訂閱分期' }))
@@ -121,7 +121,7 @@ describe('分期計畫：剩餘期數', () => {
     expect(screen.getByText(/已付 0\/6 期/)).toBeInTheDocument()
   })
 
-  it('編輯既有分期可改剩餘期數', () => {
+  it('編輯既有分期可改已繳期數', () => {
     seed({
       plans: [{
         id: 'p1', type: 'installment', name: 'iPhone 分期', card: '永豐卡',
@@ -136,9 +136,9 @@ describe('分期計畫：剩餘期數', () => {
     fireEvent.click(screen.getByRole('button', { name: '編輯' }))
     const form = sheet()
     const inputs = form.querySelectorAll('.apf-input')
-    // 剩餘期數欄位（index 4）此時應預填為 4
-    expect(inputs[4].value).toBe('4')
-    fireEvent.change(inputs[4], { target: { value: '2' } })
+    // 已繳期數欄位（index 4）此時應預填為 8
+    expect(inputs[4].value).toBe('8')
+    fireEvent.change(inputs[4], { target: { value: '10' } })
     fireEvent.click(within(form).getByRole('button', { name: '儲存修改' }))
 
     expect(screen.getByText(/已付 10\/12 期/)).toBeInTheDocument()
@@ -174,5 +174,48 @@ describe('本週扣款行事曆', () => {
     })
     render(<App />)
     expect(screen.getByText(/本週沒有預定扣款/)).toBeInTheDocument()
+  })
+})
+
+describe('每月必繳清單', () => {
+  it('可新增項目、標記繳清、再刪除', () => {
+    seed()
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+
+    // 空狀態
+    expect(screen.getByText('還沒有必繳項目')).toBeInTheDocument()
+
+    // 新增
+    fireEvent.click(screen.getByRole('button', { name: '新增項目' }))
+    const form = sheet()
+    const inputs = form.querySelectorAll('.clf-input')
+    fireEvent.change(inputs[0], { target: { value: '房租' } })
+    fireEvent.change(inputs[1], { target: { value: '15000' } })
+    fireEvent.click(within(form).getByRole('button', { name: '加入清單' }))
+
+    expect(screen.getByText('房租')).toBeInTheDocument()
+    // 金額同時出現在項目與「尚未繳清」摘要
+    expect(screen.getAllByText('NT$15,000').length).toBeGreaterThan(0)
+    expect(screen.getByText('0/1 已繳')).toBeInTheDocument()
+
+    // 標記繳清 → 進度與剩餘金額更新
+    fireEvent.click(screen.getByRole('button', { name: '標記已繳' }))
+    expect(screen.getByText('1/1 已繳')).toBeInTheDocument()
+
+    // 刪除
+    fireEvent.click(screen.getByRole('button', { name: '刪除' }))
+    expect(screen.getByText('還沒有必繳項目')).toBeInTheDocument()
+  })
+
+  it('跨月開啟時自動清空勾選狀態', () => {
+    seed({
+      checklist: [{ id: 'cl1', name: '水電費', amount: 2000, day: 10, done: true }],
+      checklistMonth: '2000-0', // 久遠的月份，模擬跨月
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    // done 應被重置為未繳
+    expect(screen.getByText('0/1 已繳')).toBeInTheDocument()
   })
 })

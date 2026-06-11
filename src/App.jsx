@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import Plans from './pages/Plans'
 import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
+import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 
 const STORAGE_KEY = 'cardnest_v1'
@@ -141,6 +142,13 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0) {
 export default function App() {
   const stored = loadStorage()
 
+  // 必繳清單「月初自動重置」：跨月開啟時把所有項目恢復為未繳
+  const currentMonthKey = `${new Date().getFullYear()}-${new Date().getMonth()}`
+  const storedChecklist = stored?.checklist ?? []
+  const initialChecklist = stored?.checklistMonth === currentMonthKey
+    ? storedChecklist
+    : storedChecklist.map(i => ({ ...i, done: false }))
+
   const [tab, setTab] = useState('dashboard')
   const [toast, setToast] = useState(null) // { message, onUndo? }
   const toastTimer = useRef(null)
@@ -148,10 +156,12 @@ export default function App() {
   const [plans, setPlans] = useState(stored?.plans ?? [])
   const [transactions, setTransactions] = useState(stored?.transactions ?? [])
   const [fxSettings, setFxSettings] = useState(stored?.fxSettings ?? { usdRate: 32.5, feeRate: 1.5 })
+  const [checklist, setChecklist] = useState(initialChecklist)
+  const [checklistMonth] = useState(currentMonthKey)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings }))
-  }, [cards, plans, transactions, fxSettings])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth }))
+  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth])
 
   const showToast = useCallback((message) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -215,6 +225,12 @@ export default function App() {
     })
   }, [showUndoToast])
 
+  // Checklist handlers（每月必繳清單）
+  const handleAddChecklistItem = useCallback((item) => setChecklist(p => [...p, item]), [])
+  const handleUpdateChecklistItem = useCallback((updated) => setChecklist(p => p.map(i => i.id === updated.id ? updated : i)), [])
+  const handleToggleChecklistItem = useCallback((id) => setChecklist(p => p.map(i => i.id === id ? { ...i, done: !i.done } : i)), [])
+  const handleDeleteChecklistItem = useCallback((id) => setChecklist(p => p.filter(i => i.id !== id)), [])
+
   // Cards handlers
   const handleAddCard = useCallback((card) => setCards(p => [...p, card]), [])
   const handleSaveCard = useCallback((updated) => setCards(p => p.map(c => c.id === updated.id ? updated : c)), [])
@@ -225,6 +241,7 @@ export default function App() {
     setCards([])
     setPlans([])
     setTransactions([])
+    setChecklist([])
     setFxSettings({ usdRate: 32.5, feeRate: 1.5 })
     setTab('dashboard')
   }, [])
@@ -272,6 +289,17 @@ export default function App() {
         onAddTransaction={handleAddTransaction}
         onUpdateTransaction={handleUpdateTransaction}
         onDeleteTransaction={handleDeleteTransaction}
+      />
+    ),
+    checklist: (
+      <Checklist
+        showToast={showToast}
+        items={checklist}
+        monthName={currentMonth.name}
+        onAdd={handleAddChecklistItem}
+        onToggle={handleToggleChecklistItem}
+        onUpdate={handleUpdateChecklistItem}
+        onDelete={handleDeleteChecklistItem}
       />
     ),
     settings: (

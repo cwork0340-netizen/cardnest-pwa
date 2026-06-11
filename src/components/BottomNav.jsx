@@ -36,6 +36,17 @@ const tabs = [
     ),
   },
   {
+    id: 'checklist',
+    label: '必繳',
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <rect x="4" y="3" width="14" height="16" rx="3" stroke="currentColor" strokeWidth="1.8"/>
+        <path d="M7.5 9l1.6 1.6L12 7.7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M7.5 14h7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
     id: 'settings',
     label: '設定',
     icon: (

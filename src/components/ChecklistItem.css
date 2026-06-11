@@ -1,0 +1,101 @@
+.cl-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cl-item-done .cl-name {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.cl-check {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 2px solid var(--color-border-strong);
+  background: transparent;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.cl-check:active {
+  transform: scale(0.88);
+}
+
+.cl-check-done {
+  background: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.cl-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cl-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.cl-day {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.cl-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.cl-amount {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.cl-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cl-edit,
+.cl-delete {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+.cl-edit:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.cl-delete:hover {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
