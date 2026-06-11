@@ -183,7 +183,18 @@ export default function App() {
       return next
     })
   }, [showUndoToast])
-  const handleMarkPaid = useCallback((id) => setPlans(p => p.map(x => x.id === id ? { ...x, paid: !x.paid } : x)), [])
+  const handleMarkPaid = useCallback((id) => {
+    setPlans(p => p.map(x => {
+      if (x.id !== id) return x
+      // 訂閱沒有期數概念，只切換已付狀態
+      if (x.totalCount == null) return { ...x, paid: !x.paid }
+      // 分期：標記已付時前進一期，取消時退回一期，並夾在 0 ~ 總期數之間
+      const paidCount = x.paid
+        ? Math.max(0, (x.paidCount ?? 0) - 1)
+        : Math.min(x.totalCount, (x.paidCount ?? 0) + 1)
+      return { ...x, paid: !x.paid, paidCount }
+    }))
+  }, [])
 
   // Transactions handlers
   const handleAddTransaction = useCallback((tx) => setTransactions(p => [tx, ...p]), [])
