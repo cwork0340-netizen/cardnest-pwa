@@ -218,4 +218,21 @@ describe('每月必繳清單', () => {
     // done 應被重置為未繳
     expect(screen.getByText('0/1 已繳')).toBeInTheDocument()
   })
+
+  it('未繳清單金額計入首頁本月固定扣款', () => {
+    const d = new Date()
+    seed({
+      transactions: [{ id: 't1', name: '午餐', card: '永豐卡', category: '餐飲', amount: 1000, date: todayMD() }],
+      checklist: [
+        { id: 'cl1', name: '房租', amount: 3000, day: 5, done: false },
+        { id: 'cl2', name: '已繳項', amount: 500, day: 6, done: true },
+      ],
+      checklistMonth: `${d.getFullYear()}-${d.getMonth()}`, // 當月，避免觸發月初重置
+    })
+    render(<App />)
+    // 只有未繳的 3000 計入固定扣款，已繳的 500 不算
+    const breakdown = document.querySelector('.hero-card-breakdown')
+    expect(breakdown.textContent).toContain('本月固定扣款 NT$3,000')
+    expect(breakdown.textContent).toContain('本月預估帳單 NT$4,000')
+  })
 })

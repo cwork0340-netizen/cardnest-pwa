@@ -246,9 +246,14 @@ export default function App() {
     setTab('dashboard')
   }, [])
 
-  const fixedMonthlyAmount = plans
+  const planFixedAmount = plans
     .filter(p => p.daysLeft <= 30 && (p.type === 'subscription' || (p.type === 'installment' && !p.paid)))
     .reduce((s, p) => s + p.amount, 0)
+  // 必繳清單中尚未繳清的項目也算本月固定支出
+  const checklistDue = checklist
+    .filter(i => !i.done)
+    .reduce((s, i) => s + Number(i.amount), 0)
+  const fixedMonthlyAmount = planFixedAmount + checklistDue
 
   const { currentMonth, enrichedCards, categories, trends } = computeDashboard(transactions, cards, fixedMonthlyAmount)
   const weekDays = buildWeekDays(plans, enrichedCards)
