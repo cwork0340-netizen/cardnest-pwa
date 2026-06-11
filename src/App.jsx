@@ -183,7 +183,15 @@ export default function App() {
       return next
     })
   }, [showUndoToast])
-  const handleMarkPaid = useCallback((id) => setPlans(p => p.map(x => x.id === id ? { ...x, paid: !x.paid } : x)), [])
+  const handleMarkPaid = useCallback((id) => {
+    setPlans(p => p.map(x => {
+      if (x.id !== id) return x
+      const newPaidCount = x.paid
+        ? Math.max(0, (x.paidCount ?? 0) - 1)
+        : Math.min(x.totalCount, (x.paidCount ?? 0) + 1)
+      return { ...x, paid: !x.paid, paidCount: newPaidCount }
+    }))
+  }, [])
 
   // Transactions handlers
   const handleAddTransaction = useCallback((tx) => setTransactions(p => [tx, ...p]), [])
