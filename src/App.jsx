@@ -87,7 +87,7 @@ function buildWeekDays(plans, cards) {
   return days
 }
 
-function computeDashboard(transactions, cards, fixedMonthlyAmount = 0) {
+function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = []) {
   const totalSpent = transactions.reduce((s, tx) => s + tx.amount, 0)
   const totalBudget = cards.reduce((s, c) => s + c.budget, 0)
   const remaining = Math.max(0, totalBudget - totalSpent)
@@ -122,6 +122,26 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0) {
     }))
     .sort((a, b) => b.amount - a.amount)
 
+  // 分類信封預算：每個信封的本月已花（由刷卡分類加總）對比月額度
+  const envelopeView = envelopes.map(e => {
+    const used = catMap[e.name] ?? 0
+    return {
+      id: e.id,
+      name: e.name,
+      necessity: e.necessity,
+      budget: e.monthlyBudget,
+      used,
+      remaining: e.monthlyBudget - used,
+      color: CATEGORY_COLORS[e.name] ?? '#AAA198',
+    }
+  })
+  const envelopeSummary = {
+    necessaryBudget: envelopes.filter(e => e.necessity === 'necessary').reduce((s, e) => s + e.monthlyBudget, 0),
+    flexibleBudget: envelopes.filter(e => e.necessity === 'flexible').reduce((s, e) => s + e.monthlyBudget, 0),
+    necessaryUsed: envelopeView.filter(e => e.necessity === 'necessary').reduce((s, e) => s + e.used, 0),
+    flexibleUsed: envelopeView.filter(e => e.necessity === 'flexible').reduce((s, e) => s + e.used, 0),
+  }
+
   const trends = [...TREND_BASE, { month: monthName, amount: totalSpent }]
 
   const estimatedTotal = totalSpent + fixedMonthlyAmount
@@ -136,7 +156,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0) {
     statusText: status === 'safe' ? `${monthName}目前很穩` : status === 'warning' ? `${monthName}需要留意` : `${monthName}已超支`,
   }
 
-  return { currentMonth, enrichedCards, categories, trends }
+  return { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary }
 }
 
 export default function App() {
@@ -158,10 +178,11 @@ export default function App() {
   const [fxSettings, setFxSettings] = useState(stored?.fxSettings ?? { usdRate: 32.5, feeRate: 1.5 })
   const [checklist, setChecklist] = useState(initialChecklist)
   const [checklistMonth] = useState(currentMonthKey)
+  const [envelopes, setEnvelopes] = useState(stored?.envelopes ?? [])
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth }))
-  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes }))
+  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes])
 
   const showToast = useCallback((message) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -231,6 +252,11 @@ export default function App() {
   const handleToggleChecklistItem = useCallback((id) => setChecklist(p => p.map(i => i.id === id ? { ...i, done: !i.done } : i)), [])
   const handleDeleteChecklistItem = useCallback((id) => setChecklist(p => p.filter(i => i.id !== id)), [])
 
+  // Envelope handlers（分類信封預算）
+  const handleAddEnvelope = useCallback((env) => setEnvelopes(p => [...p, env]), [])
+  const handleUpdateEnvelope = useCallback((updated) => setEnvelopes(p => p.map(e => e.id === updated.id ? updated : e)), [])
+  const handleDeleteEnvelope = useCallback((id) => setEnvelopes(p => p.filter(e => e.id !== id)), [])
+
   // Cards handlers
   const handleAddCard = useCallback((card) => setCards(p => [...p, card]), [])
   const handleSaveCard = useCallback((updated) => setCards(p => p.map(c => c.id === updated.id ? updated : c)), [])
@@ -242,6 +268,7 @@ export default function App() {
     setPlans([])
     setTransactions([])
     setChecklist([])
+    setEnvelopes([])
     setFxSettings({ usdRate: 32.5, feeRate: 1.5 })
     setTab('dashboard')
   }, [])
@@ -255,7 +282,7 @@ export default function App() {
     .reduce((s, i) => s + Number(i.amount), 0)
   const fixedMonthlyAmount = planFixedAmount + checklistDue
 
-  const { currentMonth, enrichedCards, categories, trends } = computeDashboard(transactions, cards, fixedMonthlyAmount)
+  const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes)
   const weekDays = buildWeekDays(plans, enrichedCards)
 
   // 未償負債（資產負債清晰）：只計分期未繳清的剩餘期數 × 每期金額
@@ -287,6 +314,8 @@ export default function App() {
         trends={trends}
         liabilityItems={liabilityItems}
         totalDebt={totalDebt}
+        envelopeView={envelopeView}
+        envelopeSummary={envelopeSummary}
       />
     ),
     plans: (
@@ -327,10 +356,14 @@ export default function App() {
         showToast={showToast}
         cards={cards}
         fxSettings={fxSettings}
+        envelopes={envelopes}
         onFxChange={setFxSettings}
         onAddCard={handleAddCard}
         onSaveCard={handleSaveCard}
         onDeleteCard={handleDeleteCard}
+        onAddEnvelope={handleAddEnvelope}
+        onUpdateEnvelope={handleUpdateEnvelope}
+        onDeleteEnvelope={handleDeleteEnvelope}
         onClearData={handleClearData}
       />
     ),

@@ -261,3 +261,19 @@
 .settings-logout-confirm-btn:active {
   opacity: 0.85;
 }
+
+/* 分類信封預算 */
+.settings-envelope-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: var(--color-border);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+.settings-envelope-empty {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
