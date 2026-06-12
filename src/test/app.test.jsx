@@ -145,6 +145,40 @@ describe('分期計畫：已繳期數', () => {
   })
 })
 
+describe('未償負債總覽', () => {
+  it('首頁加總所有分期的剩餘期數×金額，訂閱不計入負債', () => {
+    seed({
+      plans: [
+        { id: 'p1', type: 'installment', name: 'iPhone 分期', card: '永豐卡',
+          amount: 2000, period: '期', paidCount: 8, totalCount: 12,
+          nextDate: '6/15', daysLeft: 5, status: 'neutral', paid: false },
+        { id: 'p2', type: 'subscription', name: 'Netflix', card: '玉山卡',
+          currency: 'TWD', amount: 390, period: '月',
+          nextDate: '6/20', daysLeft: 8, status: 'neutral', active: true },
+      ],
+    })
+    render(<App />)
+    // 剩 4 期 × 2000 = 8000，訂閱不算
+    const debt = document.querySelector('.debt-overview')
+    expect(debt).not.toBeNull()
+    expect(debt.querySelector('.debt-summary-amount').textContent).toBe('NT$8,000')
+    expect(within(debt).getByText(/剩 4 期/)).toBeInTheDocument()
+    expect(within(debt).queryByText('Netflix')).not.toBeInTheDocument()
+  })
+
+  it('沒有分期時不顯示負債總覽', () => {
+    seed({
+      plans: [
+        { id: 'p2', type: 'subscription', name: 'Spotify', card: '玉山卡',
+          currency: 'TWD', amount: 149, period: '月',
+          nextDate: '6/20', daysLeft: 8, status: 'neutral', active: true },
+      ],
+    })
+    render(<App />)
+    expect(screen.queryByText('未償負債')).not.toBeInTheDocument()
+  })
+})
+
 describe('本週扣款行事曆', () => {
   it('本週內的扣款會以服務名稱與卡片顯示在行事曆', () => {
     seed({

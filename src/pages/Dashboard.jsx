@@ -7,8 +7,9 @@ import BudgetCard from '../components/BudgetCard'
 import CreditCardSummaryCard from '../components/CreditCardSummaryCard'
 import CategoryBreakdownCard from '../components/CategoryBreakdownCard'
 import TrendChartCard from '../components/TrendChartCard'
+import DebtOverviewCard from '../components/DebtOverviewCard'
 
-export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays, cards, categories, trends }) {
+export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays, cards, categories, trends, liabilityItems = [], totalDebt = 0 }) {
   return (
     <div className="dashboard">
       <PageHeader
@@ -50,6 +51,13 @@ export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays,
           <CreditCardSummaryCard key={card.id} card={card} />
         ))}
       </div>
+
+      {liabilityItems.length > 0 && (
+        <div className="section">
+          <SectionHeader title="未償負債" />
+          <DebtOverviewCard items={liabilityItems} total={totalDebt} />
+        </div>
+      )}
 
       <div className="section">
         <SectionHeader title="本月花在哪" />

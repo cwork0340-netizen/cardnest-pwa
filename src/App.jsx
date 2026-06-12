@@ -258,6 +258,19 @@ export default function App() {
   const { currentMonth, enrichedCards, categories, trends } = computeDashboard(transactions, cards, fixedMonthlyAmount)
   const weekDays = buildWeekDays(plans, enrichedCards)
 
+  // 未償負債（資產負債清晰）：只計分期未繳清的剩餘期數 × 每期金額
+  const liabilityItems = plans
+    .filter(p => p.type === 'installment' && p.totalCount - p.paidCount > 0)
+    .map(p => ({
+      id: p.id,
+      name: p.name,
+      card: p.card,
+      perPeriod: p.amount,
+      remainingPeriods: p.totalCount - p.paidCount,
+      outstanding: (p.totalCount - p.paidCount) * p.amount,
+    }))
+  const totalDebt = liabilityItems.reduce((s, i) => s + i.outstanding, 0)
+
   const now = new Date()
   const greeting = getGreeting(now.getHours())
   const dateLabel = `${now.getMonth() + 1}月${now.getDate()}日 星期${WEEKDAY_NAMES[now.getDay()]}`
@@ -272,6 +285,8 @@ export default function App() {
         cards={enrichedCards}
         categories={categories}
         trends={trends}
+        liabilityItems={liabilityItems}
+        totalDebt={totalDebt}
       />
     ),
     plans: (
