@@ -9,7 +9,13 @@ export default function TransactionItem({ tx, onDelete, onEdit }) {
   const dotColor = CATEGORY_COLORS[tx.category] ?? '#AAA198'
 
   return (
-    <div className="tx-item">
+    <div
+      className="tx-item tx-item-clickable"
+      onClick={() => onEdit(tx)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit(tx) } }}
+    >
       <div className="tx-left">
         <span className="tx-dot" style={{ background: dotColor }} />
         <div className="tx-info">
@@ -24,8 +30,8 @@ export default function TransactionItem({ tx, onDelete, onEdit }) {
         {tx.note ? <span className="tx-note">{tx.note}</span> : null}
       </div>
       <div className="tx-action-btns">
-        <button className="tx-edit-btn" onClick={() => onEdit(tx)} aria-label="編輯">✎</button>
-        <button className="tx-delete-btn" onClick={() => onDelete(tx.id)} aria-label="刪除">✕</button>
+        <button className="tx-edit-btn" onClick={(e) => { e.stopPropagation(); onEdit(tx) }} aria-label="編輯">✎</button>
+        <button className="tx-delete-btn" onClick={(e) => { e.stopPropagation(); onDelete(tx.id) }} aria-label="刪除">✕</button>
       </div>
     </div>
   )

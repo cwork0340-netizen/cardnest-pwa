@@ -78,6 +78,25 @@ describe('刷卡記錄：新增 / 編輯 / 刪除', () => {
     expect(screen.queryByText('-NT$800')).not.toBeInTheDocument()
     expect(screen.getByText('還沒有刷卡記錄')).toBeInTheDocument()
   })
+
+  it('點整筆刷卡記錄即可開啟編輯並修改金額', () => {
+    seed({
+      transactions: [{ id: 't1', name: '星巴克', card: '永豐卡', category: '餐飲', amount: 500, date: todayMD() }],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+
+    // 點整列（非 ✎ 鈕）即開啟編輯
+    fireEvent.click(document.querySelector('.tx-item-clickable'))
+    expect(screen.getByText('修改記錄')).toBeInTheDocument()
+
+    const form = sheet()
+    expect(form.querySelector('.qtf-amount-input').value).toBe('500')
+    fireEvent.change(form.querySelector('.qtf-amount-input'), { target: { value: '650' } })
+    fireEvent.click(within(form).getByRole('button', { name: '儲存修改' }))
+
+    expect(screen.getByText('-NT$650')).toBeInTheDocument()
+  })
 })
 
 describe('分期計畫：已繳期數', () => {

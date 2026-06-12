@@ -6,6 +6,10 @@
   padding: 2px 0;
 }
 
+.tx-item-clickable {
+  cursor: pointer;
+}
+
 .tx-left {
   display: flex;
   align-items: center;
