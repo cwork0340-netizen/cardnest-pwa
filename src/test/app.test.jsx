@@ -317,10 +317,12 @@ describe('每月必繳清單', () => {
       checklistMonth: `${d.getFullYear()}-${d.getMonth()}`, // 當月，避免觸發月初重置
     })
     render(<App />)
-    // 只有未繳的 3000 計入固定扣款，已繳的 500 不算
+    // 主數字＝本月支出總額：刷卡 1000 + 未繳固定 3000 = 4000（已繳的 500 不算）
+    expect(document.querySelector('.hero-card-amount').textContent).toBe('NT$4,000')
+    // 明細列出刷卡與固定扣款兩部分
     const breakdown = document.querySelector('.hero-card-breakdown')
-    expect(breakdown.textContent).toContain('本月固定扣款 NT$3,000')
-    expect(breakdown.textContent).toContain('本月預估帳單 NT$4,000')
+    expect(breakdown.textContent).toContain('已記錄刷卡 NT$1,000')
+    expect(breakdown.textContent).toContain('訂閱・分期・固定扣款 NT$3,000')
   })
 })
 

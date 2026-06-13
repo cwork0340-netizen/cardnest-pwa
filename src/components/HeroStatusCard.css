@@ -27,6 +27,12 @@
   margin-bottom: 12px;
 }
 
+.hero-card-amount-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
 .hero-card-amount {
   font-size: 40px;
   font-weight: 700;

@@ -90,8 +90,10 @@ function buildWeekDays(plans, cards) {
 function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = []) {
   const totalSpent = transactions.reduce((s, tx) => s + tx.amount, 0)
   const totalBudget = cards.reduce((s, c) => s + c.budget, 0)
-  const remaining = Math.max(0, totalBudget - totalSpent)
-  const pct = totalBudget > 0 ? totalSpent / totalBudget : 0
+  // 本月支出 = 已記錄刷卡 + 訂閱／分期／固定扣款
+  const monthlyOut = totalSpent + fixedMonthlyAmount
+  const remaining = Math.max(0, totalBudget - monthlyOut)
+  const pct = totalBudget > 0 ? monthlyOut / totalBudget : 0
   const status = pct < 0.7 ? 'safe' : pct < 0.9 ? 'warning' : 'danger'
   const monthName = MONTH_NAMES[new Date().getMonth()]
 

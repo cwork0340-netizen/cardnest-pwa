@@ -19,16 +19,14 @@ export default function HeroStatusCard({ month, total, remaining, budget, fixedM
       <div className="hero-card-left">
         <div className="hero-card-title">{statusText || cfg.label}</div>
         <div className="hero-card-sub">{cfg.sub}</div>
+        <div className="hero-card-amount-label">本月支出（含訂閱・分期）</div>
         <div className="hero-card-amount" style={{ color: cfg.amountColor }}>
-          {fmt(total)}
+          {fmt(estimatedTotal)}
         </div>
         <div className="hero-card-breakdown">
           <span className="hero-card-breakdown-item">已記錄刷卡 {fmt(total)}</span>
           {fixedMonthlyAmount > 0 && (
-            <span className="hero-card-breakdown-item">本月固定扣款 {fmt(fixedMonthlyAmount)}</span>
-          )}
-          {fixedMonthlyAmount > 0 && (
-            <span className="hero-card-breakdown-estimate">本月預估帳單 {fmt(estimatedTotal)}</span>
+            <span className="hero-card-breakdown-item">訂閱・分期・固定扣款 {fmt(fixedMonthlyAmount)}</span>
           )}
         </div>
         <div className="hero-card-budget-row">

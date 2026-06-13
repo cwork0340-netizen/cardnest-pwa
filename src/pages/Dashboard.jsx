@@ -38,9 +38,9 @@ export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays,
         <SectionHeader title="本月可用額度" />
         <div className="card">
           <BudgetCard
-            total={currentMonth.total}
+            total={currentMonth.estimatedTotal}
             budget={currentMonth.budget}
-            used={currentMonth.total}
+            used={currentMonth.estimatedTotal}
             remaining={currentMonth.remaining}
           />
         </div>
