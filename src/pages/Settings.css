@@ -277,3 +277,7 @@
   color: var(--color-text-muted);
   line-height: 1.6;
 }
+
+.settings-row-clickable {
+  cursor: pointer;
+}

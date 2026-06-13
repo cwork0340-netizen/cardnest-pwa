@@ -32,9 +32,17 @@ function AmountDisplay({ plan }) {
 export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
   const isSubscription = plan.type === 'subscription'
 
+  const editProps = {
+    onClick: () => onEdit(plan),
+    role: 'button',
+    tabIndex: 0,
+    onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit(plan) } },
+  }
+  const stop = (fn) => (e) => { e.stopPropagation(); fn() }
+
   if (isSubscription) {
     return (
-      <div className="card plan-card">
+      <div className="card plan-card plan-card-clickable" {...editProps}>
         <div className="plan-row">
           <div className="plan-left">
             <span className="badge badge-primary plan-badge">訂閱</span>
@@ -51,8 +59,8 @@ export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
               {plan.daysLeft === 0 ? '今天' : plan.daysLeft === 1 ? '明天' : `${plan.daysLeft} 天後`}
             </span>
             <div className="plan-action-btns">
-              <button className="plan-edit-btn" onClick={() => onEdit(plan)} aria-label="編輯">✎</button>
-              <button className="plan-delete-btn" onClick={() => onDelete(plan.id)} aria-label="刪除">✕</button>
+              <button className="plan-edit-btn" onClick={stop(() => onEdit(plan))} aria-label="編輯">✎</button>
+              <button className="plan-delete-btn" onClick={stop(() => onDelete(plan.id))} aria-label="刪除">✕</button>
             </div>
           </div>
         </div>
@@ -64,7 +72,7 @@ export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
   const remaining = plan.totalCount - plan.paidCount
 
   return (
-    <div className="card plan-card">
+    <div className="card plan-card plan-card-clickable" {...editProps}>
       <div className="plan-row">
         <div className="plan-left">
           <span className="badge badge-installment plan-badge">分期</span>
@@ -80,15 +88,15 @@ export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
             下次 {plan.nextDate}
           </span>
           <div className="plan-installment-btns">
-            <button className="plan-edit-btn" onClick={() => onEdit(plan)} aria-label="編輯">✎</button>
+            <button className="plan-edit-btn" onClick={stop(() => onEdit(plan))} aria-label="編輯">✎</button>
             <button
               className={`plan-check-btn${plan.paid ? ' plan-check-btn-done' : ''}`}
-              onClick={() => onMarkPaid(plan.id)}
+              onClick={stop(() => onMarkPaid(plan.id))}
               aria-label={plan.paid ? '取消付款標記' : '標記已付款'}
             >
               {plan.paid ? '✓' : '○'}
             </button>
-            <button className="plan-delete-btn" onClick={() => onDelete(plan.id)} aria-label="刪除">✕</button>
+            <button className="plan-delete-btn" onClick={stop(() => onDelete(plan.id))} aria-label="刪除">✕</button>
           </div>
         </div>
       </div>

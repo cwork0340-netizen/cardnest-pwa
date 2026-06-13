@@ -323,3 +323,42 @@ describe('每月必繳清單', () => {
     expect(breakdown.textContent).toContain('本月預估帳單 NT$4,000')
   })
 })
+
+describe('整列點擊即可編輯', () => {
+  it('點整張分期卡開啟編輯', () => {
+    seed({
+      plans: [{ id: 'p1', type: 'installment', name: 'iPhone 分期', card: '永豐卡',
+        amount: 2000, period: '期', paidCount: 8, totalCount: 12,
+        nextDate: '6/15', daysLeft: 5, status: 'neutral', paid: false }],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '訂閱分期' }))
+    fireEvent.click(document.querySelector('.plan-card-clickable'))
+    expect(screen.getByText('修改計畫')).toBeInTheDocument()
+  })
+
+  it('點整筆必繳項目開啟編輯', () => {
+    seed({ checklist: [{ id: 'cl1', name: '房租', amount: 15000, day: 5, done: false }] })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(document.querySelector('.cl-item-clickable'))
+    expect(screen.getByText('修改項目')).toBeInTheDocument()
+  })
+
+  it('點整列信用卡開啟編輯', () => {
+    seed()
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '設定' }))
+    fireEvent.click(document.querySelectorAll('.settings-row-clickable')[0])
+    expect(screen.getByText('編輯信用卡')).toBeInTheDocument()
+  })
+
+  it('點必繳項目的勾選鈕只切換狀態、不會開啟編輯', () => {
+    seed({ checklist: [{ id: 'cl1', name: '電信費', amount: 599, day: 8, done: false }] })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '標記已繳' }))
+    expect(screen.queryByText('修改項目')).not.toBeInTheDocument()
+    expect(screen.getByText('1/1 已繳')).toBeInTheDocument()
+  })
+})

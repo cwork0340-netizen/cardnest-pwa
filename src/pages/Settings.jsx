@@ -68,6 +68,14 @@ export default function Settings({ showToast, cards, fxSettings, envelopes = [],
     showToast('已移除分類信封')
   }
 
+  const stop = (fn) => (e) => { e.stopPropagation(); fn() }
+  const rowEditProps = (onEdit) => ({
+    onClick: onEdit,
+    role: 'button',
+    tabIndex: 0,
+    onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit() } },
+  })
+
   return (
     <div className="settings-page">
       <div className="settings-header">
@@ -83,7 +91,7 @@ export default function Settings({ showToast, cards, fxSettings, envelopes = [],
           </button>
         </div>
         {cards.map((card) => (
-          <div className="card settings-card-row" key={card.id}>
+          <div className="card settings-card-row settings-row-clickable" key={card.id} {...rowEditProps(() => setEditingCard(card))}>
             <div className="settings-card-info">
               <div className="settings-card-name-row">
                 <span className="settings-card-name">{card.name}</span>
@@ -94,15 +102,15 @@ export default function Settings({ showToast, cards, fxSettings, envelopes = [],
               <span className="settings-card-detail">預算上限：{'NT$' + Number(card.budget).toLocaleString()}</span>
             </div>
             <div className="settings-card-actions">
-              <button className="settings-edit-btn" onClick={() => setEditingCard(card)}>編輯</button>
+              <button className="settings-edit-btn" onClick={stop(() => setEditingCard(card))}>編輯</button>
               {deletingCardId === card.id ? (
                 <div className="settings-delete-confirm">
                   <span className="settings-delete-msg">確定刪除？</span>
-                  <button className="settings-delete-yes" onClick={() => handleDeleteCard(card.id)}>刪除</button>
-                  <button className="settings-delete-no" onClick={() => setDeletingCardId(null)}>取消</button>
+                  <button className="settings-delete-yes" onClick={stop(() => handleDeleteCard(card.id))}>刪除</button>
+                  <button className="settings-delete-no" onClick={stop(() => setDeletingCardId(null))}>取消</button>
                 </div>
               ) : (
-                <button className="settings-delete-btn" onClick={() => setDeletingCardId(card.id)}>刪除</button>
+                <button className="settings-delete-btn" onClick={stop(() => setDeletingCardId(card.id))}>刪除</button>
               )}
             </div>
           </div>
@@ -131,7 +139,7 @@ export default function Settings({ showToast, cards, fxSettings, envelopes = [],
           </div>
         ) : (
           envelopes.map((env) => (
-            <div className="card settings-card-row" key={env.id}>
+            <div className="card settings-card-row settings-row-clickable" key={env.id} {...rowEditProps(() => setEditingEnvelope(env))}>
               <div className="settings-card-info">
                 <div className="settings-card-name-row">
                   <span className="settings-card-name">{env.name}</span>
@@ -140,15 +148,15 @@ export default function Settings({ showToast, cards, fxSettings, envelopes = [],
                 <span className="settings-card-detail">每月額度：{'NT$' + Number(env.monthlyBudget).toLocaleString()}</span>
               </div>
               <div className="settings-card-actions">
-                <button className="settings-edit-btn" onClick={() => setEditingEnvelope(env)}>編輯</button>
+                <button className="settings-edit-btn" onClick={stop(() => setEditingEnvelope(env))}>編輯</button>
                 {deletingEnvelopeId === env.id ? (
                   <div className="settings-delete-confirm">
                     <span className="settings-delete-msg">確定刪除？</span>
-                    <button className="settings-delete-yes" onClick={() => handleDeleteEnvelope(env.id)}>刪除</button>
-                    <button className="settings-delete-no" onClick={() => setDeletingEnvelopeId(null)}>取消</button>
+                    <button className="settings-delete-yes" onClick={stop(() => handleDeleteEnvelope(env.id))}>刪除</button>
+                    <button className="settings-delete-no" onClick={stop(() => setDeletingEnvelopeId(null))}>取消</button>
                   </div>
                 ) : (
-                  <button className="settings-delete-btn" onClick={() => setDeletingEnvelopeId(env.id)}>刪除</button>
+                  <button className="settings-delete-btn" onClick={stop(() => setDeletingEnvelopeId(env.id))}>刪除</button>
                 )}
               </div>
             </div>

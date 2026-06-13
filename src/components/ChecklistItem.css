@@ -4,6 +4,10 @@
   gap: 12px;
 }
 
+.cl-item-clickable {
+  cursor: pointer;
+}
+
 .cl-item-done .cl-name {
   text-decoration: line-through;
   color: var(--color-text-muted);
