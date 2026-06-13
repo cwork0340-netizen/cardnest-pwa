@@ -362,3 +362,30 @@ describe('整列點擊即可編輯', () => {
     expect(screen.getByText('1/1 已繳')).toBeInTheDocument()
   })
 })
+
+describe('資料備份：匯入還原', () => {
+  it('匯入備份檔可一次還原卡片與消費紀錄', async () => {
+    seed() // 兩張卡、無紀錄
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '設定' }))
+
+    const backup = {
+      cards: [{ id: 'b1', name: '國泰世華卡', color: '#5E7CE2', billingDay: 5, dueDay: 15, budget: 40000 }],
+      plans: [],
+      transactions: [{ id: 'tb1', name: '家樂福', card: '國泰世華卡', category: '餐飲', amount: 1234, date: '6/10' }],
+      checklist: [],
+      envelopes: [],
+      fxSettings: { usdRate: 32.5, feeRate: 1.5 },
+    }
+    const file = new File([JSON.stringify(backup)], 'cardnest-backup.json', { type: 'application/json' })
+
+    const input = document.querySelector('input[type="file"]')
+    fireEvent.change(input, { target: { files: [file] } })
+
+    // 還原後切到刷卡頁應看到匯入的紀錄
+    await screen.findByText('已還原備份資料')
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+    expect(await screen.findByText('家樂福')).toBeInTheDocument()
+    expect(screen.getByText('-NT$1,234')).toBeInTheDocument()
+  })
+})

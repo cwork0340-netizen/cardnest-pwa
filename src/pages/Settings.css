@@ -281,3 +281,26 @@
 .settings-row-clickable {
   cursor: pointer;
 }
+
+/* 資料備份 */
+.settings-backup-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-backup-hint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.settings-backup-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.settings-backup-actions .button-secondary {
+  flex: 1;
+}

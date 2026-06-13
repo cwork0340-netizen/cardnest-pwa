@@ -273,6 +273,18 @@ export default function App() {
     setTab('dashboard')
   }, [])
 
+  // 還原備份：用匯入的資料整批覆蓋
+  const handleImportData = useCallback((data) => {
+    if (!data || typeof data !== 'object') return false
+    setCards(Array.isArray(data.cards) ? data.cards : [])
+    setPlans(Array.isArray(data.plans) ? data.plans : [])
+    setTransactions(Array.isArray(data.transactions) ? data.transactions : [])
+    setChecklist(Array.isArray(data.checklist) ? data.checklist : [])
+    setEnvelopes(Array.isArray(data.envelopes) ? data.envelopes : [])
+    if (data.fxSettings && typeof data.fxSettings === 'object') setFxSettings(data.fxSettings)
+    return true
+  }, [])
+
   const planFixedAmount = plans
     .filter(p => p.daysLeft <= 30 && (p.type === 'subscription' || (p.type === 'installment' && !p.paid)))
     .reduce((s, p) => s + p.amount, 0)
@@ -364,6 +376,8 @@ export default function App() {
         onAddEnvelope={handleAddEnvelope}
         onUpdateEnvelope={handleUpdateEnvelope}
         onDeleteEnvelope={handleDeleteEnvelope}
+        backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings }}
+        onImportData={handleImportData}
         onClearData={handleClearData}
       />
     ),

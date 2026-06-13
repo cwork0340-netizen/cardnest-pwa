@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import './Settings.css'
 import SectionHeader from '../components/SectionHeader'
 import BottomSheet from '../components/BottomSheet'
@@ -7,7 +7,7 @@ import EnvelopeForm from '../components/EnvelopeForm'
 
 const NECESSITY_LABEL = { necessary: '必要', flexible: '彈性' }
 
-export default function Settings({ showToast, cards, fxSettings, envelopes = [], onFxChange, onAddCard, onSaveCard, onDeleteCard, onAddEnvelope, onUpdateEnvelope, onDeleteEnvelope, onClearData }) {
+export default function Settings({ showToast, cards, fxSettings, envelopes = [], onFxChange, onAddCard, onSaveCard, onDeleteCard, onAddEnvelope, onUpdateEnvelope, onDeleteEnvelope, backupData, onImportData, onClearData }) {
   const [editingCard, setEditingCard] = useState(null)
   const [showAddCard, setShowAddCard] = useState(false)
   const [deletingCardId, setDeletingCardId] = useState(null)
@@ -66,6 +66,41 @@ export default function Settings({ showToast, cards, fxSettings, envelopes = [],
     onDeleteEnvelope(id)
     setDeletingEnvelopeId(null)
     showToast('已移除分類信封')
+  }
+
+  const fileInputRef = useRef(null)
+
+  function handleExport() {
+    const json = JSON.stringify(backupData, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const d = new Date()
+    const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
+    a.href = url
+    a.download = `cardnest-backup-${stamp}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    showToast('已匯出備份檔')
+  }
+
+  function handleImportFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result))
+        const ok = onImportData(data)
+        showToast(ok ? '已還原備份資料' : '備份檔格式不正確')
+      } catch {
+        showToast('讀取備份檔失敗，請確認檔案')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = '' // 允許重複選同一檔
   }
 
   const stop = (fn) => (e) => { e.stopPropagation(); fn() }
@@ -193,6 +228,27 @@ export default function Settings({ showToast, cards, fxSettings, envelopes = [],
               查今日匯率 →
             </a>
           </div>
+        </div>
+      </div>
+
+      {/* 資料備份 */}
+      <div className="section">
+        <SectionHeader title="資料備份" />
+        <div className="card settings-backup-card">
+          <p className="settings-backup-hint">
+            資料只存在這台裝置的瀏覽器，建議定期匯出備份；換手機或清除資料後，可用備份檔一鍵還原。
+          </p>
+          <div className="settings-backup-actions">
+            <button className="button-secondary" onClick={handleExport}>匯出備份</button>
+            <button className="button-secondary" onClick={() => fileInputRef.current?.click()}>匯入還原</button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: 'none' }}
+            onChange={handleImportFile}
+          />
         </div>
       </div>
 
