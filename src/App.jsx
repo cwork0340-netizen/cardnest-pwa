@@ -190,10 +190,11 @@ export default function App() {
   const [checklistMonth] = useState(currentMonthKey)
   const [envelopes, setEnvelopes] = useState(stored?.envelopes ?? [])
   const [income, setIncome] = useState(stored?.income ?? 0)
+  const [savings, setSavings] = useState(stored?.savings ?? [])
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income }))
-  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings }))
+  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings])
 
   const showToast = useCallback((message) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -263,6 +264,13 @@ export default function App() {
   const handleToggleChecklistItem = useCallback((id) => setChecklist(p => p.map(i => i.id === id ? { ...i, done: !i.done } : i)), [])
   const handleDeleteChecklistItem = useCallback((id) => setChecklist(p => p.filter(i => i.id !== id)), [])
 
+  // 儲蓄目標：每月撥入算進必要支出；已存可累積、動用後歸零
+  const handleAddSaving = useCallback((goal) => setSavings(p => [...p, goal]), [])
+  const handleUpdateSaving = useCallback((updated) => setSavings(p => p.map(g => g.id === updated.id ? { ...g, ...updated } : g)), [])
+  const handleDeleteSaving = useCallback((id) => setSavings(p => p.filter(g => g.id !== id)), [])
+  const handleContributeSaving = useCallback((id) => setSavings(p => p.map(g => g.id === id ? { ...g, saved: Number(g.saved) + Number(g.monthly) } : g)), [])
+  const handleResetSaving = useCallback((id) => setSavings(p => p.map(g => g.id === id ? { ...g, saved: 0 } : g)), [])
+
   // Envelope handlers（分類信封預算）
   const handleAddEnvelope = useCallback((env) => setEnvelopes(p => [...p, env]), [])
   const handleUpdateEnvelope = useCallback((updated) => setEnvelopes(p => p.map(e => e.id === updated.id ? updated : e)), [])
@@ -281,6 +289,7 @@ export default function App() {
     setChecklist([])
     setEnvelopes([])
     setIncome(0)
+    setSavings([])
     setFxSettings({ usdRate: 32.5, feeRate: 1.5 })
     setTab('dashboard')
   }, [])
@@ -295,6 +304,7 @@ export default function App() {
     setEnvelopes(Array.isArray(data.envelopes) ? data.envelopes : [])
     if (data.fxSettings && typeof data.fxSettings === 'object') setFxSettings(data.fxSettings)
     if (typeof data.income === 'number') setIncome(data.income)
+    setSavings(Array.isArray(data.savings) ? data.savings : [])
     return true
   }, [])
 
@@ -303,8 +313,10 @@ export default function App() {
     .filter(p => p.type === 'subscription' ? (p.active ?? true) : (p.paidCount < p.totalCount))
     .reduce((s, p) => s + p.amount, 0)
 
-  // 必要支出 / 生活預算：收入用來分配每月必要支出（必繳清單）
-  const essentialTotal = checklist.reduce((s, i) => s + Number(i.amount), 0)
+  // 必要支出 / 生活預算：收入用來分配每月必要支出（必繳清單 + 每月儲蓄撥入）
+  const checklistTotal = checklist.reduce((s, i) => s + Number(i.amount), 0)
+  const savingsMonthly = savings.reduce((s, g) => s + Number(g.monthly), 0)
+  const essentialTotal = checklistTotal + savingsMonthly
   const lifeBalance = income - essentialTotal
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
@@ -372,12 +384,20 @@ export default function App() {
         monthName={currentMonth.name}
         income={income}
         essentialTotal={essentialTotal}
+        checklistTotal={checklistTotal}
+        savingsMonthly={savingsMonthly}
         lifeBalance={lifeBalance}
+        savings={savings}
         onIncomeChange={setIncome}
         onAdd={handleAddChecklistItem}
         onToggle={handleToggleChecklistItem}
         onUpdate={handleUpdateChecklistItem}
         onDelete={handleDeleteChecklistItem}
+        onAddSaving={handleAddSaving}
+        onUpdateSaving={handleUpdateSaving}
+        onDeleteSaving={handleDeleteSaving}
+        onContributeSaving={handleContributeSaving}
+        onResetSaving={handleResetSaving}
       />
     ),
     settings: (

@@ -5,13 +5,24 @@ import EmptyState from '../components/EmptyState'
 import BottomSheet from '../components/BottomSheet'
 import ChecklistItem from '../components/ChecklistItem'
 import ChecklistForm from '../components/ChecklistForm'
+import SavingGoalCard from '../components/SavingGoalCard'
+import SavingsForm from '../components/SavingsForm'
 
-export default function Checklist({ showToast, items, monthName, income = 0, essentialTotal = 0, lifeBalance = 0, onIncomeChange, onAdd, onToggle, onUpdate, onDelete }) {
+export default function Checklist({
+  showToast, items, monthName,
+  income = 0, essentialTotal = 0, checklistTotal = 0, savingsMonthly = 0, lifeBalance = 0,
+  savings = [], onIncomeChange,
+  onAdd, onToggle, onUpdate, onDelete,
+  onAddSaving, onUpdateSaving, onDeleteSaving, onContributeSaving, onResetSaving,
+}) {
   const [showAddSheet, setShowAddSheet] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
+  const [showSavingsSheet, setShowSavingsSheet] = useState(false)
+  const [editingSaving, setEditingSaving] = useState(null)
   const [incomeInput, setIncomeInput] = useState(income ? String(income) : '')
 
   const sheetOpen = showAddSheet || !!editingItem
+  const savingsSheetOpen = showSavingsSheet || !!editingSaving
 
   function commitIncome() {
     const n = Number(incomeInput)
@@ -25,6 +36,11 @@ export default function Checklist({ showToast, items, monthName, income = 0, ess
   function closeSheet() {
     setShowAddSheet(false)
     setEditingItem(null)
+  }
+
+  function closeSavingsSheet() {
+    setShowSavingsSheet(false)
+    setEditingSaving(null)
   }
 
   const doneCount = items.filter((i) => i.done).length
@@ -52,6 +68,32 @@ export default function Checklist({ showToast, items, monthName, income = 0, ess
       showToast('已加入必繳清單')
     }
     closeSheet()
+  }
+
+  function handleSavingsSubmit(goal) {
+    if (editingSaving) {
+      onUpdateSaving(goal)
+      showToast('儲蓄目標已更新')
+    } else {
+      onAddSaving(goal)
+      showToast('已新增儲蓄目標')
+    }
+    closeSavingsSheet()
+  }
+
+  function handleContribute(id) {
+    onContributeSaving(id)
+    showToast('已撥入本月儲蓄')
+  }
+
+  function handleReset(id) {
+    onResetSaving(id)
+    showToast('已動用，重新累積')
+  }
+
+  function handleDeleteSaving(id) {
+    onDeleteSaving(id)
+    showToast('已刪除儲蓄目標')
   }
 
   return (
@@ -83,6 +125,12 @@ export default function Checklist({ showToast, items, monthName, income = 0, ess
           <span className="checklist-budget-label">必要支出</span>
           <span className="checklist-budget-amount">NT${essentialTotal.toLocaleString()}</span>
         </div>
+        {savingsMonthly > 0 && (
+          <div className="checklist-budget-sub">
+            <span>・必繳清單 NT${checklistTotal.toLocaleString()}</span>
+            <span>・每月儲蓄 NT${savingsMonthly.toLocaleString()}</span>
+          </div>
+        )}
         <div className="checklist-budget-divider" />
         <div className="checklist-budget-row">
           <span className="checklist-budget-label">生活結餘</span>
@@ -132,6 +180,31 @@ export default function Checklist({ showToast, items, monthName, income = 0, ess
         )}
       </div>
 
+      <div className="section" style={{ marginTop: 'var(--section-gap)' }}>
+        <SectionHeader title="儲蓄目標" />
+        {savings.length === 0 ? (
+          <EmptyState
+            icon="🐖"
+            title="還沒有儲蓄目標"
+            description="例如每月存學費、旅遊基金。每月撥入會算進必要支出，幫你先把錢留下來"
+          />
+        ) : (
+          savings.map((goal) => (
+            <SavingGoalCard
+              key={goal.id}
+              goal={goal}
+              onEdit={setEditingSaving}
+              onDelete={handleDeleteSaving}
+              onContribute={handleContribute}
+              onReset={handleReset}
+            />
+          ))
+        )}
+        <button className="checklist-add-saving" onClick={() => setShowSavingsSheet(true)}>
+          ＋ 新增儲蓄目標
+        </button>
+      </div>
+
       <button
         className="fab"
         onClick={() => setShowAddSheet(true)}
@@ -149,6 +222,18 @@ export default function Checklist({ showToast, items, monthName, income = 0, ess
           onSubmit={handleSubmit}
           onClose={closeSheet}
           initialValues={editingItem}
+        />
+      </BottomSheet>
+
+      <BottomSheet
+        open={savingsSheetOpen}
+        onClose={closeSavingsSheet}
+        title={editingSaving ? '修改儲蓄目標' : '新增儲蓄目標'}
+      >
+        <SavingsForm
+          onSubmit={handleSavingsSubmit}
+          onClose={closeSavingsSheet}
+          initialValues={editingSaving}
         />
       </BottomSheet>
     </div>
