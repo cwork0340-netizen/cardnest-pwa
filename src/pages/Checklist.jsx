@@ -6,11 +6,21 @@ import BottomSheet from '../components/BottomSheet'
 import ChecklistItem from '../components/ChecklistItem'
 import ChecklistForm from '../components/ChecklistForm'
 
-export default function Checklist({ showToast, items, monthName, onAdd, onToggle, onUpdate, onDelete }) {
+export default function Checklist({ showToast, items, monthName, income = 0, essentialTotal = 0, lifeBalance = 0, onIncomeChange, onAdd, onToggle, onUpdate, onDelete }) {
   const [showAddSheet, setShowAddSheet] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
+  const [incomeInput, setIncomeInput] = useState(income ? String(income) : '')
 
   const sheetOpen = showAddSheet || !!editingItem
+
+  function commitIncome() {
+    const n = Number(incomeInput)
+    if (Number.isNaN(n) || n < 0) { setIncomeInput(income ? String(income) : ''); return }
+    if (n !== income) {
+      onIncomeChange(n)
+      showToast('月收入已更新')
+    }
+  }
 
   function closeSheet() {
     setShowAddSheet(false)
@@ -47,8 +57,45 @@ export default function Checklist({ showToast, items, monthName, onAdd, onToggle
   return (
     <div className="checklist-page">
       <div className="checklist-header">
-        <h1 className="checklist-title">必繳清單</h1>
-        {monthName && <span className="checklist-sub">{monthName}．每月月初自動重置</span>}
+        <h1 className="checklist-title">必要支出</h1>
+        {monthName && <span className="checklist-sub">{monthName}．收入扣掉必要支出＝可生活的錢</span>}
+      </div>
+
+      <div className="card checklist-budget">
+        <div className="checklist-budget-row">
+          <label className="checklist-budget-label" htmlFor="income-input">月收入</label>
+          <div className="checklist-budget-input-wrap">
+            <span className="checklist-budget-prefix">NT$</span>
+            <input
+              id="income-input"
+              className="checklist-budget-input"
+              type="number"
+              inputMode="numeric"
+              placeholder="填入每月收入"
+              value={incomeInput}
+              onChange={(e) => setIncomeInput(e.target.value)}
+              onBlur={commitIncome}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }}
+            />
+          </div>
+        </div>
+        <div className="checklist-budget-row">
+          <span className="checklist-budget-label">必要支出</span>
+          <span className="checklist-budget-amount">NT${essentialTotal.toLocaleString()}</span>
+        </div>
+        <div className="checklist-budget-divider" />
+        <div className="checklist-budget-row">
+          <span className="checklist-budget-label">生活結餘</span>
+          {income > 0 ? (
+            lifeBalance >= 0 ? (
+              <span className="checklist-budget-left">還有 NT${lifeBalance.toLocaleString()} 可生活</span>
+            ) : (
+              <span className="checklist-budget-over">超出 NT${(-lifeBalance).toLocaleString()}，沒有餘裕</span>
+            )
+          ) : (
+            <span className="checklist-budget-hint">填上月收入即可看生活結餘</span>
+          )}
+        </div>
       </div>
 
       {items.length > 0 && (

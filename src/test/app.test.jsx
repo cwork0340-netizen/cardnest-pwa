@@ -306,7 +306,7 @@ describe('每月必繳清單', () => {
     expect(screen.getByText('0/1 已繳')).toBeInTheDocument()
   })
 
-  it('必繳清單金額（不論繳沒繳）全部計入本月支出', () => {
+  it('首頁本月支出只算刷卡＋訂閱分期，不含必繳清單', () => {
     const d = new Date()
     seed({
       transactions: [{ id: 't1', name: '午餐', card: '永豐卡', category: '餐飲', amount: 1000, date: todayMD() }],
@@ -317,36 +317,33 @@ describe('每月必繳清單', () => {
       checklistMonth: `${d.getFullYear()}-${d.getMonth()}`, // 當月，避免觸發月初重置
     })
     render(<App />)
-    // 主數字＝本月支出總額：刷卡 1000 + 必繳全部 3500（含已繳的 500）= 4500
-    expect(document.querySelector('.hero-card-amount').textContent).toBe('NT$4,500')
-    const breakdown = document.querySelector('.hero-card-breakdown')
-    expect(breakdown.textContent).toContain('已記錄刷卡 NT$1,000')
-    expect(breakdown.textContent).toContain('訂閱・分期・必繳 NT$3,500')
+    // 首頁＝刷卡狀態：只有刷卡 1000，必繳清單不計入
+    expect(document.querySelector('.hero-card-amount').textContent).toBe('NT$1,000')
+    expect(document.querySelector('.hero-card-breakdown').textContent).toContain('已記錄刷卡 NT$1,000')
   })
 
-  it('設定月收入後顯示結餘；支出超過收入顯示超支', () => {
+  it('必要支出頁：收入扣掉必要支出後顯示生活結餘', () => {
     seed({
       income: 10000,
-      transactions: [{ id: 't1', name: '午餐', card: '永豐卡', category: '餐飲', amount: 2000, date: todayMD() }],
       checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: false }],
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
-    // 收入 10000，支出 5000 → 結餘 5000
-    expect(screen.getByText(/月收入 NT\$10,000/)).toBeInTheDocument()
-    expect(screen.getByText(/結餘 NT\$5,000/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    // 收入 10000 − 必要支出 3000 → 生活結餘 7000
+    expect(screen.getByText(/還有 NT\$7,000 可生活/)).toBeInTheDocument()
   })
 
-  it('支出超過收入時顯示超支金額', () => {
+  it('必要支出頁：必要支出超過收入顯示沒有餘裕', () => {
     seed({
-      income: 4000,
-      transactions: [{ id: 't1', name: '午餐', card: '永豐卡', category: '餐飲', amount: 2000, date: todayMD() }],
+      income: 2000,
       checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: false }],
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
-    // 收入 4000，支出 5000 → 超支 1000
-    expect(screen.getByText(/超支 NT\$1,000/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    // 收入 2000 − 必要支出 3000 → 超出 1000
+    expect(screen.getByText(/超出 NT\$1,000/)).toBeInTheDocument()
   })
 })
 

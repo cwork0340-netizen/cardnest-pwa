@@ -87,17 +87,14 @@ function buildWeekDays(plans, cards) {
   return days
 }
 
-function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = [], income = 0) {
+function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = []) {
   const totalSpent = transactions.reduce((s, tx) => s + tx.amount, 0)
   const totalBudget = cards.reduce((s, c) => s + c.budget, 0)
-  // 本月支出 = 已記錄刷卡 + 訂閱／分期／必繳（完整總額）
+  // 本月支出 = 已記錄刷卡 + 訂閱／分期（首頁＝刷卡狀態，不含必繳清單）
   const monthlyOut = totalSpent + fixedMonthlyAmount
-  // 有設定收入時，以「收入」為比較基準；否則退回卡片額度
-  const base = income > 0 ? income : totalBudget
-  const balance = income - monthlyOut
-  const remaining = Math.max(0, base - monthlyOut)
-  const pct = base > 0 ? monthlyOut / base : 0
-  const status = pct < 0.7 ? 'safe' : pct <= 1 ? 'warning' : 'danger'
+  const remaining = Math.max(0, totalBudget - monthlyOut)
+  const pct = totalBudget > 0 ? monthlyOut / totalBudget : 0
+  const status = pct < 0.7 ? 'safe' : pct < 0.9 ? 'warning' : 'danger'
   const monthName = MONTH_NAMES[new Date().getMonth()]
 
   const txByCard = {}
@@ -158,14 +155,10 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   const trends = [...TREND_BASE, { month: monthName, amount: totalSpent }]
 
   const estimatedTotal = totalSpent + fixedMonthlyAmount
-  const overspent = income > 0 && monthlyOut > income
   const currentMonth = {
     name: monthName,
     total: totalSpent,
     budget: totalBudget,
-    income,
-    balance,
-    overspent,
     remaining,
     fixedMonthlyAmount,
     estimatedTotal,
@@ -305,15 +298,16 @@ export default function App() {
     return true
   }, [])
 
-  // 本月支出的「固定部分」＝ 所有訂閱 + 未繳清分期（每期）+ 全部必繳清單
-  // （必繳不論勾選與否都算進當月支出，因為都是這個月真正花掉的錢）
-  const planFixedAmount = plans
+  // 首頁＝刷卡狀態：本月支出的「固定部分」＝ 所有訂閱 + 未繳清分期（每期），不含必繳清單
+  const fixedMonthlyAmount = plans
     .filter(p => p.type === 'subscription' ? (p.active ?? true) : (p.paidCount < p.totalCount))
     .reduce((s, p) => s + p.amount, 0)
-  const checklistTotal = checklist.reduce((s, i) => s + Number(i.amount), 0)
-  const fixedMonthlyAmount = planFixedAmount + checklistTotal
 
-  const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans, income)
+  // 必要支出 / 生活預算：收入用來分配每月必要支出（必繳清單）
+  const essentialTotal = checklist.reduce((s, i) => s + Number(i.amount), 0)
+  const lifeBalance = income - essentialTotal
+
+  const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
   const weekDays = buildWeekDays(plans, enrichedCards)
 
   // 未償負債（資產負債清晰）：只計分期未繳清的剩餘期數 × 每期金額
@@ -376,6 +370,10 @@ export default function App() {
         showToast={showToast}
         items={checklist}
         monthName={currentMonth.name}
+        income={income}
+        essentialTotal={essentialTotal}
+        lifeBalance={lifeBalance}
+        onIncomeChange={setIncome}
         onAdd={handleAddChecklistItem}
         onToggle={handleToggleChecklistItem}
         onUpdate={handleUpdateChecklistItem}
@@ -388,8 +386,6 @@ export default function App() {
         cards={cards}
         fxSettings={fxSettings}
         envelopes={envelopes}
-        income={income}
-        onIncomeChange={setIncome}
         onFxChange={setFxSettings}
         onAddCard={handleAddCard}
         onSaveCard={handleSaveCard}
