@@ -11,7 +11,7 @@ const STATUS_CONFIG = {
 }
 
 export default function HeroStatusCard({ month, total, remaining, budget, fixedMonthlyAmount, estimatedTotal, status, statusText }) {
-  const pct = budget > 0 ? Math.round((total / budget) * 100) : 0
+  const pct = budget > 0 ? Math.round((estimatedTotal / budget) * 100) : 0
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.safe
 
   return (

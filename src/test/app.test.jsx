@@ -323,6 +323,8 @@ describe('每月必繳清單', () => {
     const breakdown = document.querySelector('.hero-card-breakdown')
     expect(breakdown.textContent).toContain('已記錄刷卡 NT$1,000')
     expect(breakdown.textContent).toContain('訂閱・分期・固定扣款 NT$3,000')
+    // 進度條百分比＝本月支出總額/總額度（4000/50000＝8%），與可用額度一致
+    expect(document.querySelector('.hero-card-pct').textContent).toBe('8%')
   })
 })
 
