@@ -92,6 +92,31 @@
   margin-top: 2px;
 }
 
+.hero-card-balance {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.hero-card-balance-income {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.hero-card-balance-left {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.hero-card-balance-over {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-danger);
+}
+
 .hero-card-illustration {
   width: 140px;
   height: 140px;

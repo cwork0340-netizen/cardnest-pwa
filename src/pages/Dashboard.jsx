@@ -11,6 +11,7 @@ import DebtOverviewCard from '../components/DebtOverviewCard'
 import EnvelopeBudgetCard from '../components/EnvelopeBudgetCard'
 
 export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays, cards, categories, trends, liabilityItems = [], totalDebt = 0, envelopeView = [], envelopeSummary = null }) {
+  const hasIncome = currentMonth.income > 0
   return (
     <div className="dashboard">
       <PageHeader
@@ -23,6 +24,9 @@ export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays,
         total={currentMonth.total}
         remaining={currentMonth.remaining}
         budget={currentMonth.budget}
+        income={currentMonth.income}
+        balance={currentMonth.balance}
+        overspent={currentMonth.overspent}
         fixedMonthlyAmount={currentMonth.fixedMonthlyAmount}
         estimatedTotal={currentMonth.estimatedTotal}
         status={currentMonth.status}
@@ -34,17 +38,19 @@ export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays,
         <WeekCalendar days={weekDays} />
       </div>
 
-      <div className="section">
-        <SectionHeader title="本月可用額度" />
-        <div className="card">
-          <BudgetCard
-            total={currentMonth.estimatedTotal}
-            budget={currentMonth.budget}
-            used={currentMonth.estimatedTotal}
-            remaining={currentMonth.remaining}
-          />
+      {hasIncome && (
+        <div className="section">
+          <SectionHeader title="本月收支" />
+          <div className="card">
+            <BudgetCard
+              total={currentMonth.estimatedTotal}
+              budget={currentMonth.income}
+              used={currentMonth.estimatedTotal}
+              remaining={currentMonth.remaining}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {envelopeView.length > 0 && (
         <div className="section">

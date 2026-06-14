@@ -4,14 +4,22 @@ import SectionHeader from '../components/SectionHeader'
 import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 
-export default function Settings({ showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard, backupData, onImportData, onClearData }) {
+export default function Settings({ showToast, cards, fxSettings, income = 0, onIncomeChange, onFxChange, onAddCard, onSaveCard, onDeleteCard, backupData, onImportData, onClearData }) {
   const [editingCard, setEditingCard] = useState(null)
   const [showAddCard, setShowAddCard] = useState(false)
   const [deletingCardId, setDeletingCardId] = useState(null)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [incomeInput, setIncomeInput] = useState(income ? String(income) : '')
   const [usdRate, setUsdRate] = useState(String(fxSettings?.usdRate ?? 32.5))
   const [feeRate, setFeeRate] = useState(String(fxSettings?.feeRate ?? 1.5))
   const [fxUpdated, setFxUpdated] = useState('')
+
+  function handleIncomeSave() {
+    const n = Number(incomeInput)
+    if (n < 0 || Number.isNaN(n)) { showToast('請輸入有效的收入金額'); return }
+    onIncomeChange(n)
+    showToast('月收入已儲存')
+  }
 
   function handleFxSave() {
     const rate = Number(usdRate)
@@ -135,6 +143,23 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
       <BottomSheet open={showAddCard} onClose={() => setShowAddCard(false)} title="新增信用卡">
         <CardForm onSubmit={handleAddCard} onClose={() => setShowAddCard(false)} initialValues={null} />
       </BottomSheet>
+
+      {/* 月收入 */}
+      <div className="section">
+        <SectionHeader title="月收入" />
+        <div className="card">
+          <p className="settings-backup-hint">填入每月收入（薪水＋其他），首頁就會顯示「結餘」並在花超過收入時提醒超支。</p>
+          <div className="fx-row">
+            <div className="fx-field">
+              <label className="fx-label">每月收入（NT$）</label>
+              <input className="fx-input" type="number" inputMode="numeric" placeholder="例如 60000" value={incomeInput} onChange={(e) => setIncomeInput(e.target.value)} />
+            </div>
+          </div>
+          <div className="fx-actions">
+            <button className="button-secondary fx-save-btn" onClick={handleIncomeSave}>儲存</button>
+          </div>
+        </div>
+      </div>
 
       {/* 外幣設定 */}
       <div className="section">

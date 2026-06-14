@@ -87,14 +87,17 @@ function buildWeekDays(plans, cards) {
   return days
 }
 
-function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = []) {
+function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = [], income = 0) {
   const totalSpent = transactions.reduce((s, tx) => s + tx.amount, 0)
   const totalBudget = cards.reduce((s, c) => s + c.budget, 0)
-  // 本月支出 = 已記錄刷卡 + 訂閱／分期／固定扣款
+  // 本月支出 = 已記錄刷卡 + 訂閱／分期／必繳（完整總額）
   const monthlyOut = totalSpent + fixedMonthlyAmount
-  const remaining = Math.max(0, totalBudget - monthlyOut)
-  const pct = totalBudget > 0 ? monthlyOut / totalBudget : 0
-  const status = pct < 0.7 ? 'safe' : pct < 0.9 ? 'warning' : 'danger'
+  // 有設定收入時，以「收入」為比較基準；否則退回卡片額度
+  const base = income > 0 ? income : totalBudget
+  const balance = income - monthlyOut
+  const remaining = Math.max(0, base - monthlyOut)
+  const pct = base > 0 ? monthlyOut / base : 0
+  const status = pct < 0.7 ? 'safe' : pct <= 1 ? 'warning' : 'danger'
   const monthName = MONTH_NAMES[new Date().getMonth()]
 
   const txByCard = {}
@@ -155,10 +158,14 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   const trends = [...TREND_BASE, { month: monthName, amount: totalSpent }]
 
   const estimatedTotal = totalSpent + fixedMonthlyAmount
+  const overspent = income > 0 && monthlyOut > income
   const currentMonth = {
     name: monthName,
     total: totalSpent,
     budget: totalBudget,
+    income,
+    balance,
+    overspent,
     remaining,
     fixedMonthlyAmount,
     estimatedTotal,
@@ -189,10 +196,11 @@ export default function App() {
   const [checklist, setChecklist] = useState(initialChecklist)
   const [checklistMonth] = useState(currentMonthKey)
   const [envelopes, setEnvelopes] = useState(stored?.envelopes ?? [])
+  const [income, setIncome] = useState(stored?.income ?? 0)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes }))
-  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income }))
+  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income])
 
   const showToast = useCallback((message) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -279,6 +287,7 @@ export default function App() {
     setTransactions([])
     setChecklist([])
     setEnvelopes([])
+    setIncome(0)
     setFxSettings({ usdRate: 32.5, feeRate: 1.5 })
     setTab('dashboard')
   }, [])
@@ -292,19 +301,19 @@ export default function App() {
     setChecklist(Array.isArray(data.checklist) ? data.checklist : [])
     setEnvelopes(Array.isArray(data.envelopes) ? data.envelopes : [])
     if (data.fxSettings && typeof data.fxSettings === 'object') setFxSettings(data.fxSettings)
+    if (typeof data.income === 'number') setIncome(data.income)
     return true
   }, [])
 
+  // 本月支出的「固定部分」＝ 所有訂閱 + 未繳清分期（每期）+ 全部必繳清單
+  // （必繳不論勾選與否都算進當月支出，因為都是這個月真正花掉的錢）
   const planFixedAmount = plans
-    .filter(p => p.daysLeft <= 30 && (p.type === 'subscription' || (p.type === 'installment' && !p.paid)))
+    .filter(p => p.type === 'subscription' ? (p.active ?? true) : (p.paidCount < p.totalCount))
     .reduce((s, p) => s + p.amount, 0)
-  // 必繳清單中尚未繳清的項目也算本月固定支出
-  const checklistDue = checklist
-    .filter(i => !i.done)
-    .reduce((s, i) => s + Number(i.amount), 0)
-  const fixedMonthlyAmount = planFixedAmount + checklistDue
+  const checklistTotal = checklist.reduce((s, i) => s + Number(i.amount), 0)
+  const fixedMonthlyAmount = planFixedAmount + checklistTotal
 
-  const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
+  const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans, income)
   const weekDays = buildWeekDays(plans, enrichedCards)
 
   // 未償負債（資產負債清晰）：只計分期未繳清的剩餘期數 × 每期金額
@@ -379,6 +388,8 @@ export default function App() {
         cards={cards}
         fxSettings={fxSettings}
         envelopes={envelopes}
+        income={income}
+        onIncomeChange={setIncome}
         onFxChange={setFxSettings}
         onAddCard={handleAddCard}
         onSaveCard={handleSaveCard}
@@ -386,7 +397,7 @@ export default function App() {
         onAddEnvelope={handleAddEnvelope}
         onUpdateEnvelope={handleUpdateEnvelope}
         onDeleteEnvelope={handleDeleteEnvelope}
-        backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings }}
+        backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings, income }}
         onImportData={handleImportData}
         onClearData={handleClearData}
       />
