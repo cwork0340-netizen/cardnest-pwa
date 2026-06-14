@@ -87,7 +87,7 @@ function buildWeekDays(plans, cards) {
   return days
 }
 
-function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = []) {
+function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = []) {
   const totalSpent = transactions.reduce((s, tx) => s + tx.amount, 0)
   const totalBudget = cards.reduce((s, c) => s + c.budget, 0)
   // 本月支出 = 已記錄刷卡 + 訂閱／分期／固定扣款
@@ -101,11 +101,19 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   transactions.forEach(tx => { txByCard[tx.card] = (txByCard[tx.card] ?? 0) + tx.amount })
   const enrichedCards = cards.map(card => {
     const used = txByCard[card.name] ?? 0
+    // 下期應繳 = 這張卡的 刷卡消費 + 訂閱 + 未繳清的分期（每期）
+    const subsOnCard = plans
+      .filter(p => p.type === 'subscription' && (p.active ?? true) && p.card === card.name)
+      .reduce((s, p) => s + p.amount, 0)
+    const instOnCard = plans
+      .filter(p => p.type === 'installment' && !p.paid && p.card === card.name)
+      .reduce((s, p) => s + p.amount, 0)
+    const upcomingBill = used + subsOnCard + instOnCard
     const cardRemaining = card.budget - used
     const cp = card.budget > 0 ? used / card.budget : 0
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
     return {
-      ...card, used,
+      ...card, used, upcomingBill,
       status: cardStatus,
       statusText: cardStatus === 'safe'
         ? `還有 NT$${cardRemaining.toLocaleString()} 可用`
@@ -296,7 +304,7 @@ export default function App() {
     .reduce((s, i) => s + Number(i.amount), 0)
   const fixedMonthlyAmount = planFixedAmount + checklistDue
 
-  const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes)
+  const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
   const weekDays = buildWeekDays(plans, enrichedCards)
 
   // 未償負債（資產負債清晰）：只計分期未繳清的剩餘期數 × 每期金額

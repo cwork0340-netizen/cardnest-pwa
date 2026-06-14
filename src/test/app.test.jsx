@@ -391,3 +391,23 @@ describe('資料備份：匯入還原', () => {
     expect(screen.getByText('-NT$1,234')).toBeInTheDocument()
   })
 })
+
+describe('各卡下期應繳', () => {
+  it('卡片下期應繳＝該卡刷卡＋訂閱＋未繳分期', () => {
+    seed({
+      transactions: [
+        { id: 't1', name: '購物', card: '永豐卡', category: '購物', amount: 1000, date: todayMD() },
+        { id: 't2', name: '別張卡', card: '玉山卡', category: '餐飲', amount: 9999, date: todayMD() },
+      ],
+      plans: [
+        { id: 's1', type: 'subscription', name: 'Netflix', card: '永豐卡', currency: 'TWD', amount: 390, period: '月', nextDate: '6/20', daysLeft: 8, status: 'neutral', active: true },
+        { id: 'i1', type: 'installment', name: '手機分期', card: '永豐卡', amount: 600, period: '期', paidCount: 2, totalCount: 6, nextDate: '6/15', daysLeft: 5, status: 'neutral', paid: false },
+      ],
+    })
+    render(<App />)
+    // 永豐卡：1000 + 390 + 600 = 1990
+    const cards = document.querySelectorAll('.credit-card-summary')
+    const yongfeng = Array.from(cards).find(c => c.textContent.includes('永豐卡'))
+    expect(yongfeng.querySelector('.credit-card-summary-bill-amount').textContent).toBe('NT$1,990')
+  })
+})

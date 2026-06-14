@@ -22,6 +22,14 @@ export default function CreditCardSummaryCard({ card }) {
       <div className="credit-card-summary-detail">
         {'NT$' + Number(card.used).toLocaleString()} / {'NT$' + Number(card.budget).toLocaleString()}
       </div>
+      {card.upcomingBill != null && (
+        <div className="credit-card-summary-bill">
+          <span className="credit-card-summary-bill-label">下期應繳（含訂閱・分期）</span>
+          <span className="credit-card-summary-bill-amount">
+            {'NT$' + Number(card.upcomingBill).toLocaleString()}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
