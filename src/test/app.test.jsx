@@ -580,3 +580,20 @@ describe('標記已繳從連動帳戶扣款', () => {
     expect(document.querySelector('.sg-saved').textContent).toBe('NT$2,000')
   })
 })
+
+describe('各卡狀態：日期與標記已繳', () => {
+  it('卡片顯示結帳/繳款日，按標記已繳後顯示本期已繳', () => {
+    seed({
+      cards: [{ id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDay: 15, dueDate: 17, budget: 50000, actualBill: 3022 }],
+    })
+    render(<App />)
+    const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('台新卡'))
+    expect(summary.textContent).toContain('2 號結帳')
+    expect(summary.textContent).toContain('17 號前繳款')
+    fireEvent.click(within(summary).getByText('標記已繳'))
+    const after = Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('台新卡'))
+    expect(after.textContent).toContain('本期已繳')
+  })
+})

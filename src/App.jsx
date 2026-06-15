@@ -400,6 +400,16 @@ export default function App() {
     })
     .sort((a, b) => a.daysLeft - b.daysLeft)
 
+  // 各卡狀態用：補上「本期是否已繳」與連動的卡費預留帳戶
+  const dashboardCards = enrichedCards.map(c => {
+    const reserve = savings.find(g => g.linkedCardId === c.id)
+    return {
+      ...c,
+      billPaid: c.billPaidMonth === currentMonthKey,
+      reserve: reserve ? { id: reserve.id, name: reserve.name, saved: Number(reserve.saved) } : null,
+    }
+  })
+
   // 開啟 App 時，若有快到期/逾期的卡費就跳一則瀏覽器通知（今天只跳一次）
   useEffect(() => {
     maybeNotifyDueBills(paymentReminders)
@@ -429,7 +439,7 @@ export default function App() {
         dateLabel={dateLabel}
         currentMonth={currentMonth}
         weekDays={weekDays}
-        cards={enrichedCards}
+        cards={dashboardCards}
         categories={categories}
         trends={trends}
         liabilityItems={liabilityItems}
