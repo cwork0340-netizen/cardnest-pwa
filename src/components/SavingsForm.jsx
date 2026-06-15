@@ -1,24 +1,33 @@
 import { useState } from 'react'
 import './ChecklistForm.css'
 
-export default function SavingsForm({ onSubmit, onClose, initialValues = null, checklistItems = [] }) {
+export default function SavingsForm({ onSubmit, onClose, initialValues = null, checklistItems = [], cardBills = [] }) {
   const isEditing = !!initialValues
+  const initialLink = initialValues?.linkedChecklistId
+    ? `cl:${initialValues.linkedChecklistId}`
+    : initialValues?.linkedCardId
+      ? `card:${initialValues.linkedCardId}`
+      : ''
   const [name, setName] = useState(initialValues?.name ?? '')
-  const [linkedId, setLinkedId] = useState(initialValues?.linkedChecklistId ?? '')
+  const [link, setLink] = useState(initialLink)
   const [monthly, setMonthly] = useState(initialValues ? String(initialValues.monthly ?? '') : '')
   const [target, setTarget] = useState(initialValues?.target ? String(initialValues.target) : '')
   const [countInEssential, setCountInEssential] = useState(initialValues?.countInEssential ?? false)
   const [error, setError] = useState('')
 
-  const linkedItem = checklistItems.find((i) => i.id === linkedId)
-  const isLinked = !!linkedItem
+  const linkChecklistId = link.startsWith('cl:') ? link.slice(3) : null
+  const linkCardId = link.startsWith('card:') ? link.slice(5) : null
+  const linkedItem = checklistItems.find((i) => i.id === linkChecklistId)
+  const isChecklistLinked = !!linkedItem
+  const isCardLinked = !!linkCardId
+  // 連動必繳項目時每月金額自動取自該項目；其餘（不連動、連動信用卡）為手動撥入金額
+  const needManual = !isChecklistLinked
 
   function handleSubmit(e) {
     e.preventDefault()
     if (!name.trim()) { setError('請輸入目標名稱'); return }
-    // 連動必繳項目時，每月金額自動取自該項目，不需手動填
-    let monthlyNum = isLinked ? Number(linkedItem.amount) : Number(monthly)
-    if (!isLinked && (!monthlyNum || monthlyNum <= 0)) { setError('請輸入每月撥入金額'); return }
+    let monthlyNum = isChecklistLinked ? Number(linkedItem.amount) : Number(monthly)
+    if (needManual && (!monthlyNum || monthlyNum <= 0)) { setError('請輸入每月撥入金額'); return }
     let targetNum = 0
     if (target !== '') {
       targetNum = Number(target)
@@ -29,10 +38,11 @@ export default function SavingsForm({ onSubmit, onClose, initialValues = null, c
     onSubmit({
       id: initialValues?.id ?? crypto.randomUUID(),
       name: name.trim(),
-      linkedChecklistId: isLinked ? linkedId : null,
+      linkedChecklistId: isChecklistLinked ? linkChecklistId : null,
+      linkedCardId: isCardLinked ? linkCardId : null,
       monthly: monthlyNum,
       target: targetNum,
-      countInEssential: isLinked ? false : countInEssential,
+      countInEssential: isChecklistLinked ? false : countInEssential,
       saved: initialValues?.saved ?? 0,
       entries: initialValues?.entries ?? [],
     })
@@ -46,7 +56,7 @@ export default function SavingsForm({ onSubmit, onClose, initialValues = null, c
           <input
             className="clf-input"
             type="text"
-            placeholder="學費、旅遊、緊急預備金…"
+            placeholder="學費、旅遊、信用卡費…"
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
@@ -54,19 +64,33 @@ export default function SavingsForm({ onSubmit, onClose, initialValues = null, c
         </div>
 
         <div className="clf-field">
-          <label className="clf-label">連動必繳項目<span className="clf-label-hint">（選填）</span></label>
-          <select className="clf-input" value={linkedId} onChange={(e) => setLinkedId(e.target.value)}>
+          <label className="clf-label">連動對象<span className="clf-label-hint">（選填）</span></label>
+          <select className="clf-input" value={link} onChange={(e) => setLink(e.target.value)}>
             <option value="">不連動（手動撥入）</option>
-            {checklistItems.map((i) => (
-              <option key={i.id} value={i.id}>{i.name}（NT${Number(i.amount).toLocaleString()}）</option>
-            ))}
+            {checklistItems.length > 0 && (
+              <optgroup label="必繳項目（勾選時存入）">
+                {checklistItems.map((i) => (
+                  <option key={i.id} value={`cl:${i.id}`}>{i.name}（NT${Number(i.amount).toLocaleString()}）</option>
+                ))}
+              </optgroup>
+            )}
+            {cardBills.length > 0 && (
+              <optgroup label="信用卡（預留卡費）">
+                {cardBills.map((c) => (
+                  <option key={c.id} value={`card:${c.id}`}>{c.name}（本期 NT${Number(c.bill).toLocaleString()}）</option>
+                ))}
+              </optgroup>
+            )}
           </select>
-          {isLinked && (
+          {isChecklistLinked && (
             <span className="clf-label-hint">勾選「{linkedItem.name}」當月即自動存入該筆金額，金額調整時存入實際金額</span>
+          )}
+          {isCardLinked && (
+            <span className="clf-label-hint">每月撥入要預留的卡費；帳上可用「支付卡費」直接結清本期帳單</span>
           )}
         </div>
 
-        {!isLinked && (
+        {needManual && (
           <div className="clf-field">
             <label className="clf-label">每月撥入</label>
             <input
@@ -93,7 +117,7 @@ export default function SavingsForm({ onSubmit, onClose, initialValues = null, c
         </div>
       </div>
 
-      {!isLinked && (
+      {needManual && (
         <label className="sf-check">
           <input
             type="checkbox"

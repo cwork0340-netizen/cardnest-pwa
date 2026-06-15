@@ -435,6 +435,22 @@ describe('每月必繳清單', () => {
     // 6000 − 4000 = 2000
     expect(document.querySelector('.sg-saved').textContent).toBe('NT$2,000')
   })
+
+  it('連動信用卡：支付卡費依本期帳單預填並扣款', () => {
+    seed({
+      income: 50000,
+      transactions: [{ id: 't1', name: '購物', card: '永豐卡', category: '生活', amount: 5000, date: todayMD() }],
+      savings: [{ id: 's1', name: '卡費預留', linkedCardId: 'c1', monthly: 5000, target: 0, saved: 6000, entries: [] }],
+      checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    // 本期卡費＝永豐卡本月刷卡 5000
+    fireEvent.click(screen.getByText('支付卡費 NT$5,000'))
+    fireEvent.click(screen.getByText('記錄支出'))
+    // 6000 − 5000 = 1000
+    expect(document.querySelector('.sg-saved').textContent).toBe('NT$1,000')
+  })
 })
 
 describe('整列點擊即可編輯', () => {

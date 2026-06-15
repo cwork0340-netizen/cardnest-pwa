@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import './ChecklistForm.css'
 
-export default function SavingsSpendForm({ goal, onSubmit, onClose }) {
-  const [amount, setAmount] = useState('')
+export default function SavingsSpendForm({ goal, initialAmount = 0, onSubmit, onClose }) {
+  const [amount, setAmount] = useState(initialAmount > 0 ? String(initialAmount) : '')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
   const saved = Number(goal?.saved ?? 0)

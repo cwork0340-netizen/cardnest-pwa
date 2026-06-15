@@ -438,6 +438,7 @@ export default function App() {
         essentialSavings={essentialSavings}
         lifeBalance={lifeBalance}
         savings={savings}
+        cardBills={enrichedCards.map(c => ({ id: c.id, name: c.name, bill: c.upcomingBill }))}
         onIncomeChange={setIncome}
         onAdd={handleAddChecklistItem}
         onToggle={handleToggleChecklistItem}

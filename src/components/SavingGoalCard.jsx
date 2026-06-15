@@ -5,12 +5,14 @@ function fmt(n) {
   return 'NT$' + Number(n).toLocaleString()
 }
 
-export default function SavingGoalCard({ goal, linkedItem, onEdit, onDelete, onContribute, onSpend, onReset }) {
+export default function SavingGoalCard({ goal, linkedItem, linkedCard, onEdit, onDelete, onContribute, onSpend, onReset }) {
   const [showLog, setShowLog] = useState(false)
   const stop = (fn) => (e) => { e.stopPropagation(); fn() }
   const saved = Number(goal.saved)
   const target = Number(goal.target)
   const isLinked = !!linkedItem
+  const isCardLinked = !!linkedCard
+  const cardBill = isCardLinked ? Number(linkedCard.bill) : 0
   const monthly = isLinked ? Number(linkedItem.amount) : Number(goal.monthly)
   const hasTarget = target > 0
   const pct = hasTarget ? Math.min(100, Math.round((saved / target) * 100)) : 0
@@ -32,11 +34,15 @@ export default function SavingGoalCard({ goal, linkedItem, onEdit, onDelete, onC
           <span className="sg-name">
             {goal.name}
             {isLinked && <span className="sg-badge">連動 {linkedItem.name}</span>}
-            {!isLinked && goal.countInEssential && <span className="sg-badge">額外預留</span>}
+            {isCardLinked && <span className="sg-badge">預留 {linkedCard.name}卡費</span>}
+            {!isLinked && !isCardLinked && goal.countInEssential && <span className="sg-badge">額外預留</span>}
           </span>
           <span className="sg-monthly">
             每月撥入 {fmt(monthly)}{isLinked ? '（勾選該項目時存入）' : ''}
           </span>
+          {isCardLinked && (
+            <span className="sg-monthly">本期卡費 {fmt(cardBill)}</span>
+          )}
         </div>
         <div className="sg-btns">
           <button className="sg-edit" onClick={stop(() => onEdit(goal))} aria-label="編輯">✎</button>
@@ -67,7 +73,12 @@ export default function SavingGoalCard({ goal, linkedItem, onEdit, onDelete, onC
             撥入本月 +{fmt(monthly)}
           </button>
         )}
-        <button className="sg-action-btn sg-spend" onClick={stop(() => onSpend(goal))} disabled={saved <= 0}>
+        {isCardLinked && cardBill > 0 && (
+          <button className="sg-action-btn sg-spend" onClick={stop(() => onSpend(goal, cardBill))} disabled={saved <= 0}>
+            支付卡費 {fmt(cardBill)}
+          </button>
+        )}
+        <button className="sg-action-btn sg-spend" onClick={stop(() => onSpend(goal, 0))} disabled={saved <= 0}>
           記一筆支出
         </button>
         <button className="sg-action-btn sg-reset" onClick={stop(() => onReset(goal.id))} disabled={saved <= 0}>

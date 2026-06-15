@@ -12,7 +12,7 @@ import SavingsSpendForm from '../components/SavingsSpendForm'
 export default function Checklist({
   showToast, items, monthName,
   income = 0, essentialTotal = 0, checklistTotal = 0, essentialSavings = 0, lifeBalance = 0,
-  savings = [], onIncomeChange,
+  savings = [], cardBills = [], onIncomeChange,
   onAdd, onToggle, onUpdate, onDelete,
   onAddSaving, onUpdateSaving, onDeleteSaving, onContributeSaving, onSpendSaving, onResetSaving,
 }) {
@@ -21,6 +21,7 @@ export default function Checklist({
   const [showSavingsSheet, setShowSavingsSheet] = useState(false)
   const [editingSaving, setEditingSaving] = useState(null)
   const [spendingGoal, setSpendingGoal] = useState(null)
+  const [spendSuggest, setSpendSuggest] = useState(0)
   const [incomeInput, setIncomeInput] = useState(income ? String(income) : '')
 
   const sheetOpen = showAddSheet || !!editingItem
@@ -93,9 +94,15 @@ export default function Checklist({
     showToast('已領出全部')
   }
 
+  function openSpend(goal, suggest) {
+    setSpendingGoal(goal)
+    setSpendSuggest(suggest || 0)
+  }
+
   function handleSpendSubmit(amount, note) {
     onSpendSaving(spendingGoal.id, amount, note)
     setSpendingGoal(null)
+    setSpendSuggest(0)
     showToast('已記錄帳戶支出')
   }
 
@@ -202,10 +209,11 @@ export default function Checklist({
               key={goal.id}
               goal={goal}
               linkedItem={items.find((i) => i.id === goal.linkedChecklistId)}
+              linkedCard={cardBills.find((c) => c.id === goal.linkedCardId)}
               onEdit={setEditingSaving}
               onDelete={handleDeleteSaving}
               onContribute={handleContribute}
-              onSpend={setSpendingGoal}
+              onSpend={openSpend}
               onReset={handleReset}
             />
           ))
@@ -245,6 +253,7 @@ export default function Checklist({
           onClose={closeSavingsSheet}
           initialValues={editingSaving}
           checklistItems={items}
+          cardBills={cardBills}
         />
       </BottomSheet>
 
@@ -256,6 +265,7 @@ export default function Checklist({
         {spendingGoal && (
           <SavingsSpendForm
             goal={spendingGoal}
+            initialAmount={spendSuggest}
             onSubmit={handleSpendSubmit}
             onClose={() => setSpendingGoal(null)}
           />
