@@ -1,19 +1,24 @@
 import { useState } from 'react'
 import './ChecklistForm.css'
 
-export default function SavingsForm({ onSubmit, onClose, initialValues = null }) {
+export default function SavingsForm({ onSubmit, onClose, initialValues = null, checklistItems = [] }) {
   const isEditing = !!initialValues
   const [name, setName] = useState(initialValues?.name ?? '')
-  const [monthly, setMonthly] = useState(initialValues ? String(initialValues.monthly) : '')
+  const [linkedId, setLinkedId] = useState(initialValues?.linkedChecklistId ?? '')
+  const [monthly, setMonthly] = useState(initialValues ? String(initialValues.monthly ?? '') : '')
   const [target, setTarget] = useState(initialValues?.target ? String(initialValues.target) : '')
   const [countInEssential, setCountInEssential] = useState(initialValues?.countInEssential ?? false)
   const [error, setError] = useState('')
 
+  const linkedItem = checklistItems.find((i) => i.id === linkedId)
+  const isLinked = !!linkedItem
+
   function handleSubmit(e) {
     e.preventDefault()
     if (!name.trim()) { setError('請輸入目標名稱'); return }
-    const monthlyNum = Number(monthly)
-    if (!monthlyNum || monthlyNum <= 0) { setError('請輸入每月撥入金額'); return }
+    // 連動必繳項目時，每月金額自動取自該項目，不需手動填
+    let monthlyNum = isLinked ? Number(linkedItem.amount) : Number(monthly)
+    if (!isLinked && (!monthlyNum || monthlyNum <= 0)) { setError('請輸入每月撥入金額'); return }
     let targetNum = 0
     if (target !== '') {
       targetNum = Number(target)
@@ -24,10 +29,12 @@ export default function SavingsForm({ onSubmit, onClose, initialValues = null })
     onSubmit({
       id: initialValues?.id ?? crypto.randomUUID(),
       name: name.trim(),
+      linkedChecklistId: isLinked ? linkedId : null,
       monthly: monthlyNum,
       target: targetNum,
-      countInEssential,
+      countInEssential: isLinked ? false : countInEssential,
       saved: initialValues?.saved ?? 0,
+      entries: initialValues?.entries ?? [],
     })
   }
 
@@ -47,16 +54,31 @@ export default function SavingsForm({ onSubmit, onClose, initialValues = null })
         </div>
 
         <div className="clf-field">
-          <label className="clf-label">每月撥入</label>
-          <input
-            className="clf-input"
-            type="number"
-            inputMode="decimal"
-            placeholder="0"
-            value={monthly}
-            onChange={(e) => setMonthly(e.target.value)}
-          />
+          <label className="clf-label">連動必繳項目<span className="clf-label-hint">（選填）</span></label>
+          <select className="clf-input" value={linkedId} onChange={(e) => setLinkedId(e.target.value)}>
+            <option value="">不連動（手動撥入）</option>
+            {checklistItems.map((i) => (
+              <option key={i.id} value={i.id}>{i.name}（NT${Number(i.amount).toLocaleString()}）</option>
+            ))}
+          </select>
+          {isLinked && (
+            <span className="clf-label-hint">勾選「{linkedItem.name}」當月即自動存入該筆金額，金額調整時存入實際金額</span>
+          )}
         </div>
+
+        {!isLinked && (
+          <div className="clf-field">
+            <label className="clf-label">每月撥入</label>
+            <input
+              className="clf-input"
+              type="number"
+              inputMode="decimal"
+              placeholder="0"
+              value={monthly}
+              onChange={(e) => setMonthly(e.target.value)}
+            />
+          </div>
+        )}
 
         <div className="clf-field">
           <label className="clf-label">目標金額<span className="clf-label-hint">（選填）</span></label>
@@ -71,17 +93,19 @@ export default function SavingsForm({ onSubmit, onClose, initialValues = null })
         </div>
       </div>
 
-      <label className="sf-check">
-        <input
-          type="checkbox"
-          checked={countInEssential}
-          onChange={(e) => setCountInEssential(e.target.checked)}
-        />
-        <span className="sf-check-text">
-          額外預留（計入必要支出）
-          <span className="sf-check-hint">這筆是收入裡額外要存的；若已列在上面的必繳項目，請不要勾，以免重複計算</span>
-        </span>
-      </label>
+      {!isLinked && (
+        <label className="sf-check">
+          <input
+            type="checkbox"
+            checked={countInEssential}
+            onChange={(e) => setCountInEssential(e.target.checked)}
+          />
+          <span className="sf-check-text">
+            額外預留（計入必要支出）
+            <span className="sf-check-hint">這筆是收入裡額外要存的；若已列在必繳項目，請改用上面的「連動」，以免重複計算</span>
+          </span>
+        </label>
+      )}
 
       {error && <span className="clf-error">{error}</span>}
 

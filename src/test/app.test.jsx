@@ -387,7 +387,7 @@ describe('每月必繳清單', () => {
     expect(screen.getByText('NT$6,000')).toBeInTheDocument()
   })
 
-  it('動用（歸零）把已存清為 0', () => {
+  it('領出全部把已存清為 0', () => {
     seed({
       income: 10000,
       checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: false }],
@@ -396,8 +396,44 @@ describe('每月必繳清單', () => {
     })
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: '必繳' }))
-    fireEvent.click(screen.getByText(/動用/))
-    expect(screen.getByText('NT$0')).toBeInTheDocument()
+    fireEvent.click(screen.getByText(/領出全部/))
+    expect(document.querySelector('.sg-saved').textContent).toBe('NT$0')
+  })
+
+  it('連動必繳項目：勾選時把當下金額自動存入帳戶，且不重複計入必要支出', () => {
+    seed({
+      income: 10000,
+      checklist: [{ id: 'cl1', name: '學費', amount: 3000, day: 5, done: false }],
+      savings: [{ id: 's1', name: '學費存款', linkedChecklistId: 'cl1', monthly: 3000, target: 60000, saved: 0, entries: [] }],
+      checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    // 連動不重複計入：必要支出＝必繳 3000，生活結餘 10000−3000＝7000
+    expect(screen.getByText(/還有 NT\$7,000 可生活/)).toBeInTheDocument()
+    expect(document.querySelector('.sg-saved').textContent).toBe('NT$0')
+    // 勾選必繳項目 → 自動存入 3000
+    fireEvent.click(screen.getByLabelText('標記已繳'))
+    expect(document.querySelector('.sg-saved').textContent).toBe('NT$3,000')
+    // 取消勾選 → 退回本月撥入
+    fireEvent.click(screen.getByLabelText('取消已繳標記'))
+    expect(document.querySelector('.sg-saved').textContent).toBe('NT$0')
+  })
+
+  it('記一筆支出從帳戶扣款', () => {
+    seed({
+      income: 10000,
+      checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: false }],
+      savings: [{ id: 's1', name: '學費', monthly: 2000, target: 60000, saved: 6000, entries: [] }],
+      checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByText('記一筆支出'))
+    fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '4000' } })
+    fireEvent.click(screen.getByText('記錄支出'))
+    // 6000 − 4000 = 2000
+    expect(document.querySelector('.sg-saved').textContent).toBe('NT$2,000')
   })
 })
 

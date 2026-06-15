@@ -7,18 +7,20 @@ import ChecklistItem from '../components/ChecklistItem'
 import ChecklistForm from '../components/ChecklistForm'
 import SavingGoalCard from '../components/SavingGoalCard'
 import SavingsForm from '../components/SavingsForm'
+import SavingsSpendForm from '../components/SavingsSpendForm'
 
 export default function Checklist({
   showToast, items, monthName,
-  income = 0, essentialTotal = 0, checklistTotal = 0, savingsMonthly = 0, essentialSavings = 0, lifeBalance = 0,
+  income = 0, essentialTotal = 0, checklistTotal = 0, essentialSavings = 0, lifeBalance = 0,
   savings = [], onIncomeChange,
   onAdd, onToggle, onUpdate, onDelete,
-  onAddSaving, onUpdateSaving, onDeleteSaving, onContributeSaving, onResetSaving,
+  onAddSaving, onUpdateSaving, onDeleteSaving, onContributeSaving, onSpendSaving, onResetSaving,
 }) {
   const [showAddSheet, setShowAddSheet] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [showSavingsSheet, setShowSavingsSheet] = useState(false)
   const [editingSaving, setEditingSaving] = useState(null)
+  const [spendingGoal, setSpendingGoal] = useState(null)
   const [incomeInput, setIncomeInput] = useState(income ? String(income) : '')
 
   const sheetOpen = showAddSheet || !!editingItem
@@ -88,7 +90,13 @@ export default function Checklist({
 
   function handleReset(id) {
     onResetSaving(id)
-    showToast('已動用，重新累積')
+    showToast('已領出全部')
+  }
+
+  function handleSpendSubmit(amount, note) {
+    onSpendSaving(spendingGoal.id, amount, note)
+    setSpendingGoal(null)
+    showToast('已記錄帳戶支出')
   }
 
   function handleDeleteSaving(id) {
@@ -129,11 +137,6 @@ export default function Checklist({
           <div className="checklist-budget-sub">
             <span>・必繳清單 NT${checklistTotal.toLocaleString()}</span>
             <span>・額外儲蓄 NT${essentialSavings.toLocaleString()}</span>
-          </div>
-        )}
-        {savingsMonthly > 0 && (
-          <div className="checklist-budget-note">
-            儲蓄每月撥入 NT${savingsMonthly.toLocaleString()}（已含在必繳清單的不重複計入）
           </div>
         )}
         <div className="checklist-budget-divider" />
@@ -198,9 +201,11 @@ export default function Checklist({
             <SavingGoalCard
               key={goal.id}
               goal={goal}
+              linkedItem={items.find((i) => i.id === goal.linkedChecklistId)}
               onEdit={setEditingSaving}
               onDelete={handleDeleteSaving}
               onContribute={handleContribute}
+              onSpend={setSpendingGoal}
               onReset={handleReset}
             />
           ))
@@ -239,7 +244,22 @@ export default function Checklist({
           onSubmit={handleSavingsSubmit}
           onClose={closeSavingsSheet}
           initialValues={editingSaving}
+          checklistItems={items}
         />
+      </BottomSheet>
+
+      <BottomSheet
+        open={!!spendingGoal}
+        onClose={() => setSpendingGoal(null)}
+        title={spendingGoal ? `${spendingGoal.name}・記一筆支出` : '記一筆支出'}
+      >
+        {spendingGoal && (
+          <SavingsSpendForm
+            goal={spendingGoal}
+            onSubmit={handleSpendSubmit}
+            onClose={() => setSpendingGoal(null)}
+          />
+        )}
       </BottomSheet>
     </div>
   )

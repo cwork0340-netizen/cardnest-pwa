@@ -1,19 +1,23 @@
+import { useState } from 'react'
 import './SavingGoalCard.css'
 
 function fmt(n) {
   return 'NT$' + Number(n).toLocaleString()
 }
 
-export default function SavingGoalCard({ goal, onEdit, onDelete, onContribute, onReset }) {
+export default function SavingGoalCard({ goal, linkedItem, onEdit, onDelete, onContribute, onSpend, onReset }) {
+  const [showLog, setShowLog] = useState(false)
   const stop = (fn) => (e) => { e.stopPropagation(); fn() }
   const saved = Number(goal.saved)
   const target = Number(goal.target)
-  const monthly = Number(goal.monthly)
+  const isLinked = !!linkedItem
+  const monthly = isLinked ? Number(linkedItem.amount) : Number(goal.monthly)
   const hasTarget = target > 0
   const pct = hasTarget ? Math.min(100, Math.round((saved / target) * 100)) : 0
   const remain = Math.max(0, target - saved)
   const monthsLeft = hasTarget && monthly > 0 ? Math.ceil(remain / monthly) : 0
   const reached = hasTarget && saved >= target
+  const entries = [...(goal.entries ?? [])].reverse()
 
   return (
     <div
@@ -27,9 +31,12 @@ export default function SavingGoalCard({ goal, onEdit, onDelete, onContribute, o
         <div className="sg-info">
           <span className="sg-name">
             {goal.name}
-            {goal.countInEssential && <span className="sg-badge">額外預留</span>}
+            {isLinked && <span className="sg-badge">連動 {linkedItem.name}</span>}
+            {!isLinked && goal.countInEssential && <span className="sg-badge">額外預留</span>}
           </span>
-          <span className="sg-monthly">每月撥入 {fmt(monthly)}</span>
+          <span className="sg-monthly">
+            每月撥入 {fmt(monthly)}{isLinked ? '（勾選該項目時存入）' : ''}
+          </span>
         </div>
         <div className="sg-btns">
           <button className="sg-edit" onClick={stop(() => onEdit(goal))} aria-label="編輯">✎</button>
@@ -55,13 +62,39 @@ export default function SavingGoalCard({ goal, onEdit, onDelete, onContribute, o
       )}
 
       <div className="sg-actions">
-        <button className="sg-action-btn sg-contribute" onClick={stop(() => onContribute(goal.id))}>
-          撥入本月 +{fmt(monthly)}
+        {!isLinked && (
+          <button className="sg-action-btn sg-contribute" onClick={stop(() => onContribute(goal.id))}>
+            撥入本月 +{fmt(monthly)}
+          </button>
+        )}
+        <button className="sg-action-btn sg-spend" onClick={stop(() => onSpend(goal))} disabled={saved <= 0}>
+          記一筆支出
         </button>
         <button className="sg-action-btn sg-reset" onClick={stop(() => onReset(goal.id))} disabled={saved <= 0}>
-          動用（歸零）
+          領出全部
         </button>
       </div>
+
+      {entries.length > 0 && (
+        <>
+          <button className="sg-log-toggle" onClick={stop(() => setShowLog((v) => !v))}>
+            明細（{entries.length}）{showLog ? '▴' : '▾'}
+          </button>
+          {showLog && (
+            <div className="sg-log">
+              {entries.map((e) => (
+                <div key={e.id} className="sg-log-row">
+                  <span className="sg-log-date">{e.date}</span>
+                  <span className="sg-log-note">{e.note}</span>
+                  <span className={e.type === 'in' ? 'sg-log-in' : 'sg-log-out'}>
+                    {e.type === 'in' ? '+' : '−'}{fmt(e.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

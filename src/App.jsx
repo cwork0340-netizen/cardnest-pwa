@@ -261,15 +261,59 @@ export default function App() {
   // Checklist handlers（每月必繳清單）
   const handleAddChecklistItem = useCallback((item) => setChecklist(p => [...p, item]), [])
   const handleUpdateChecklistItem = useCallback((updated) => setChecklist(p => p.map(i => i.id === updated.id ? updated : i)), [])
-  const handleToggleChecklistItem = useCallback((id) => setChecklist(p => p.map(i => i.id === id ? { ...i, done: !i.done } : i)), [])
   const handleDeleteChecklistItem = useCallback((id) => setChecklist(p => p.filter(i => i.id !== id)), [])
 
-  // 儲蓄目標：每月撥入算進必要支出；已存可累積、動用後歸零
-  const handleAddSaving = useCallback((goal) => setSavings(p => [...p, goal]), [])
+  // 勾選必繳項目：若有儲蓄帳戶連動此項目，當月勾選＝把「當下實際金額」存入帳戶，取消＝退回本月那筆
+  const handleToggleChecklistItem = useCallback((id) => {
+    const item = checklist.find(i => i.id === id)
+    const nowDone = item ? !item.done : false
+    setChecklist(prev => prev.map(i => i.id === id ? { ...i, done: !i.done } : i))
+    if (!item) return
+    const amt = Number(item.amount)
+    const dateStr = `${new Date().getMonth() + 1}/${new Date().getDate()}`
+    setSavings(prev => prev.map(g => {
+      if (g.linkedChecklistId !== id) return g
+      const entries = g.entries ?? []
+      const monthEntry = entries.find(e => e.type === 'in' && e.month === checklistMonth && e.source === 'checklist')
+      if (nowDone) {
+        if (monthEntry) return g // 同月已存入，不重複
+        const entry = { id: crypto.randomUUID(), type: 'in', amount: amt, date: dateStr, note: '本月撥入', month: checklistMonth, source: 'checklist' }
+        return { ...g, saved: Number(g.saved) + amt, entries: [...entries, entry] }
+      }
+      if (!monthEntry) return g // 取消本月撥入
+      return { ...g, saved: Number(g.saved) - Number(monthEntry.amount), entries: entries.filter(e => e.id !== monthEntry.id) }
+    }))
+  }, [checklist, checklistMonth])
+
+  // 儲蓄帳戶
+  const handleAddSaving = useCallback((goal) => setSavings(p => [...p, { entries: [], ...goal }]), [])
   const handleUpdateSaving = useCallback((updated) => setSavings(p => p.map(g => g.id === updated.id ? { ...g, ...updated } : g)), [])
   const handleDeleteSaving = useCallback((id) => setSavings(p => p.filter(g => g.id !== id)), [])
-  const handleContributeSaving = useCallback((id) => setSavings(p => p.map(g => g.id === id ? { ...g, saved: Number(g.saved) + Number(g.monthly) } : g)), [])
-  const handleResetSaving = useCallback((id) => setSavings(p => p.map(g => g.id === id ? { ...g, saved: 0 } : g)), [])
+  // 手動撥入（未連動的帳戶用）
+  const handleContributeSaving = useCallback((id) => setSavings(p => p.map(g => {
+    if (g.id !== id) return g
+    const amt = Number(g.monthly)
+    const dateStr = `${new Date().getMonth() + 1}/${new Date().getDate()}`
+    const entry = { id: crypto.randomUUID(), type: 'in', amount: amt, date: dateStr, note: '手動撥入', source: 'manual' }
+    return { ...g, saved: Number(g.saved) + amt, entries: [...(g.entries ?? []), entry] }
+  })), [])
+  // 帳戶支出（實際把錢花掉，例如繳學費）
+  const handleSpendSaving = useCallback((id, amount, note) => setSavings(p => p.map(g => {
+    if (g.id !== id) return g
+    const amt = Number(amount)
+    const dateStr = `${new Date().getMonth() + 1}/${new Date().getDate()}`
+    const entry = { id: crypto.randomUUID(), type: 'out', amount: amt, date: dateStr, note: note || '支出', source: 'manual' }
+    return { ...g, saved: Number(g.saved) - amt, entries: [...(g.entries ?? []), entry] }
+  })), [])
+  // 領出全部（歸零，記成一筆支出）
+  const handleResetSaving = useCallback((id) => setSavings(p => p.map(g => {
+    if (g.id !== id) return g
+    const amt = Number(g.saved)
+    if (amt <= 0) return g
+    const dateStr = `${new Date().getMonth() + 1}/${new Date().getDate()}`
+    const entry = { id: crypto.randomUUID(), type: 'out', amount: amt, date: dateStr, note: '領出全部', source: 'manual' }
+    return { ...g, saved: 0, entries: [...(g.entries ?? []), entry] }
+  })), [])
 
   // Envelope handlers（分類信封預算）
   const handleAddEnvelope = useCallback((env) => setEnvelopes(p => [...p, env]), [])
@@ -315,10 +359,12 @@ export default function App() {
 
   // 必要支出 / 生活預算
   const checklistTotal = checklist.reduce((s, i) => s + Number(i.amount), 0)
-  // 預設：儲蓄是把「已列在必繳清單裡的錢」留下來累積，不重複計入必要支出。
-  // 只有勾選「額外預留」(countInEssential) 的目標，才是收入之外另外存、會加進必要支出。
-  const savingsMonthly = savings.reduce((s, g) => s + Number(g.monthly), 0)
-  const essentialSavings = savings.filter(g => g.countInEssential).reduce((s, g) => s + Number(g.monthly), 0)
+  // 連動必繳項目的儲蓄：金額已在必繳清單裡，不重複計入。
+  // 只有「未連動且勾選額外預留」的帳戶，才是收入之外另外存、會加進必要支出。
+  const savingsMonthly = savings.reduce((s, g) => s + Number(g.monthly || 0), 0)
+  const essentialSavings = savings
+    .filter(g => !g.linkedChecklistId && g.countInEssential)
+    .reduce((s, g) => s + Number(g.monthly || 0), 0)
   const essentialTotal = checklistTotal + essentialSavings
   const lifeBalance = income - essentialTotal
 
@@ -401,6 +447,7 @@ export default function App() {
         onUpdateSaving={handleUpdateSaving}
         onDeleteSaving={handleDeleteSaving}
         onContributeSaving={handleContributeSaving}
+        onSpendSaving={handleSpendSaving}
         onResetSaving={handleResetSaving}
       />
     ),
