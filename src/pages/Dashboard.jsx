@@ -2,6 +2,7 @@ import './Dashboard.css'
 import PageHeader from '../components/PageHeader'
 import SectionHeader from '../components/SectionHeader'
 import HeroStatusCard from '../components/HeroStatusCard'
+import PaymentReminderCard from '../components/PaymentReminderCard'
 import WeekCalendar from '../components/WeekCalendar'
 import BudgetCard from '../components/BudgetCard'
 import CreditCardSummaryCard from '../components/CreditCardSummaryCard'
@@ -10,13 +11,15 @@ import TrendChartCard from '../components/TrendChartCard'
 import DebtOverviewCard from '../components/DebtOverviewCard'
 import EnvelopeBudgetCard from '../components/EnvelopeBudgetCard'
 
-export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays, cards, categories, trends, liabilityItems = [], totalDebt = 0, envelopeView = [], envelopeSummary = null }) {
+export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays, cards, categories, trends, liabilityItems = [], totalDebt = 0, envelopeView = [], envelopeSummary = null, paymentReminders = [], onMarkCardPaid }) {
   return (
     <div className="dashboard">
       <PageHeader
         greeting={greeting}
         dateLabel={dateLabel}
       />
+
+      <PaymentReminderCard reminders={paymentReminders} onMarkPaid={onMarkCardPaid} />
 
       <HeroStatusCard
         month={currentMonth.name}

@@ -7,6 +7,7 @@ import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
+import { maybeNotifyDueBills } from './utils/notify'
 
 const STORAGE_KEY = 'cardnest_v1'
 
@@ -327,6 +328,8 @@ export default function App() {
   const handleAddCard = useCallback((card) => setCards(p => [...p, card]), [])
   const handleSaveCard = useCallback((updated) => setCards(p => p.map(c => c.id === updated.id ? updated : c)), [])
   const handleDeleteCard = useCallback((id) => setCards(p => p.filter(c => c.id !== id)), [])
+  // 標記本期卡費已繳：當月不再提醒
+  const handleMarkCardPaid = useCallback((id) => setCards(p => p.map(c => c.id === id ? { ...c, billPaidMonth: currentMonthKey } : c)), [currentMonthKey])
 
   const handleClearData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
@@ -374,6 +377,25 @@ export default function App() {
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
   const weekDays = buildWeekDays(plans, enrichedCards)
 
+  // 繳費提醒：本期應繳 > 0、有設繳款截止日、且本月尚未標記已繳
+  const todayDate = new Date().getDate()
+  const paymentReminders = enrichedCards
+    .filter(c => Number(c.upcomingBill) > 0 && Number(c.dueDate) > 0 && c.billPaidMonth !== currentMonthKey)
+    .map(c => ({
+      id: c.id,
+      name: c.name,
+      color: c.color,
+      amount: Number(c.upcomingBill),
+      dueDate: Number(c.dueDate),
+      daysLeft: Number(c.dueDate) - todayDate,
+    }))
+    .sort((a, b) => a.daysLeft - b.daysLeft)
+
+  // 開啟 App 時，若有快到期/逾期的卡費就跳一則瀏覽器通知（今天只跳一次）
+  useEffect(() => {
+    maybeNotifyDueBills(paymentReminders)
+  }, [paymentReminders])
+
   // 未償負債（資產負債清晰）：只計分期未繳清的剩餘期數 × 每期金額
   const liabilityItems = plans
     .filter(p => p.type === 'installment' && p.totalCount - p.paidCount > 0)
@@ -405,6 +427,8 @@ export default function App() {
         totalDebt={totalDebt}
         envelopeView={envelopeView}
         envelopeSummary={envelopeSummary}
+        paymentReminders={paymentReminders}
+        onMarkCardPaid={handleMarkCardPaid}
       />
     ),
     plans: (

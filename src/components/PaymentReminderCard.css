@@ -1,0 +1,94 @@
+.pay-reminder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pay-reminder-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pay-reminder-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.pay-reminder-count {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.pay-reminder-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(47, 42, 37, 0.03);
+}
+
+.pay-reminder-row--danger {
+  background: rgba(214, 69, 65, 0.08);
+}
+
+.pay-reminder-row--warning {
+  background: rgba(214, 158, 46, 0.08);
+}
+
+.pay-reminder-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.pay-reminder-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pay-reminder-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.pay-reminder-due {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.pay-reminder-when--danger {
+  color: var(--color-danger);
+  font-weight: 700;
+}
+
+.pay-reminder-when--warning {
+  color: var(--color-warning);
+  font-weight: 700;
+}
+
+.pay-reminder-amount {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  white-space: nowrap;
+}
+
+.pay-reminder-paid {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}

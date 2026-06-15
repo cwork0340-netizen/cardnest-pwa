@@ -9,6 +9,7 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
   const [dueDay, setDueDay] = useState(initialValues?.dueDay ?? '')
   const [budget, setBudget] = useState(initialValues?.budget ?? '')
   const [actualBill, setActualBill] = useState(initialValues?.actualBill ? String(initialValues.actualBill) : '')
+  const [dueDate, setDueDate] = useState(initialValues?.dueDate ? String(initialValues.dueDate) : '')
   const [error, setError] = useState('')
 
   function handleSubmit(e) {
@@ -25,6 +26,11 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
       bill = Number(actualBill)
       if (Number.isNaN(bill) || bill < 0) { setError('本期應繳請填有效金額'); return }
     }
+    let due = 0
+    if (dueDate !== '') {
+      due = Number(dueDate)
+      if (!Number.isInteger(due) || due < 1 || due > 31) { setError('繳款截止日請填 1–31'); return }
+    }
     setError('')
 
     const card = {
@@ -34,8 +40,10 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
       color,
       billingDay: bd,
       dueDay: dd,
+      dueDate: due,
       budget: bgt,
       actualBill: bill,
+      billPaidMonth: initialValues?.billPaidMonth ?? null,
       used: initialValues?.used ?? 0,
       prevUsed: initialValues?.prevUsed ?? 0,
       status: initialValues?.status ?? 'safe',
@@ -114,16 +122,31 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
           />
         </div>
 
-        <div className="cdf-field">
-          <label className="cdf-label">本期應繳<span className="cdf-label-hint">（選填，填銀行帳單實際金額）</span></label>
-          <input
-            className="cdf-input"
-            type="number"
-            inputMode="decimal"
-            placeholder="例如 4605"
-            value={actualBill}
-            onChange={(e) => setActualBill(e.target.value)}
-          />
+        <div className="cdf-row">
+          <div className="cdf-field cdf-field-half">
+            <label className="cdf-label">本期應繳<span className="cdf-label-hint">（選填，銀行帳單金額）</span></label>
+            <input
+              className="cdf-input"
+              type="number"
+              inputMode="decimal"
+              placeholder="例如 4605"
+              value={actualBill}
+              onChange={(e) => setActualBill(e.target.value)}
+            />
+          </div>
+          <div className="cdf-field cdf-field-half">
+            <label className="cdf-label">繳款截止日<span className="cdf-label-hint">（每月幾號）</span></label>
+            <input
+              className="cdf-input"
+              type="number"
+              inputMode="numeric"
+              placeholder="例如 17"
+              min="1"
+              max="31"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 

@@ -538,3 +538,26 @@ describe('各卡下期應繳', () => {
     expect(yongfeng.querySelector('.credit-card-summary-bill-amount').textContent).toBe('NT$1,990')
   })
 })
+
+describe('繳費提醒', () => {
+  it('首頁列出設有截止日且本期應繳的卡，標記已繳後消失', () => {
+    seed({
+      cards: [{ id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDay: 15, dueDate: 17, budget: 50000, actualBill: 3022 }],
+    })
+    render(<App />)
+    const reminder = document.querySelector('.pay-reminder')
+    expect(reminder).toBeTruthy()
+    expect(within(reminder).getByText('台新卡')).toBeInTheDocument()
+    expect(within(reminder).getByText('NT$3,022')).toBeInTheDocument()
+    fireEvent.click(within(reminder).getByText('已繳'))
+    expect(document.querySelector('.pay-reminder')).toBeNull()
+  })
+
+  it('沒設截止日就不出現在繳費提醒', () => {
+    seed({
+      cards: [{ id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDay: 15, budget: 50000, actualBill: 3022 }],
+    })
+    render(<App />)
+    expect(document.querySelector('.pay-reminder')).toBeNull()
+  })
+})
