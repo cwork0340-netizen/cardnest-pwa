@@ -25,7 +25,10 @@ export default function SavingGoalCard({ goal, onEdit, onDelete, onContribute, o
     >
       <div className="sg-top">
         <div className="sg-info">
-          <span className="sg-name">{goal.name}</span>
+          <span className="sg-name">
+            {goal.name}
+            {goal.countInEssential && <span className="sg-badge">額外預留</span>}
+          </span>
           <span className="sg-monthly">每月撥入 {fmt(monthly)}</span>
         </div>
         <div className="sg-btns">

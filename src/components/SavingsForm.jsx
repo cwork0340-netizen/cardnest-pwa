@@ -6,6 +6,7 @@ export default function SavingsForm({ onSubmit, onClose, initialValues = null })
   const [name, setName] = useState(initialValues?.name ?? '')
   const [monthly, setMonthly] = useState(initialValues ? String(initialValues.monthly) : '')
   const [target, setTarget] = useState(initialValues?.target ? String(initialValues.target) : '')
+  const [countInEssential, setCountInEssential] = useState(initialValues?.countInEssential ?? false)
   const [error, setError] = useState('')
 
   function handleSubmit(e) {
@@ -25,6 +26,7 @@ export default function SavingsForm({ onSubmit, onClose, initialValues = null })
       name: name.trim(),
       monthly: monthlyNum,
       target: targetNum,
+      countInEssential,
       saved: initialValues?.saved ?? 0,
     })
   }
@@ -68,6 +70,18 @@ export default function SavingsForm({ onSubmit, onClose, initialValues = null })
           />
         </div>
       </div>
+
+      <label className="sf-check">
+        <input
+          type="checkbox"
+          checked={countInEssential}
+          onChange={(e) => setCountInEssential(e.target.checked)}
+        />
+        <span className="sf-check-text">
+          額外預留（計入必要支出）
+          <span className="sf-check-hint">這筆是收入裡額外要存的；若已列在上面的必繳項目，請不要勾，以免重複計算</span>
+        </span>
+      </label>
 
       {error && <span className="clf-error">{error}</span>}
 

@@ -346,18 +346,31 @@ describe('每月必繳清單', () => {
     expect(screen.getByText(/超出 NT\$1,000/)).toBeInTheDocument()
   })
 
-  it('儲蓄每月撥入計入必要支出，扣減生活結餘', () => {
+  it('預設儲蓄不重複計入必要支出（已含在必繳清單）', () => {
     seed({
       income: 10000,
-      checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: false }],
-      savings: [{ id: 's1', name: '學費', monthly: 2000, target: 60000, saved: 0 }],
+      checklist: [{ id: 'cl1', name: '學費', amount: 3000, day: 5, done: false }],
+      savings: [{ id: 's1', name: '學費累積', monthly: 3000, target: 60000, saved: 0 }],
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: '必繳' }))
-    // 必要支出＝必繳 3000 + 每月儲蓄 2000 = 5000；生活結餘 10000 − 5000 = 5000
+    // 必要支出＝必繳 3000（儲蓄不另外加）；生活結餘 10000 − 3000 = 7000
+    expect(screen.getByText(/還有 NT\$7,000 可生活/)).toBeInTheDocument()
+  })
+
+  it('勾選額外預留的儲蓄才計入必要支出', () => {
+    seed({
+      income: 10000,
+      checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: false }],
+      savings: [{ id: 's1', name: '旅遊基金', monthly: 2000, target: 0, saved: 0, countInEssential: true }],
+      checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    // 必要支出＝必繳 3000 + 額外儲蓄 2000 = 5000；生活結餘 10000 − 5000 = 5000
     expect(screen.getByText(/還有 NT\$5,000 可生活/)).toBeInTheDocument()
-    expect(screen.getByText(/每月儲蓄 NT\$2,000/)).toBeInTheDocument()
+    expect(screen.getByText(/額外儲蓄 NT\$2,000/)).toBeInTheDocument()
   })
 
   it('撥入本月把每月金額累積到已存', () => {
@@ -377,6 +390,7 @@ describe('每月必繳清單', () => {
   it('動用（歸零）把已存清為 0', () => {
     seed({
       income: 10000,
+      checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: false }],
       savings: [{ id: 's1', name: '學費', monthly: 2000, target: 60000, saved: 6000 }],
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })

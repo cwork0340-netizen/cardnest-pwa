@@ -313,10 +313,13 @@ export default function App() {
     .filter(p => p.type === 'subscription' ? (p.active ?? true) : (p.paidCount < p.totalCount))
     .reduce((s, p) => s + p.amount, 0)
 
-  // 必要支出 / 生活預算：收入用來分配每月必要支出（必繳清單 + 每月儲蓄撥入）
+  // 必要支出 / 生活預算
   const checklistTotal = checklist.reduce((s, i) => s + Number(i.amount), 0)
+  // 預設：儲蓄是把「已列在必繳清單裡的錢」留下來累積，不重複計入必要支出。
+  // 只有勾選「額外預留」(countInEssential) 的目標，才是收入之外另外存、會加進必要支出。
   const savingsMonthly = savings.reduce((s, g) => s + Number(g.monthly), 0)
-  const essentialTotal = checklistTotal + savingsMonthly
+  const essentialSavings = savings.filter(g => g.countInEssential).reduce((s, g) => s + Number(g.monthly), 0)
+  const essentialTotal = checklistTotal + essentialSavings
   const lifeBalance = income - essentialTotal
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
@@ -386,6 +389,7 @@ export default function App() {
         essentialTotal={essentialTotal}
         checklistTotal={checklistTotal}
         savingsMonthly={savingsMonthly}
+        essentialSavings={essentialSavings}
         lifeBalance={lifeBalance}
         savings={savings}
         onIncomeChange={setIncome}

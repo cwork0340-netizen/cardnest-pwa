@@ -10,7 +10,7 @@ import SavingsForm from '../components/SavingsForm'
 
 export default function Checklist({
   showToast, items, monthName,
-  income = 0, essentialTotal = 0, checklistTotal = 0, savingsMonthly = 0, lifeBalance = 0,
+  income = 0, essentialTotal = 0, checklistTotal = 0, savingsMonthly = 0, essentialSavings = 0, lifeBalance = 0,
   savings = [], onIncomeChange,
   onAdd, onToggle, onUpdate, onDelete,
   onAddSaving, onUpdateSaving, onDeleteSaving, onContributeSaving, onResetSaving,
@@ -125,10 +125,15 @@ export default function Checklist({
           <span className="checklist-budget-label">必要支出</span>
           <span className="checklist-budget-amount">NT${essentialTotal.toLocaleString()}</span>
         </div>
-        {savingsMonthly > 0 && (
+        {essentialSavings > 0 && (
           <div className="checklist-budget-sub">
             <span>・必繳清單 NT${checklistTotal.toLocaleString()}</span>
-            <span>・每月儲蓄 NT${savingsMonthly.toLocaleString()}</span>
+            <span>・額外儲蓄 NT${essentialSavings.toLocaleString()}</span>
+          </div>
+        )}
+        {savingsMonthly > 0 && (
+          <div className="checklist-budget-note">
+            儲蓄每月撥入 NT${savingsMonthly.toLocaleString()}（已含在必繳清單的不重複計入）
           </div>
         )}
         <div className="checklist-budget-divider" />
