@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import './PaymentReminderCard.css'
 
 function fmt(n) {
@@ -13,7 +14,17 @@ function urgency(daysLeft) {
 }
 
 export default function PaymentReminderCard({ reminders, onMarkPaid }) {
+  const [confirmingId, setConfirmingId] = useState(null)
   if (!reminders || reminders.length === 0) return null
+
+  function handlePaidClick(r) {
+    // 有連動儲蓄帳戶且有餘額 → 詢問要不要從帳戶扣款；否則直接標記
+    if (r.reserve && r.reserve.saved > 0) {
+      setConfirmingId(r.id)
+    } else {
+      onMarkPaid(r.id)
+    }
+  }
 
   return (
     <div className="card pay-reminder">
@@ -23,15 +34,38 @@ export default function PaymentReminderCard({ reminders, onMarkPaid }) {
       </div>
       {reminders.map((r) => {
         const u = urgency(r.daysLeft)
+        const confirming = confirmingId === r.id
+        const payFromAccount = r.reserve ? Math.min(r.amount, r.reserve.saved) : 0
         return (
           <div key={r.id} className={`pay-reminder-row pay-reminder-row--${u.cls}`}>
             <span className="pay-reminder-dot" style={{ background: r.color }} />
             <div className="pay-reminder-info">
               <span className="pay-reminder-name">{r.name}</span>
               <span className="pay-reminder-due">每月 {r.dueDate} 號・<span className={`pay-reminder-when pay-reminder-when--${u.cls}`}>{u.text}</span></span>
+              {confirming && (
+                <div className="pay-reminder-confirm">
+                  <span className="pay-reminder-confirm-q">用「{r.reserve.name}」扣款？</span>
+                  <button
+                    className="pay-reminder-confirm-btn pay-reminder-confirm-yes"
+                    onClick={() => { onMarkPaid(r.id, { fromSavingId: r.reserve.id, amount: payFromAccount }); setConfirmingId(null) }}
+                  >
+                    從帳戶扣 {fmt(payFromAccount)}
+                  </button>
+                  <button
+                    className="pay-reminder-confirm-btn"
+                    onClick={() => { onMarkPaid(r.id); setConfirmingId(null) }}
+                  >
+                    只標記已繳
+                  </button>
+                </div>
+              )}
             </div>
-            <span className="pay-reminder-amount">{fmt(r.amount)}</span>
-            <button className="pay-reminder-paid" onClick={() => onMarkPaid(r.id)}>已繳</button>
+            {!confirming && (
+              <>
+                <span className="pay-reminder-amount">{fmt(r.amount)}</span>
+                <button className="pay-reminder-paid" onClick={() => handlePaidClick(r)}>已繳</button>
+              </>
+            )}
           </div>
         )
       })}

@@ -92,3 +92,34 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+.pay-reminder-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.pay-reminder-confirm-q {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  width: 100%;
+}
+
+.pay-reminder-confirm-btn {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(47, 42, 37, 0.15);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pay-reminder-confirm-yes {
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+}

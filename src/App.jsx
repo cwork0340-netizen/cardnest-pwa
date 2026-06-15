@@ -328,8 +328,13 @@ export default function App() {
   const handleAddCard = useCallback((card) => setCards(p => [...p, card]), [])
   const handleSaveCard = useCallback((updated) => setCards(p => p.map(c => c.id === updated.id ? updated : c)), [])
   const handleDeleteCard = useCallback((id) => setCards(p => p.filter(c => c.id !== id)), [])
-  // 標記本期卡費已繳：當月不再提醒
-  const handleMarkCardPaid = useCallback((id) => setCards(p => p.map(c => c.id === id ? { ...c, billPaidMonth: currentMonthKey } : c)), [currentMonthKey])
+  // 標記本期卡費已繳：當月不再提醒；可選擇從連動的儲蓄帳戶扣款
+  const handleMarkCardPaid = useCallback((id, opts = {}) => {
+    setCards(p => p.map(c => c.id === id ? { ...c, billPaidMonth: currentMonthKey } : c))
+    if (opts.fromSavingId && Number(opts.amount) > 0) {
+      handleSpendSaving(opts.fromSavingId, Number(opts.amount), '繳卡費')
+    }
+  }, [currentMonthKey, handleSpendSaving])
 
   const handleClearData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
@@ -381,14 +386,18 @@ export default function App() {
   const todayDate = new Date().getDate()
   const paymentReminders = enrichedCards
     .filter(c => Number(c.upcomingBill) > 0 && Number(c.dueDate) > 0 && c.billPaidMonth !== currentMonthKey)
-    .map(c => ({
-      id: c.id,
-      name: c.name,
-      color: c.color,
-      amount: Number(c.upcomingBill),
-      dueDate: Number(c.dueDate),
-      daysLeft: Number(c.dueDate) - todayDate,
-    }))
+    .map(c => {
+      const reserve = savings.find(g => g.linkedCardId === c.id)
+      return {
+        id: c.id,
+        name: c.name,
+        color: c.color,
+        amount: Number(c.upcomingBill),
+        dueDate: Number(c.dueDate),
+        daysLeft: Number(c.dueDate) - todayDate,
+        reserve: reserve ? { id: reserve.id, name: reserve.name, saved: Number(reserve.saved) } : null,
+      }
+    })
     .sort((a, b) => a.daysLeft - b.daysLeft)
 
   // 開啟 App 時，若有快到期/逾期的卡費就跳一則瀏覽器通知（今天只跳一次）

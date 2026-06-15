@@ -561,3 +561,22 @@ describe('繳費提醒', () => {
     expect(document.querySelector('.pay-reminder')).toBeNull()
   })
 })
+
+describe('標記已繳從連動帳戶扣款', () => {
+  it('有連動儲蓄帳戶時，已繳可從帳戶扣款並記支出', () => {
+    seed({
+      cards: [{ id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDay: 15, dueDate: 17, budget: 50000, actualBill: 3000 }],
+      savings: [{ id: 's1', name: '台新卡費預留', linkedCardId: 'c1', monthly: 3000, target: 0, saved: 5000, entries: [] }],
+    })
+    render(<App />)
+    const reminder = document.querySelector('.pay-reminder')
+    fireEvent.click(within(reminder).getByText('已繳'))
+    // 詢問是否從帳戶扣款
+    fireEvent.click(screen.getByText('從帳戶扣 NT$3,000'))
+    // 提醒消失
+    expect(document.querySelector('.pay-reminder')).toBeNull()
+    // 到必繳頁看帳戶餘額：5000 − 3000 = 2000
+    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    expect(document.querySelector('.sg-saved').textContent).toBe('NT$2,000')
+  })
+})
