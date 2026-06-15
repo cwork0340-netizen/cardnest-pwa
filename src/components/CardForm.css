@@ -31,6 +31,11 @@
   color: var(--color-text-muted);
 }
 
+.cdf-label-hint {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
 .cdf-input {
   height: 44px;
   border: 1px solid var(--color-border-strong);

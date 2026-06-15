@@ -108,12 +108,15 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     const instOnCard = plans
       .filter(p => p.type === 'installment' && !p.paid && p.card === card.name)
       .reduce((s, p) => s + p.amount, 0)
-    const upcomingBill = used + subsOnCard + instOnCard
+    // 有手動填銀行「本期應繳」就以實際金額為準，否則用 app 估算
+    const computedBill = used + subsOnCard + instOnCard
+    const upcomingBill = Number(card.actualBill) > 0 ? Number(card.actualBill) : computedBill
     const cardRemaining = card.budget - used
     const cp = card.budget > 0 ? used / card.budget : 0
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
     return {
       ...card, used, upcomingBill,
+      billIsActual: Number(card.actualBill) > 0,
       status: cardStatus,
       statusText: cardStatus === 'safe'
         ? `還有 NT$${cardRemaining.toLocaleString()} 可用`

@@ -24,7 +24,7 @@ export default function CreditCardSummaryCard({ card }) {
       </div>
       {card.upcomingBill != null && (
         <div className="credit-card-summary-bill">
-          <span className="credit-card-summary-bill-label">下期應繳（含訂閱・分期）</span>
+          <span className="credit-card-summary-bill-label">{card.billIsActual ? '本期應繳（銀行帳單）' : '下期應繳（含訂閱・分期）'}</span>
           <span className="credit-card-summary-bill-amount">
             {'NT$' + Number(card.upcomingBill).toLocaleString()}
           </span>

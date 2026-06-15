@@ -8,6 +8,7 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
   const [billingDay, setBillingDay] = useState(initialValues?.billingDay ?? '')
   const [dueDay, setDueDay] = useState(initialValues?.dueDay ?? '')
   const [budget, setBudget] = useState(initialValues?.budget ?? '')
+  const [actualBill, setActualBill] = useState(initialValues?.actualBill ? String(initialValues.actualBill) : '')
   const [error, setError] = useState('')
 
   function handleSubmit(e) {
@@ -19,6 +20,11 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
     if (!dd || dd < 1 || dd > 30) { setError('繳款寬限天數請填 1–30'); return }
     const bgt = Number(budget)
     if (!bgt || bgt <= 0) { setError('請輸入有效預算'); return }
+    let bill = 0
+    if (actualBill !== '') {
+      bill = Number(actualBill)
+      if (Number.isNaN(bill) || bill < 0) { setError('本期應繳請填有效金額'); return }
+    }
     setError('')
 
     const card = {
@@ -29,6 +35,7 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
       billingDay: bd,
       dueDay: dd,
       budget: bgt,
+      actualBill: bill,
       used: initialValues?.used ?? 0,
       prevUsed: initialValues?.prevUsed ?? 0,
       status: initialValues?.status ?? 'safe',
@@ -104,6 +111,18 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
             placeholder="20000"
             value={budget}
             onChange={(e) => setBudget(e.target.value)}
+          />
+        </div>
+
+        <div className="cdf-field">
+          <label className="cdf-label">本期應繳<span className="cdf-label-hint">（選填，填銀行帳單實際金額）</span></label>
+          <input
+            className="cdf-input"
+            type="number"
+            inputMode="decimal"
+            placeholder="例如 4605"
+            value={actualBill}
+            onChange={(e) => setActualBill(e.target.value)}
           />
         </div>
       </div>
