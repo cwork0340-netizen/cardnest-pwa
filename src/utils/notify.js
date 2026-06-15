@@ -32,6 +32,16 @@ function showNotification(title, body) {
   }
 }
 
+// 立即送一則測試通知（用來確認通知是否正常）；需要時順便要權限
+export async function sendTestNotification() {
+  if (!notifySupported()) return 'unsupported'
+  let perm = Notification.permission
+  if (perm !== 'granted') perm = await requestNotifyPermission()
+  if (perm !== 'granted') return perm
+  showNotification('CardNest 測試通知', '看到這則就表示繳費通知正常 ✅')
+  return 'granted'
+}
+
 // 開啟 App 時，若有快到期/逾期的卡費且今天還沒通知過，跳一則彙整通知
 export function maybeNotifyDueBills(reminders, { withinDays = 3 } = {}) {
   if (!notifySupported() || Notification.permission !== 'granted') return

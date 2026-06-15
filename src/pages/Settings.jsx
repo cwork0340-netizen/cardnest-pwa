@@ -3,7 +3,7 @@ import './Settings.css'
 import SectionHeader from '../components/SectionHeader'
 import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
-import { notifySupported, notifyPermission, requestNotifyPermission } from '../utils/notify'
+import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
 
 export default function Settings({ showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard, backupData, onImportData, onClearData }) {
   const [editingCard, setEditingCard] = useState(null)
@@ -20,6 +20,15 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
     setNotifyState(result)
     if (result === 'granted') showToast('已開啟繳費通知')
     else if (result === 'denied') showToast('通知被拒絕，請到瀏覽器設定開啟')
+  }
+
+  async function handleTestNotify() {
+    const result = await sendTestNotification()
+    setNotifyState(notifyPermission())
+    if (result === 'granted') showToast('已送出測試通知，看一下通知列')
+    else if (result === 'denied') showToast('通知被拒絕，請到系統設定允許')
+    else if (result === 'unsupported') showToast('此瀏覽器不支援，請先「加入主畫面」')
+    else showToast('尚未允許通知')
   }
 
   function handleFxSave() {
@@ -144,13 +153,15 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
           <p className="settings-backup-hint">
             在卡片設定「繳款截止日」後，首頁會列出待繳卡費並倒數提醒。開啟瀏覽器通知後，打開 App 時若有快到期（3 天內）或逾期的卡費會跳通知。
           </p>
+          <p className="settings-backup-hint">📱 iPhone 必須先把本站「加入主畫面」並從主畫面開啟，通知才會生效（Safari 分頁內無法通知）。</p>
           {!notifySupported() ? (
-            <p className="settings-backup-hint">此裝置／瀏覽器不支援通知。建議把本站「加入主畫面」後再試。</p>
-          ) : notifyState === 'granted' ? (
-            <p className="settings-backup-hint">✅ 繳費通知已開啟</p>
+            <p className="settings-backup-hint">此裝置／瀏覽器目前不支援通知。請從主畫面的 App 圖示開啟後再試。</p>
           ) : (
             <div className="fx-actions">
-              <button className="button-secondary fx-save-btn" onClick={handleEnableNotify}>開啟繳費通知</button>
+              {notifyState === 'granted'
+                ? <p className="settings-backup-hint">✅ 繳費通知已開啟</p>
+                : <button className="button-secondary fx-save-btn" onClick={handleEnableNotify}>開啟繳費通知</button>}
+              <button className="button-secondary fx-save-btn" onClick={handleTestNotify}>傳送測試通知</button>
             </div>
           )}
         </div>
