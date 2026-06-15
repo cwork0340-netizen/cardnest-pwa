@@ -2,7 +2,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .credit-card-summary-name {
@@ -24,33 +24,16 @@
   color: var(--color-text-main);
 }
 
-.credit-card-summary-status {
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-
-.credit-card-summary-dates {
+.credit-card-summary-paid-badge {
   font-size: 12px;
-  color: var(--color-text-secondary);
-  margin-bottom: 10px;
-}
-
-.credit-card-summary-bar {
-  margin-bottom: 8px;
-}
-
-.credit-card-summary-detail {
-  font-size: 13px;
-  color: var(--color-text-muted);
+  font-weight: 700;
+  color: var(--color-success);
 }
 
 .credit-card-summary-bill {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--color-border);
 }
 
 .credit-card-summary-bill-label {
@@ -59,14 +42,20 @@
 }
 
 .credit-card-summary-bill-amount {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 800;
   color: var(--color-text-main);
+}
+
+.credit-card-summary-dates {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
 }
 
 .credit-card-summary-mark {
   width: 100%;
-  margin-top: 10px;
+  margin-top: 12px;
   padding: 9px;
   border-radius: 10px;
   border: none;
@@ -77,15 +66,8 @@
   cursor: pointer;
 }
 
-.credit-card-summary-paid {
-  margin-top: 10px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-success);
-}
-
 .credit-card-summary-pay-confirm {
-  margin-top: 10px;
+  margin-top: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -117,4 +99,33 @@
   border: none;
   background: var(--color-primary);
   color: #fff;
+}
+
+.credit-card-summary-limit-toggle {
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.credit-card-summary-limit {
+  margin-top: 8px;
+}
+
+.credit-card-summary-bar {
+  margin-bottom: 6px;
+}
+
+.credit-card-summary-detail {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.credit-card-summary-status {
+  color: var(--color-text-secondary);
 }

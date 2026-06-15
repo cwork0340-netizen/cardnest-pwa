@@ -8,6 +8,7 @@ function fmt(n) {
 
 export default function CreditCardSummaryCard({ card, onMarkPaid }) {
   const [confirming, setConfirming] = useState(false)
+  const [showLimit, setShowLimit] = useState(false)
   const hasBill = card.upcomingBill != null && Number(card.upcomingBill) > 0
   const reserve = card.reserve
   const payFromAccount = reserve ? Math.min(Number(card.upcomingBill), Number(reserve.saved)) : 0
@@ -30,16 +31,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid }) {
           <span className="credit-card-summary-dot" style={{ background: card.color }} />
           <span className="credit-card-summary-label">{card.name}</span>
         </div>
-        <span className="credit-card-summary-status">{card.statusText}</span>
-      </div>
-
-      {dateText && <div className="credit-card-summary-dates">每月 {dateText}</div>}
-
-      <div className="credit-card-summary-bar">
-        <ProgressBar value={card.used} max={card.budget} status={card.status} />
-      </div>
-      <div className="credit-card-summary-detail">
-        {fmt(card.used)} / {fmt(card.budget)}
+        {card.billPaid && <span className="credit-card-summary-paid-badge">✓ 本期已繳</span>}
       </div>
 
       {card.upcomingBill != null && (
@@ -51,10 +43,10 @@ export default function CreditCardSummaryCard({ card, onMarkPaid }) {
         </div>
       )}
 
-      {hasBill && (
-        card.billPaid ? (
-          <div className="credit-card-summary-paid">✓ 本期已繳</div>
-        ) : confirming ? (
+      {dateText && <div className="credit-card-summary-dates">每月 {dateText}</div>}
+
+      {hasBill && !card.billPaid && (
+        confirming ? (
           <div className="credit-card-summary-pay-confirm">
             <span className="credit-card-summary-pay-q">用「{reserve.name}」扣款？</span>
             <div className="credit-card-summary-pay-btns">
@@ -75,6 +67,21 @@ export default function CreditCardSummaryCard({ card, onMarkPaid }) {
         ) : (
           <button className="credit-card-summary-mark" onClick={handlePay}>標記已繳</button>
         )
+      )}
+
+      <button className="credit-card-summary-limit-toggle" onClick={() => setShowLimit(v => !v)}>
+        {showLimit ? '隱藏信用額度 ▴' : '顯示信用額度 ▾'}
+      </button>
+      {showLimit && (
+        <div className="credit-card-summary-limit">
+          <div className="credit-card-summary-bar">
+            <ProgressBar value={card.used} max={card.budget} status={card.status} />
+          </div>
+          <div className="credit-card-summary-detail">
+            <span>已刷 {fmt(card.used)} / 額度 {fmt(card.budget)}</span>
+            <span className="credit-card-summary-status">{card.statusText}</span>
+          </div>
+        </div>
       )}
     </div>
   )
