@@ -519,8 +519,14 @@ describe('資料備份：匯入還原', () => {
   })
 })
 
-describe('各卡下期應繳', () => {
-  it('卡片下期應繳＝該卡刷卡＋訂閱＋未繳分期', () => {
+describe('各卡本期應繳', () => {
+  function yongfengBill() {
+    const cards = document.querySelectorAll('.credit-card-summary')
+    const yongfeng = Array.from(cards).find(c => c.textContent.includes('永豐卡'))
+    return yongfeng.querySelector('.credit-card-summary-bill-amount').textContent
+  }
+
+  it('未勾「本期支付」的分期不算進本期應繳（刷卡＋訂閱）', () => {
     seed({
       transactions: [
         { id: 't1', name: '購物', card: '永豐卡', category: '購物', amount: 1000, date: todayMD() },
@@ -532,10 +538,42 @@ describe('各卡下期應繳', () => {
       ],
     })
     render(<App />)
-    // 永豐卡：1000 + 390 + 600 = 1990
-    const cards = document.querySelectorAll('.credit-card-summary')
-    const yongfeng = Array.from(cards).find(c => c.textContent.includes('永豐卡'))
-    expect(yongfeng.querySelector('.credit-card-summary-bill-amount').textContent).toBe('NT$1,990')
+    // 永豐卡：1000 + 390 = 1390（未勾的分期不計入）
+    expect(yongfengBill()).toBe('NT$1,390')
+  })
+
+  it('勾了「本期支付」的分期才把該期金額加進本期應繳', () => {
+    seed({
+      transactions: [
+        { id: 't1', name: '購物', card: '永豐卡', category: '購物', amount: 1000, date: todayMD() },
+      ],
+      plans: [
+        { id: 's1', type: 'subscription', name: 'Netflix', card: '永豐卡', currency: 'TWD', amount: 390, period: '月', nextDate: '6/20', daysLeft: 8, status: 'neutral', active: true },
+        { id: 'i1', type: 'installment', name: '手機分期', card: '永豐卡', amount: 600, period: '期', paidCount: 2, totalCount: 6, nextDate: '6/15', daysLeft: 5, status: 'neutral', paid: true },
+      ],
+    })
+    render(<App />)
+    // 永豐卡：1000 + 390 + 600 = 1990（已勾本期支付的分期計入）
+    expect(yongfengBill()).toBe('NT$1,990')
+  })
+
+  it('在分期頁勾「本期支付」後，回首頁該卡本期應繳即增加', () => {
+    seed({
+      transactions: [
+        { id: 't1', name: '購物', card: '永豐卡', category: '購物', amount: 1000, date: todayMD() },
+      ],
+      plans: [
+        { id: 'i1', type: 'installment', name: '手機分期', card: '永豐卡', amount: 600, period: '期', paidCount: 2, totalCount: 6, nextDate: '6/15', daysLeft: 5, status: 'neutral', paid: false },
+      ],
+    })
+    render(<App />)
+    expect(yongfengBill()).toBe('NT$1,000')
+    // 切到分期頁，勾選該分期的「本期支付」
+    fireEvent.click(screen.getByRole('button', { name: '訂閱分期' }))
+    fireEvent.click(screen.getByRole('button', { name: '標記已付款' }))
+    // 回首頁，本期應繳應增加 600
+    fireEvent.click(screen.getByRole('button', { name: '總覽' }))
+    expect(yongfengBill()).toBe('NT$1,600')
   })
 })
 

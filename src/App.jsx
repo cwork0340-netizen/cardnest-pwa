@@ -102,12 +102,13 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   transactions.forEach(tx => { txByCard[tx.card] = (txByCard[tx.card] ?? 0) + tx.amount })
   const enrichedCards = cards.map(card => {
     const used = txByCard[card.name] ?? 0
-    // 下期應繳 = 這張卡的 刷卡消費 + 訂閱 + 未繳清的分期（每期）
+    // 本期應繳 = 這張卡的 刷卡消費 + 訂閱 + 已勾「本期支付」的分期（每期）
     const subsOnCard = plans
       .filter(p => p.type === 'subscription' && (p.active ?? true) && p.card === card.name)
       .reduce((s, p) => s + p.amount, 0)
+    // 分期：只有勾了「本期支付」(paid) 的，才把這期金額算進本期卡費
     const instOnCard = plans
-      .filter(p => p.type === 'installment' && !p.paid && p.card === card.name)
+      .filter(p => p.type === 'installment' && p.paid && p.card === card.name)
       .reduce((s, p) => s + p.amount, 0)
     // 有手動填銀行「本期應繳」就以實際金額為準，否則用 app 估算
     const computedBill = used + subsOnCard + instOnCard
