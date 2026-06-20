@@ -48,6 +48,20 @@ function parseMonthDay(md) {
   return new Date(new Date().getFullYear(), m - 1, d)
 }
 
+// 依「各卡結帳日」算出目前所屬帳單週期的代號（年-月）。
+// 結帳日當天起算為新一期；未設結帳日則退回以日曆月 1 號為界。
+// 例：結帳日 14 號，6/20→「2026-5」、7/1 仍是「2026-5」、7/14 起換成「2026-6」。
+function billingCycleKey(billingDay, now = new Date()) {
+  const day = Number(billingDay) > 0 ? Number(billingDay) : 1
+  let year = now.getFullYear()
+  let month = now.getMonth()
+  if (now.getDate() < day) {
+    month -= 1
+    if (month < 0) { month = 11; year -= 1 }
+  }
+  return `${year}-${month}`
+}
+
 // 建立本週（週日起算）七天的扣款行事曆，事件以卡片顏色標示
 function buildWeekDays(plans, cards) {
   const colorByCard = {}
@@ -331,11 +345,12 @@ export default function App() {
   const handleDeleteCard = useCallback((id) => setCards(p => p.filter(c => c.id !== id)), [])
   // 標記本期卡費已繳：當月不再提醒；可選擇從連動的儲蓄帳戶扣款
   const handleMarkCardPaid = useCallback((id, opts = {}) => {
-    setCards(p => p.map(c => c.id === id ? { ...c, billPaidMonth: currentMonthKey } : c))
+    // 以「該卡結帳日」算出當期代號，標記為已繳；下次結帳日到才會自動換期
+    setCards(p => p.map(c => c.id === id ? { ...c, billPaidMonth: billingCycleKey(c.billingDay) } : c))
     if (opts.fromSavingId && Number(opts.amount) > 0) {
       handleSpendSaving(opts.fromSavingId, Number(opts.amount), '繳卡費')
     }
-  }, [currentMonthKey, handleSpendSaving])
+  }, [handleSpendSaving])
 
   const handleClearData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
@@ -386,7 +401,7 @@ export default function App() {
   // 繳費提醒：本期應繳 > 0、有設繳款截止日、且本月尚未標記已繳
   const todayDate = new Date().getDate()
   const paymentReminders = enrichedCards
-    .filter(c => Number(c.upcomingBill) > 0 && Number(c.dueDate) > 0 && c.billPaidMonth !== currentMonthKey)
+    .filter(c => Number(c.upcomingBill) > 0 && Number(c.dueDate) > 0 && c.billPaidMonth !== billingCycleKey(c.billingDay))
     .map(c => {
       const reserve = savings.find(g => g.linkedCardId === c.id)
       return {
@@ -406,7 +421,7 @@ export default function App() {
     const reserve = savings.find(g => g.linkedCardId === c.id)
     return {
       ...c,
-      billPaid: c.billPaidMonth === currentMonthKey,
+      billPaid: c.billPaidMonth === billingCycleKey(c.billingDay),
       reserve: reserve ? { id: reserve.id, name: reserve.name, saved: Number(reserve.saved) } : null,
     }
   })

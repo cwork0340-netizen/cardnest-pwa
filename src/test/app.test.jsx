@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within, fireEvent } from '@testing-library/react'
 import App from '../App.jsx'
 
@@ -633,5 +633,39 @@ describe('各卡狀態：日期與標記已繳', () => {
     const after = Array.from(document.querySelectorAll('.credit-card-summary'))
       .find(c => c.textContent.includes('台新卡'))
     expect(after.textContent).toContain('本期已繳')
+  })
+})
+
+describe('本期已繳依各卡結帳日換期', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function yongfengSummary() {
+    return Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('永豐卡'))
+  }
+
+  it('結帳日 14 號：跨到下個月 1 號仍維持「本期已繳」，不會在月初就重置', () => {
+    // 7/5：未到 14 號結帳日，所屬週期仍是 6 月（month index 5）
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 6, 5))
+    seed({
+      cards: [{ id: 'c1', name: '永豐卡', color: '#5E7CE2', billingDay: 14, dueDay: 2, dueDate: 28, budget: 20000, actualBill: 4605, billPaidMonth: '2026-5' }],
+    })
+    render(<App />)
+    expect(yongfengSummary().textContent).toContain('本期已繳')
+  })
+
+  it('結帳日 14 號：到了 14 號新一期，自動重置成可再次標記已繳', () => {
+    // 7/14：已達結帳日，所屬週期變成 7 月（month index 6），舊紀錄 2026-5 失效
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 6, 14))
+    seed({
+      cards: [{ id: 'c1', name: '永豐卡', color: '#5E7CE2', billingDay: 14, dueDay: 2, dueDate: 28, budget: 20000, actualBill: 4605, billPaidMonth: '2026-5' }],
+    })
+    render(<App />)
+    expect(yongfengSummary().textContent).not.toContain('本期已繳')
+    expect(within(yongfengSummary()).getByText('標記已繳')).toBeInTheDocument()
   })
 })
