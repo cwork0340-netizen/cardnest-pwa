@@ -636,6 +636,64 @@ describe('各卡狀態：日期與標記已繳', () => {
   })
 })
 
+describe('繳費歷史紀錄', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function newCardSummary() {
+    return Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('台新卡'))
+  }
+
+  it('標記已繳後留下一筆紀錄，可展開看到期別、金額與日期', () => {
+    // 2026/6/20，結帳日 2 號 → 當期代號 2026-5 → 顯示「2026/6 期」
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 5, 20))
+    seed({
+      cards: [{ id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDay: 15, dueDate: 17, budget: 50000, actualBill: 3022 }],
+    })
+    render(<App />)
+    fireEvent.click(within(newCardSummary()).getByText('標記已繳'))
+    fireEvent.click(within(newCardSummary()).getByText(/繳費紀錄（1）/))
+    const after = newCardSummary()
+    expect(after.textContent).toContain('2026/6 期')
+    expect(after.textContent).toContain('NT$3,022')
+    expect(after.textContent).toContain('2026-06-20')
+  })
+
+  it('預先帶入的繳費紀錄會直接顯示在卡片上', () => {
+    seed({
+      cards: [{
+        id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDate: 17, budget: 50000, actualBill: 1200,
+        paymentHistory: [
+          { id: 'h1', cycleKey: '2026-4', amount: 4500, date: '2026-05-10' },
+          { id: 'h2', cycleKey: '2026-3', amount: 3800, date: '2026-04-09' },
+        ],
+      }],
+    })
+    render(<App />)
+    fireEvent.click(within(newCardSummary()).getByText(/繳費紀錄（2）/))
+    const after = newCardSummary()
+    expect(after.textContent).toContain('2026/5 期')
+    expect(after.textContent).toContain('NT$4,500')
+    expect(after.textContent).toContain('2026/4 期')
+    expect(after.textContent).toContain('NT$3,800')
+  })
+
+  it('同一期重複標記不會堆疊成兩筆', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 5, 20))
+    seed({
+      cards: [{ id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDate: 17, budget: 50000, actualBill: 3022 }],
+    })
+    render(<App />)
+    fireEvent.click(within(newCardSummary()).getByText('標記已繳'))
+    // 已繳後沒有「標記已繳」按鈕可再按，仍應只有一筆紀錄
+    expect(within(newCardSummary()).getByText(/繳費紀錄（1）/)).toBeInTheDocument()
+  })
+})
+
 describe('本期已繳依各卡結帳日換期', () => {
   afterEach(() => {
     vi.useRealTimers()

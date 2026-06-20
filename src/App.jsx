@@ -343,10 +343,19 @@ export default function App() {
   const handleAddCard = useCallback((card) => setCards(p => [...p, card]), [])
   const handleSaveCard = useCallback((updated) => setCards(p => p.map(c => c.id === updated.id ? updated : c)), [])
   const handleDeleteCard = useCallback((id) => setCards(p => p.filter(c => c.id !== id)), [])
-  // 標記本期卡費已繳：當月不再提醒；可選擇從連動的儲蓄帳戶扣款
+  // 標記本期卡費已繳：當期不再提醒；可選擇從連動的儲蓄帳戶扣款；並留下繳費紀錄
   const handleMarkCardPaid = useCallback((id, opts = {}) => {
-    // 以「該卡結帳日」算出當期代號，標記為已繳；下次結帳日到才會自動換期
-    setCards(p => p.map(c => c.id === id ? { ...c, billPaidMonth: billingCycleKey(c.billingDay) } : c))
+    const today = new Date().toISOString().slice(0, 10)
+    setCards(p => p.map(c => {
+      if (c.id !== id) return c
+      // 以「該卡結帳日」算出當期代號，標記為已繳；下次結帳日到才會自動換期
+      const cycleKey = billingCycleKey(c.billingDay)
+      const amount = Number(opts.billAmount) || 0
+      const entry = { id: crypto.randomUUID(), cycleKey, amount, date: today }
+      // 同一期重複標記時以最新一筆為準（避免重複堆疊）
+      const history = (c.paymentHistory || []).filter(h => h.cycleKey !== cycleKey)
+      return { ...c, billPaidMonth: cycleKey, paymentHistory: [entry, ...history] }
+    }))
     if (opts.fromSavingId && Number(opts.amount) > 0) {
       handleSpendSaving(opts.fromSavingId, Number(opts.amount), '繳卡費')
     }

@@ -6,12 +6,22 @@ function fmt(n) {
   return 'NT$' + Number(n).toLocaleString()
 }
 
+// 期別代號（年-月，月為 0 起算）轉成「2026/7」顯示
+function cycleLabel(cycleKey) {
+  if (!cycleKey) return ''
+  const [y, m] = cycleKey.split('-').map(Number)
+  return `${y}/${m + 1}`
+}
+
 export default function CreditCardSummaryCard({ card, onMarkPaid }) {
   const [confirming, setConfirming] = useState(false)
   const [showLimit, setShowLimit] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const hasBill = card.upcomingBill != null && Number(card.upcomingBill) > 0
   const reserve = card.reserve
   const payFromAccount = reserve ? Math.min(Number(card.upcomingBill), Number(reserve.saved)) : 0
+  const history = card.paymentHistory || []
+  const billAmount = Number(card.upcomingBill) || 0
 
   // 結帳日 / 繳款截止日 文字
   const dateParts = []
@@ -21,7 +31,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid }) {
 
   function handlePay() {
     if (reserve && reserve.saved > 0) setConfirming(true)
-    else onMarkPaid?.(card.id)
+    else onMarkPaid?.(card.id, { billAmount })
   }
 
   return (
@@ -52,13 +62,13 @@ export default function CreditCardSummaryCard({ card, onMarkPaid }) {
             <div className="credit-card-summary-pay-btns">
               <button
                 className="credit-card-summary-pay-btn credit-card-summary-pay-yes"
-                onClick={() => { onMarkPaid?.(card.id, { fromSavingId: reserve.id, amount: payFromAccount }); setConfirming(false) }}
+                onClick={() => { onMarkPaid?.(card.id, { fromSavingId: reserve.id, amount: payFromAccount, billAmount }); setConfirming(false) }}
               >
                 從帳戶扣 {fmt(payFromAccount)}
               </button>
               <button
                 className="credit-card-summary-pay-btn"
-                onClick={() => { onMarkPaid?.(card.id); setConfirming(false) }}
+                onClick={() => { onMarkPaid?.(card.id, { billAmount }); setConfirming(false) }}
               >
                 只標記已繳
               </button>
@@ -82,6 +92,25 @@ export default function CreditCardSummaryCard({ card, onMarkPaid }) {
             <span className="credit-card-summary-status">{card.statusText}</span>
           </div>
         </div>
+      )}
+
+      {history.length > 0 && (
+        <>
+          <button className="credit-card-summary-limit-toggle" onClick={() => setShowHistory(v => !v)}>
+            {showHistory ? '隱藏繳費紀錄 ▴' : `繳費紀錄（${history.length}）▾`}
+          </button>
+          {showHistory && (
+            <ul className="credit-card-summary-history">
+              {history.map(h => (
+                <li key={h.id} className="credit-card-summary-history-row">
+                  <span className="credit-card-summary-history-cycle">{cycleLabel(h.cycleKey)} 期</span>
+                  <span className="credit-card-summary-history-amount">{fmt(h.amount)}</span>
+                  <span className="credit-card-summary-history-date">{h.date}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   )
