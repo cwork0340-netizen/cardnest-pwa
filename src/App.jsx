@@ -126,7 +126,14 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
       .reduce((s, p) => s + p.amount, 0)
     // 有手動填銀行「本期應繳」就以實際金額為準，否則用 app 估算
     const computedBill = used + subsOnCard + instOnCard
-    const upcomingBill = Number(card.actualBill) > 0 ? Number(card.actualBill) : computedBill
+    const rawBill = Number(card.actualBill) > 0 ? Number(card.actualBill) : computedBill
+    // 本期已繳金額（依該卡結帳日所屬週期加總）。
+    // 應繳 = 帳單 − 本期已繳：繳清即歸 0；跨到下一期已繳歸零，又顯示應繳（累加下一期）。
+    const currentCycle = billingCycleKey(card.billingDay)
+    const paidThisCycle = (card.paymentHistory || [])
+      .filter(h => h.cycleKey === currentCycle)
+      .reduce((s, h) => s + Number(h.amount || 0), 0)
+    const upcomingBill = Math.max(0, rawBill - paidThisCycle)
     const cardRemaining = card.budget - used
     const cp = card.budget > 0 ? used / card.budget : 0
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
@@ -352,9 +359,8 @@ export default function App() {
       const cycleKey = billingCycleKey(c.billingDay)
       const amount = Number(opts.billAmount) || 0
       const entry = { id: crypto.randomUUID(), cycleKey, amount, date: today }
-      // 同一期重複標記時以最新一筆為準（避免重複堆疊）
-      const history = (c.paymentHistory || []).filter(h => h.cycleKey !== cycleKey)
-      return { ...c, billPaidMonth: cycleKey, paymentHistory: [entry, ...history] }
+      // 累加記錄本期繳款；應繳金額會在 computeDashboard 依此扣減而歸零
+      return { ...c, billPaidMonth: cycleKey, paymentHistory: [entry, ...(c.paymentHistory || [])] }
     }))
     if (opts.fromSavingId && Number(opts.amount) > 0) {
       handleSpendSaving(opts.fromSavingId, Number(opts.amount), '繳卡費')

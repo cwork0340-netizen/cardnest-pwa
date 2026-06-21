@@ -22,7 +22,7 @@ export default function PaymentReminderCard({ reminders, onMarkPaid }) {
     if (r.reserve && r.reserve.saved > 0) {
       setConfirmingId(r.id)
     } else {
-      onMarkPaid(r.id)
+      onMarkPaid(r.id, { billAmount: r.amount })
     }
   }
 
@@ -47,13 +47,13 @@ export default function PaymentReminderCard({ reminders, onMarkPaid }) {
                   <span className="pay-reminder-confirm-q">用「{r.reserve.name}」扣款？</span>
                   <button
                     className="pay-reminder-confirm-btn pay-reminder-confirm-yes"
-                    onClick={() => { onMarkPaid(r.id, { fromSavingId: r.reserve.id, amount: payFromAccount }); setConfirmingId(null) }}
+                    onClick={() => { onMarkPaid(r.id, { fromSavingId: r.reserve.id, amount: payFromAccount, billAmount: r.amount }); setConfirmingId(null) }}
                   >
                     從帳戶扣 {fmt(payFromAccount)}
                   </button>
                   <button
                     className="pay-reminder-confirm-btn"
-                    onClick={() => { onMarkPaid(r.id); setConfirmingId(null) }}
+                    onClick={() => { onMarkPaid(r.id, { billAmount: r.amount }); setConfirmingId(null) }}
                   >
                     只標記已繳
                   </button>

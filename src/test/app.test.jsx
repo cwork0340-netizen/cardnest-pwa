@@ -727,3 +727,52 @@ describe('本期已繳依各卡結帳日換期', () => {
     expect(within(yongfengSummary()).getByText('標記已繳')).toBeInTheDocument()
   })
 })
+
+describe('本期應繳：繳清歸 0、跨期重新累加', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function taishinSummary() {
+    return Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('台新卡'))
+  }
+  function taishinBill() {
+    return taishinSummary().querySelector('.credit-card-summary-bill-amount').textContent
+  }
+
+  it('標記已繳後，本期應繳歸 0', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 5, 20))
+    seed({
+      cards: [{ id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDate: 17, budget: 50000, actualBill: 3022 }],
+    })
+    render(<App />)
+    expect(taishinBill()).toBe('NT$3,022')
+    fireEvent.click(within(taishinSummary()).getByText('標記已繳'))
+    expect(taishinBill()).toBe('NT$0')
+  })
+
+  it('已繳的那期金額會扣掉、跨到下一期又顯示應繳（累加下一期）', () => {
+    // 結帳日 2 號、actualBill 3022，且已記錄 2026-5 期繳清 3022
+    const card = {
+      id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDate: 17, budget: 50000, actualBill: 3022,
+      billPaidMonth: '2026-5',
+      paymentHistory: [{ id: 'h1', cycleKey: '2026-5', amount: 3022, date: '2026-06-05' }],
+    }
+    // 6/20 仍屬 2026-5 期 → 已繳清 → 應繳 0
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 5, 20))
+    seed({ cards: [card] })
+    const { unmount } = render(<App />)
+    expect(taishinBill()).toBe('NT$0')
+    unmount()
+
+    // 7/2 起換成 2026-6 期 → 本期未繳 → 又顯示應繳 3022
+    vi.setSystemTime(new Date(2026, 6, 2))
+    seed({ cards: [card] })
+    render(<App />)
+    expect(taishinBill()).toBe('NT$3,022')
+    expect(within(taishinSummary()).getByText('標記已繳')).toBeInTheDocument()
+  })
+})
