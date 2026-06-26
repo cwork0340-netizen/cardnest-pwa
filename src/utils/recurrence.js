@@ -41,3 +41,11 @@ export function dayFromMD(md) {
   const [, d] = md.split('/').map(Number)
   return d || null
 }
+
+// 卡片的繳款截止日（每月幾號）：沒手動填就用「帳單日 + 繳款寬限天數」自動推算，
+// 讓寬限天數這個欄位真正驅動到繳費提醒，而不只是 Settings 裡的靜態文字。
+export function effectiveDueDay(billingDay, graceDays, from = new Date()) {
+  const d = new Date(from.getFullYear(), from.getMonth(), Number(billingDay) || 1)
+  d.setDate(d.getDate() + (Number(graceDays) || 0))
+  return d.getDate()
+}

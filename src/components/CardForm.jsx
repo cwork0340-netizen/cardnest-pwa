@@ -135,12 +135,12 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
             />
           </div>
           <div className="cdf-field cdf-field-half">
-            <label className="cdf-label">繳款截止日<span className="cdf-label-hint">（每月幾號）</span></label>
+            <label className="cdf-label">繳款截止日<span className="cdf-label-hint">（選填，留空會自動用帳單日+寬限天數算）</span></label>
             <input
               className="cdf-input"
               type="number"
               inputMode="numeric"
-              placeholder="例如 17"
+              placeholder="留空自動推算"
               min="1"
               max="31"
               value={dueDate}

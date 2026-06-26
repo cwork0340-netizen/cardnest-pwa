@@ -8,7 +8,7 @@ import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
-import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
+import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD, effectiveDueDay } from './utils/recurrence'
 
 const STORAGE_KEY = 'cardnest_v1'
 
@@ -124,8 +124,10 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     const cardRemaining = card.budget - used
     const cp = card.budget > 0 ? used / card.budget : 0
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
+    // 繳款截止日：沒手動填就用「帳單日 + 繳款寬限天數」自動算
+    const dueDate = Number(card.dueDate) > 0 ? Number(card.dueDate) : effectiveDueDay(card.billingDay, card.dueDay)
     return {
-      ...card, used, upcomingBill,
+      ...card, used, upcomingBill, dueDate,
       billIsActual: Number(card.actualBill) > 0,
       status: cardStatus,
       statusText: cardStatus === 'safe'
