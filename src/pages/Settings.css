@@ -194,6 +194,23 @@
   white-space: nowrap;
 }
 
+/* Cloud Sync */
+.settings-cloud-sync {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-cloud-sync-status {
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--divider);
+  border-radius: 999px;
+  padding: 4px 12px;
+}
+
 /* Sheets section */
 .settings-desc {
   font-size: 14px;
@@ -232,7 +249,7 @@
   flex: 1;
   height: 44px;
   border-radius: var(--radius-button);
-  background: #F2EFE9;
+  background: var(--divider);
   color: var(--color-text-secondary);
   font-size: 15px;
   font-weight: 600;

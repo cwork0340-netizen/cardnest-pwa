@@ -220,6 +220,15 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
         </div>
       </div>
 
+      {/* Cloud Sync */}
+      <div className="section">
+        <SectionHeader title="雲端同步" />
+        <div className="card settings-cloud-sync">
+          <span className="settings-cloud-sync-status">尚未同步</span>
+          <p className="settings-backup-hint">資料目前僅儲存在本機，雲端同步功能即將推出。</p>
+        </div>
+      </div>
+
       {/* 資料管理 */}
       <div className="section">
         <SectionHeader title="資料管理" />

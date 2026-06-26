@@ -3,6 +3,28 @@
   flex-direction: column;
 }
 
+.category-donut-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 16px;
+}
+
+.category-donut {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.category-donut-hole {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--card);
+}
+
 .category-row {
   display: flex;
   justify-content: space-between;

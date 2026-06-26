@@ -4,7 +4,7 @@ import './CardForm.css'
 export default function CardForm({ onSubmit, onClose, initialValues }) {
   const isEdit = !!initialValues
   const [name, setName] = useState(initialValues?.name ?? '')
-  const [color, setColor] = useState(initialValues?.color ?? '#5E7CE2')
+  const [color, setColor] = useState(initialValues?.color ?? '#A98274')
   const [billingDay, setBillingDay] = useState(initialValues?.billingDay ?? '')
   const [dueDay, setDueDay] = useState(initialValues?.dueDay ?? '')
   const [budget, setBudget] = useState(initialValues?.budget ?? '')

@@ -181,6 +181,8 @@ export default function Checklist({
             icon="🧾"
             title="還沒有必繳項目"
             description="把房租、水電、電信等每月固定支出加進來，繳完打勾就好"
+            actionLabel="新增必繳項目"
+            onAction={() => setShowAddSheet(true)}
           />
         ) : (
           items.map((item) => (
@@ -202,6 +204,8 @@ export default function Checklist({
             icon="🐖"
             title="還沒有儲蓄目標"
             description="例如每月存學費、旅遊基金。每月撥入會算進必要支出，幫你先把錢留下來"
+            actionLabel="新增儲蓄目標"
+            onAction={() => setShowSavingsSheet(true)}
           />
         ) : (
           savings.map((goal) => (

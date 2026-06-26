@@ -53,7 +53,7 @@
 
 .envf-toggle {
   display: flex;
-  background: #F2EFE9;
+  background: var(--divider);
   border-radius: var(--radius-pill);
   padding: 4px;
   gap: 4px;

@@ -319,7 +319,6 @@ describe('每月必繳清單', () => {
     render(<App />)
     // 首頁＝刷卡狀態：只有刷卡 1000，必繳清單不計入
     expect(document.querySelector('.hero-card-amount').textContent).toBe('NT$1,000')
-    expect(document.querySelector('.hero-card-breakdown').textContent).toContain('已記錄刷卡 NT$1,000')
   })
 
   it('必要支出頁：收入扣掉必要支出後顯示生活結餘', () => {

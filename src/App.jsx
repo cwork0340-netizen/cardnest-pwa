@@ -23,8 +23,8 @@ function loadStorage() {
 const MONTH_NAMES = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月']
 const WEEKDAY_NAMES = ['日','一','二','三','四','五','六']
 const CATEGORY_COLORS = {
-  餐飲: '#5E7CE2', 購物: '#D49A45', 訂閱: '#6FA37C',
-  日常: '#A380C6', 交通: '#D96B5F', 娛樂: '#D49A45', 其他: '#AAA198',
+  餐飲: '#A98274', 購物: '#D6A04D', 訂閱: '#8DAA91',
+  日常: '#B98D6F', 交通: '#C86E62', 娛樂: '#D6A04D', 其他: '#B9ADA6',
 }
 const TREND_BASE = [
   { month: '12月', amount: 31200 }, { month: '1月', amount: 28940 },
@@ -81,7 +81,7 @@ function buildWeekDays(plans, cards) {
       name: p.name,
       card: p.card,
       amount: p.amount,
-      color: colorByCard[p.card] ?? '#5E7CE2',
+      color: colorByCard[p.card] ?? '#A98274',
     })
   })
 
@@ -132,7 +132,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     .map(([name, amount]) => ({
       name, amount,
       percent: totalSpent > 0 ? Math.round(amount / totalSpent * 100) : 0,
-      color: CATEGORY_COLORS[name] ?? '#AAA198',
+      color: CATEGORY_COLORS[name] ?? '#B9ADA6',
     }))
     .sort((a, b) => b.amount - a.amount)
 
@@ -146,7 +146,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
       budget: e.monthlyBudget,
       used,
       remaining: e.monthlyBudget - used,
-      color: CATEGORY_COLORS[e.name] ?? '#AAA198',
+      color: CATEGORY_COLORS[e.name] ?? '#B9ADA6',
     }
   })
   const envelopeSummary = {

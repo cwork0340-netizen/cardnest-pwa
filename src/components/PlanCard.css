@@ -94,21 +94,22 @@
 /* segmented period progress */
 .seg-progress {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   width: 100%;
 }
 
 .seg-cell {
-  flex: 1;
-  min-width: 4px;
-  height: 8px;
-  border-radius: var(--radius-pill, 4px);
-  background: #E8EDF8;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--divider);
   transition: background 200ms ease;
 }
 
 .seg-cell-done {
-  background: var(--color-success);
+  background: var(--color-primary);
 }
 
 .plan-progress-text {

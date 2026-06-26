@@ -24,3 +24,19 @@
   margin-top: 4px;
   text-align: center;
 }
+
+.empty-state-action {
+  margin-top: 16px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-btn);
+  background: var(--color-primary);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  transition: opacity 160ms ease;
+}
+
+.empty-state-action:active {
+  opacity: 0.85;
+}

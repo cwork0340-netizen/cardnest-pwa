@@ -1,36 +1,53 @@
 :root {
-  /* Colors */
-  --color-bg: #F8F5EF;
-  --color-surface: #FFFFFF;
-  --color-surface-warm: #FFFCF7;
+  /* Warm Latte palette */
+  --primary: #A98274;
+  --secondary: #D7C1AE;
+  --bg: #F8F5F1;
+  --card: #FFFCFA;
+  --divider: #E7DED5;
+  --text: #40342E;
+  --text-sub: #85756B;
+  --text-disabled: #B9ADA6;
+  --status-safe: #8DAA91;
+  --status-warn: #D6A04D;
+  --status-danger: #C86E62;
+  --radius-card: 22px;
+  --radius-btn: 16px;
+  --radius-input: 14px;
+  --shadow: 0 6px 18px rgba(82, 58, 41, .08);
 
-  --color-primary: #5E7CE2;
-  --color-primary-hover: #4D6FD8;
-  --color-primary-soft: #EEF2FF;
+  /* Colors (aliases onto the palette above) */
+  --color-bg: var(--bg);
+  --color-surface: var(--card);
+  --color-surface-warm: var(--card);
 
-  --color-text-main: #2F2A25;
-  --color-text-secondary: #7C746B;
-  --color-text-muted: #AAA198;
+  --color-primary: var(--primary);
+  --color-primary-hover: #93695B;
+  --color-primary-soft: var(--secondary);
 
-  --color-border: rgba(47, 42, 37, 0.08);
-  --color-border-strong: rgba(47, 42, 37, 0.14);
+  --color-text-main: var(--text);
+  --color-text-secondary: var(--text-sub);
+  --color-text-muted: var(--text-disabled);
 
-  --color-success: #6FA37C;
-  --color-success-soft: #EAF5EE;
+  --color-border: var(--divider);
+  --color-border-strong: #D8CABD;
 
-  --color-warning: #D49A45;
-  --color-warning-soft: #FFF4DE;
+  --color-success: var(--status-safe);
+  --color-success-soft: #E9F0EA;
 
-  --color-danger: #D96B5F;
-  --color-danger-soft: #FCEBE8;
+  --color-warning: var(--status-warn);
+  --color-warning-soft: #FBEFDD;
 
-  --color-subscription: #5E7CE2;
-  --color-installment: #D49A45;
-  --color-transaction: #6FA37C;
+  --color-danger: var(--status-danger);
+  --color-danger-soft: #F8E9E6;
+
+  --color-subscription: var(--primary);
+  --color-installment: var(--status-warn);
+  --color-transaction: var(--status-safe);
 
   /* Shadows */
-  --shadow-card: 0 8px 28px rgba(72, 56, 38, 0.06);
-  --shadow-floating: 0 12px 32px rgba(72, 56, 38, 0.12);
+  --shadow-card: var(--shadow);
+  --shadow-floating: 0 10px 28px rgba(82, 58, 41, .16);
 
   /* Spacing */
   --page-padding-x: 20px;
@@ -40,11 +57,10 @@
   --hero-padding: 20px;
 
   /* Radius */
-  --radius-card: 24px;
-  --radius-hero: 28px;
-  --radius-button: 16px;
+  --radius-hero: 26px;
+  --radius-button: var(--radius-btn);
   --radius-pill: 999px;
-  --radius-sheet: 28px;
+  --radius-sheet: 26px;
 }
 
 *, *::before, *::after {
@@ -102,7 +118,7 @@ input, select, textarea {
   border-radius: var(--radius-card);
   padding: var(--card-padding);
   box-shadow: var(--shadow-card);
-  border: 1px solid rgba(47, 42, 37, 0.04);
+  border: 1px solid rgba(64, 52, 46, 0.04);
 }
 
 /* Buttons */
@@ -192,7 +208,7 @@ input, select, textarea {
 }
 
 .badge-neutral {
-  background: #F2EFE9;
+  background: var(--divider);
   color: var(--color-text-secondary);
 }
 
@@ -204,7 +220,7 @@ input, select, textarea {
 /* Progress bar */
 .progress-track {
   height: 8px;
-  background: #E8EDF8;
+  background: var(--divider);
   border-radius: var(--radius-pill);
   overflow: hidden;
 }

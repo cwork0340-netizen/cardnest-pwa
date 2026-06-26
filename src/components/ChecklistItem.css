@@ -8,6 +8,10 @@
   cursor: pointer;
 }
 
+.cl-item-done {
+  background: var(--secondary);
+}
+
 .cl-item-done .cl-name {
   text-decoration: line-through;
   color: var(--color-text-muted);
@@ -35,8 +39,8 @@
 }
 
 .cl-check-done {
-  background: var(--color-success);
-  border-color: var(--color-success);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 .cl-info {

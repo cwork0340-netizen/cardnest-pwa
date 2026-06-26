@@ -28,7 +28,7 @@
 .sheet-handle {
   width: 36px;
   height: 4px;
-  background: #E8E5DF;
+  background: var(--divider);
   border-radius: 999px;
   margin: 0 auto 20px;
 }

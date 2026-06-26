@@ -59,6 +59,8 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
             icon="💳"
             title="還沒有刷卡記錄"
             description="點擊右下角開始記第一筆"
+            actionLabel="立即記一筆"
+            onAction={() => setShowSheet(true)}
           />
         ) : (
           transactions.map((tx) => (
