@@ -8,6 +8,7 @@ import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
+import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 
 const STORAGE_KEY = 'cardnest_v1'
 
@@ -40,12 +41,21 @@ function getGreeting(hour) {
   return '晚安'
 }
 
-// "6/15" → 當前年份的 Date 物件
-function parseMonthDay(md) {
-  if (!md) return null
-  const [m, d] = md.split('/').map(Number)
-  if (!m || !d) return null
-  return new Date(new Date().getFullYear(), m - 1, d)
+// 每月幾號扣款／繳款的錨點：新資料用 billingDay，舊資料從 nextDate 字串推回去
+function billingDayOf(plan) {
+  return plan.billingDay ?? dayFromMD(plan.nextDate) ?? 1
+}
+
+// 把訂閱／分期的下次發生日、剩餘天數、狀態，每次渲染都即時算一次，
+// 不再相信新增當下凍結進資料裡的 nextDate / daysLeft / status，
+// 這樣日期就不會卡在建立當天，永遠跟著「今天」往後跑。
+function enrichPlans(plans) {
+  return plans.map(p => {
+    const billingDay = billingDayOf(p)
+    const next = nextOccurrence(billingDay)
+    const daysLeft = daysUntil(next)
+    return { ...p, billingDay, nextDate: formatMD(next), daysLeft, status: statusForDaysLeft(daysLeft) }
+  })
 }
 
 // 建立本週（週日起算）七天的扣款行事曆，事件以卡片顏色標示
@@ -71,8 +81,7 @@ function buildWeekDays(plans, cards) {
       ? (p.active ?? true)
       : (p.paidCount < p.totalCount)
     if (!stillActive) return
-    const dt = parseMonthDay(p.nextDate)
-    if (!dt) return
+    const dt = nextOccurrence(billingDayOf(p))
     dt.setHours(0, 0, 0, 0)
     if (dt < weekStart || dt >= weekEnd) return
     const idx = Math.round((dt - weekStart) / 86400000)
@@ -381,6 +390,7 @@ export default function App() {
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
   const weekDays = buildWeekDays(plans, enrichedCards)
+  const enrichedPlans = enrichPlans(plans)
 
   // 繳費提醒：本期應繳 > 0、有設繳款截止日、且本月尚未標記已繳
   const todayDate = new Date().getDate()
@@ -453,7 +463,7 @@ export default function App() {
     plans: (
       <Plans
         showToast={showToast}
-        plans={plans}
+        plans={enrichedPlans}
         cards={cards}
         fxSettings={fxSettings}
         onAddPlan={handleAddPlan}
