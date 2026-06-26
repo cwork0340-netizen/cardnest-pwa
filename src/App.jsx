@@ -97,8 +97,17 @@ function buildWeekDays(plans, cards) {
   return days
 }
 
+// 刷卡記錄的 date 是 "M/D" 顯示字串（沒有年份），跟現在比對月份即可判斷是不是本期
+function isThisMonth(displayDate, from = new Date()) {
+  if (!displayDate) return false
+  const [m] = displayDate.split('/').map(Number)
+  return m === from.getMonth() + 1
+}
+
 function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = []) {
-  const totalSpent = transactions.reduce((s, tx) => s + tx.amount, 0)
+  // 預算／應繳只看本月的刷卡記錄，跨月的舊記錄不會一路往上累加
+  const monthTx = transactions.filter(tx => isThisMonth(tx.date))
+  const totalSpent = monthTx.reduce((s, tx) => s + tx.amount, 0)
   const totalBudget = cards.reduce((s, c) => s + c.budget, 0)
   // 本月支出 = 已記錄刷卡 + 訂閱／分期（首頁＝刷卡狀態，不含必繳清單）
   const monthlyOut = totalSpent + fixedMonthlyAmount
@@ -108,7 +117,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   const monthName = MONTH_NAMES[new Date().getMonth()]
 
   const txByCard = {}
-  transactions.forEach(tx => { txByCard[tx.card] = (txByCard[tx.card] ?? 0) + tx.amount })
+  monthTx.forEach(tx => { txByCard[tx.card] = (txByCard[tx.card] ?? 0) + tx.amount })
   const enrichedCards = cards.map(card => {
     const used = txByCard[card.name] ?? 0
     // 下期應繳 = 這張卡的 刷卡消費 + 訂閱 + 未繳清的分期（每期）
@@ -138,7 +147,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   })
 
   const catMap = {}
-  transactions.forEach(tx => { catMap[tx.category] = (catMap[tx.category] ?? 0) + tx.amount })
+  monthTx.forEach(tx => { catMap[tx.category] = (catMap[tx.category] ?? 0) + tx.amount })
   const categories = Object.entries(catMap)
     .map(([name, amount]) => ({
       name, amount,
@@ -194,10 +203,20 @@ export default function App() {
     ? storedChecklist
     : storedChecklist.map(i => ({ ...i, done: false }))
 
+  // 卡片帳單週期「跨月自動重置」：上次標記已繳是在過去某個月，代表那是上一期的
+  // 銀行帳單金額，開啟新月份時清空「本期應繳」，回到用刷卡＋訂閱／分期估算，
+  // 避免本期應繳一直沿用上一期數字，跟必繳清單一樣每月自動重新開始。
+  const storedCards = stored?.cards ?? []
+  const initialCards = storedCards.map(c =>
+    c.billPaidMonth && c.billPaidMonth !== currentMonthKey && Number(c.actualBill) > 0
+      ? { ...c, actualBill: 0 }
+      : c
+  )
+
   const [tab, setTab] = useState('dashboard')
   const [toast, setToast] = useState(null) // { message, onUndo? }
   const toastTimer = useRef(null)
-  const [cards, setCards] = useState(stored?.cards ?? [])
+  const [cards, setCards] = useState(initialCards)
   const [plans, setPlans] = useState(stored?.plans ?? [])
   const [transactions, setTransactions] = useState(stored?.transactions ?? [])
   const [fxSettings, setFxSettings] = useState(stored?.fxSettings ?? { usdRate: 32.5, feeRate: 1.5 })
