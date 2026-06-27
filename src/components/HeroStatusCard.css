@@ -1,34 +1,12 @@
 .hero-card {
-  background:
-    radial-gradient(circle at 85% 20%, rgba(94, 124, 226, .14), transparent 32%),
-    linear-gradient(180deg, #FFFFFF 0%, #F1F4FF 100%);
-  border-radius: 28px;
+  background: linear-gradient(180deg, var(--card) 0%, var(--secondary) 160%);
+  border-radius: var(--radius-hero);
   padding: 20px;
   box-shadow: var(--shadow-card);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.hero-card-left {
-  flex: 1;
-}
-
-.hero-card-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-text-main);
-}
-
-.hero-card-sub {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  margin-top: 2px;
-  margin-bottom: 12px;
 }
 
 .hero-card-amount-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-text-muted);
   margin-bottom: 4px;
 }
@@ -40,35 +18,17 @@
   line-height: 1;
 }
 
-.hero-card-breakdown {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 8px;
-}
-
-.hero-card-breakdown-item {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.hero-card-breakdown-estimate {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
 .hero-card-budget-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 16px;
 }
 
 .hero-card-progress-track {
   flex: 1;
-  height: 6px;
-  background: rgba(47, 42, 37, 0.08);
+  height: 8px;
+  background: var(--divider);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -80,54 +40,8 @@
 }
 
 .hero-card-pct {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-text-muted);
   white-space: nowrap;
-}
-
-.hero-card-remaining {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  margin-top: 2px;
-}
-
-.hero-card-balance {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-}
-
-.hero-card-balance-income {
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-
-.hero-card-balance-left {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-success);
-}
-
-.hero-card-balance-over {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-danger);
-}
-
-.hero-card-illustration {
-  width: 140px;
-  height: 140px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.hero-card-illustration img {
-  width: 140px;
-  height: 140px;
-  object-fit: contain;
 }

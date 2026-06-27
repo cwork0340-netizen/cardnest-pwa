@@ -15,7 +15,7 @@
 
 /* Segmented tabs */
 .segmented-tabs {
-  background: #F2EFE9;
+  background: var(--divider);
   border-radius: 999px;
   padding: 4px;
   display: flex;

@@ -8,6 +8,7 @@ import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
+import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD, effectiveDueDay } from './utils/recurrence'
 
 const STORAGE_KEY = 'cardnest_v1'
 
@@ -23,8 +24,8 @@ function loadStorage() {
 const MONTH_NAMES = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月']
 const WEEKDAY_NAMES = ['日','一','二','三','四','五','六']
 const CATEGORY_COLORS = {
-  餐飲: '#5E7CE2', 購物: '#D49A45', 訂閱: '#6FA37C',
-  日常: '#A380C6', 交通: '#D96B5F', 娛樂: '#D49A45', 其他: '#AAA198',
+  餐飲: '#A98274', 購物: '#D6A04D', 訂閱: '#8DAA91',
+  日常: '#B98D6F', 交通: '#C86E62', 娛樂: '#D6A04D', 其他: '#B9ADA6',
 }
 const TREND_BASE = [
   { month: '12月', amount: 31200 }, { month: '1月', amount: 28940 },
@@ -40,12 +41,21 @@ function getGreeting(hour) {
   return '晚安'
 }
 
-// "6/15" → 當前年份的 Date 物件
-function parseMonthDay(md) {
-  if (!md) return null
-  const [m, d] = md.split('/').map(Number)
-  if (!m || !d) return null
-  return new Date(new Date().getFullYear(), m - 1, d)
+// 每月幾號扣款／繳款的錨點：新資料用 billingDay，舊資料從 nextDate 字串推回去
+function billingDayOf(plan) {
+  return plan.billingDay ?? dayFromMD(plan.nextDate) ?? 1
+}
+
+// 把訂閱／分期的下次發生日、剩餘天數、狀態，每次渲染都即時算一次，
+// 不再相信新增當下凍結進資料裡的 nextDate / daysLeft / status，
+// 這樣日期就不會卡在建立當天，永遠跟著「今天」往後跑。
+function enrichPlans(plans) {
+  return plans.map(p => {
+    const billingDay = billingDayOf(p)
+    const next = nextOccurrence(billingDay)
+    const daysLeft = daysUntil(next)
+    return { ...p, billingDay, nextDate: formatMD(next), daysLeft, status: statusForDaysLeft(daysLeft) }
+  })
 }
 
 // 建立本週（週日起算）七天的扣款行事曆，事件以卡片顏色標示
@@ -71,8 +81,7 @@ function buildWeekDays(plans, cards) {
       ? (p.active ?? true)
       : (p.paidCount < p.totalCount)
     if (!stillActive) return
-    const dt = parseMonthDay(p.nextDate)
-    if (!dt) return
+    const dt = nextOccurrence(billingDayOf(p))
     dt.setHours(0, 0, 0, 0)
     if (dt < weekStart || dt >= weekEnd) return
     const idx = Math.round((dt - weekStart) / 86400000)
@@ -81,15 +90,24 @@ function buildWeekDays(plans, cards) {
       name: p.name,
       card: p.card,
       amount: p.amount,
-      color: colorByCard[p.card] ?? '#5E7CE2',
+      color: colorByCard[p.card] ?? '#A98274',
     })
   })
 
   return days
 }
 
+// 刷卡記錄的 date 是 "M/D" 顯示字串（沒有年份），跟現在比對月份即可判斷是不是本期
+function isThisMonth(displayDate, from = new Date()) {
+  if (!displayDate) return false
+  const [m] = displayDate.split('/').map(Number)
+  return m === from.getMonth() + 1
+}
+
 function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = []) {
-  const totalSpent = transactions.reduce((s, tx) => s + tx.amount, 0)
+  // 預算／應繳只看本月的刷卡記錄，跨月的舊記錄不會一路往上累加
+  const monthTx = transactions.filter(tx => isThisMonth(tx.date))
+  const totalSpent = monthTx.reduce((s, tx) => s + tx.amount, 0)
   const totalBudget = cards.reduce((s, c) => s + c.budget, 0)
   // 本月支出 = 已記錄刷卡 + 訂閱／分期（首頁＝刷卡狀態，不含必繳清單）
   const monthlyOut = totalSpent + fixedMonthlyAmount
@@ -99,7 +117,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   const monthName = MONTH_NAMES[new Date().getMonth()]
 
   const txByCard = {}
-  transactions.forEach(tx => { txByCard[tx.card] = (txByCard[tx.card] ?? 0) + tx.amount })
+  monthTx.forEach(tx => { txByCard[tx.card] = (txByCard[tx.card] ?? 0) + tx.amount })
   const enrichedCards = cards.map(card => {
     const used = txByCard[card.name] ?? 0
     // 下期應繳 = 這張卡的 刷卡消費 + 訂閱 + 未繳清的分期（每期）
@@ -115,8 +133,10 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     const cardRemaining = card.budget - used
     const cp = card.budget > 0 ? used / card.budget : 0
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
+    // 繳款截止日：沒手動填就用「帳單日 + 繳款寬限天數」自動算
+    const dueDate = Number(card.dueDate) > 0 ? Number(card.dueDate) : effectiveDueDay(card.billingDay, card.dueDay)
     return {
-      ...card, used, upcomingBill,
+      ...card, used, upcomingBill, dueDate,
       billIsActual: Number(card.actualBill) > 0,
       status: cardStatus,
       statusText: cardStatus === 'safe'
@@ -127,12 +147,12 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   })
 
   const catMap = {}
-  transactions.forEach(tx => { catMap[tx.category] = (catMap[tx.category] ?? 0) + tx.amount })
+  monthTx.forEach(tx => { catMap[tx.category] = (catMap[tx.category] ?? 0) + tx.amount })
   const categories = Object.entries(catMap)
     .map(([name, amount]) => ({
       name, amount,
       percent: totalSpent > 0 ? Math.round(amount / totalSpent * 100) : 0,
-      color: CATEGORY_COLORS[name] ?? '#AAA198',
+      color: CATEGORY_COLORS[name] ?? '#B9ADA6',
     }))
     .sort((a, b) => b.amount - a.amount)
 
@@ -146,7 +166,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
       budget: e.monthlyBudget,
       used,
       remaining: e.monthlyBudget - used,
-      color: CATEGORY_COLORS[e.name] ?? '#AAA198',
+      color: CATEGORY_COLORS[e.name] ?? '#B9ADA6',
     }
   })
   const envelopeSummary = {
@@ -183,10 +203,20 @@ export default function App() {
     ? storedChecklist
     : storedChecklist.map(i => ({ ...i, done: false }))
 
+  // 卡片帳單週期「跨月自動重置」：上次標記已繳是在過去某個月，代表那是上一期的
+  // 銀行帳單金額，開啟新月份時清空「本期應繳」，回到用刷卡＋訂閱／分期估算，
+  // 避免本期應繳一直沿用上一期數字，跟必繳清單一樣每月自動重新開始。
+  const storedCards = stored?.cards ?? []
+  const initialCards = storedCards.map(c =>
+    c.billPaidMonth && c.billPaidMonth !== currentMonthKey && Number(c.actualBill) > 0
+      ? { ...c, actualBill: 0 }
+      : c
+  )
+
   const [tab, setTab] = useState('dashboard')
   const [toast, setToast] = useState(null) // { message, onUndo? }
   const toastTimer = useRef(null)
-  const [cards, setCards] = useState(stored?.cards ?? [])
+  const [cards, setCards] = useState(initialCards)
   const [plans, setPlans] = useState(stored?.plans ?? [])
   const [transactions, setTransactions] = useState(stored?.transactions ?? [])
   const [fxSettings, setFxSettings] = useState(stored?.fxSettings ?? { usdRate: 32.5, feeRate: 1.5 })
@@ -195,10 +225,11 @@ export default function App() {
   const [envelopes, setEnvelopes] = useState(stored?.envelopes ?? [])
   const [income, setIncome] = useState(stored?.income ?? 0)
   const [savings, setSavings] = useState(stored?.savings ?? [])
+  const [googleSync, setGoogleSync] = useState(stored?.googleSync ?? null)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings }))
-  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync }))
+  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync])
 
   const showToast = useCallback((message) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -346,6 +377,7 @@ export default function App() {
     setIncome(0)
     setSavings([])
     setFxSettings({ usdRate: 32.5, feeRate: 1.5 })
+    setGoogleSync(null)
     setTab('dashboard')
   }, [])
 
@@ -381,6 +413,7 @@ export default function App() {
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
   const weekDays = buildWeekDays(plans, enrichedCards)
+  const enrichedPlans = enrichPlans(plans)
 
   // 繳費提醒：本期應繳 > 0、有設繳款截止日、且本月尚未標記已繳
   const todayDate = new Date().getDate()
@@ -453,7 +486,7 @@ export default function App() {
     plans: (
       <Plans
         showToast={showToast}
-        plans={plans}
+        plans={enrichedPlans}
         cards={cards}
         fxSettings={fxSettings}
         onAddPlan={handleAddPlan}
@@ -514,6 +547,9 @@ export default function App() {
         backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings, income }}
         onImportData={handleImportData}
         onClearData={handleClearData}
+        transactions={transactions}
+        googleSync={googleSync}
+        onGoogleSyncChange={setGoogleSync}
       />
     ),
   }

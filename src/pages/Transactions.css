@@ -12,3 +12,18 @@
   font-weight: 700;
   color: var(--color-text-main);
 }
+
+.tx-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tx-search-input {
+  -webkit-appearance: none;
+}
+
+.tx-card-select {
+  appearance: none;
+}

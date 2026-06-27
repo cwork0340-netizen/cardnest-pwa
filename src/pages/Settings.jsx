@@ -4,8 +4,9 @@ import SectionHeader from '../components/SectionHeader'
 import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
+import { getAccessToken, syncTransactionsToSheet } from '../utils/googleSheetSync'
 
-export default function Settings({ showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard, backupData, onImportData, onClearData }) {
+export default function Settings({ showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard, backupData, onImportData, onClearData, transactions, googleSync, onGoogleSyncChange }) {
   const [editingCard, setEditingCard] = useState(null)
   const [showAddCard, setShowAddCard] = useState(false)
   const [deletingCardId, setDeletingCardId] = useState(null)
@@ -14,6 +15,27 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
   const [feeRate, setFeeRate] = useState(String(fxSettings?.feeRate ?? 1.5))
   const [fxUpdated, setFxUpdated] = useState('')
   const [notifyState, setNotifyState] = useState(notifyPermission())
+  const [clientId, setClientId] = useState(googleSync?.clientId ?? '')
+  const [sheetId, setSheetId] = useState(googleSync?.sheetId ?? '')
+  const [syncing, setSyncing] = useState(false)
+
+  async function handleConnectAndSync() {
+    if (!clientId.trim() || !sheetId.trim()) {
+      showToast('請先填入 Client ID 跟 Sheet ID')
+      return
+    }
+    setSyncing(true)
+    try {
+      const token = await getAccessToken(clientId.trim())
+      const count = await syncTransactionsToSheet({ accessToken: token, sheetId: sheetId.trim(), transactions })
+      onGoogleSyncChange({ clientId: clientId.trim(), sheetId: sheetId.trim(), lastSyncAt: Date.now(), lastSyncCount: count })
+      showToast(`已同步 ${count} 筆刷卡紀錄到 Google Sheet`)
+    } catch (e) {
+      showToast(e.message || '同步失敗，請稍後再試')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   async function handleEnableNotify() {
     const result = await requestNotifyPermission()
@@ -151,7 +173,7 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
         <SectionHeader title="繳費通知" />
         <div className="card">
           <p className="settings-backup-hint">
-            在卡片設定「繳款截止日」後，首頁會列出待繳卡費並倒數提醒。開啟瀏覽器通知後，打開 App 時若有快到期（3 天內）或逾期的卡費會跳通知。
+          首頁會依「帳單日＋繳款寬限天數」自動算出繳款截止日，列出待繳卡費並倒數提醒（也可在卡片設定手動填繳款截止日覆寫）。開啟瀏覽器通知後，打開 App 時若有快到期（3 天內）或逾期的卡費會跳通知。
           </p>
           <p className="settings-backup-hint">📱 iPhone 必須先把本站「加入主畫面」並從主畫面開啟，通知才會生效（Safari 分頁內無法通知）。</p>
           {!notifySupported() ? (
@@ -217,6 +239,34 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
             style={{ display: 'none' }}
             onChange={handleImportFile}
           />
+        </div>
+      </div>
+
+      {/* Cloud Sync */}
+      <div className="section">
+        <SectionHeader title="雲端同步（Google Sheet）" />
+        <div className="card settings-cloud-sync">
+          <span className="settings-cloud-sync-status">
+            {googleSync?.lastSyncAt
+              ? `上次同步：${new Date(googleSync.lastSyncAt).toLocaleString('zh-TW')}・${googleSync.lastSyncCount} 筆`
+              : '尚未同步'}
+          </span>
+          <p className="settings-backup-hint">
+            把刷卡紀錄寫進你自己的 Google Sheet，方便額外做分析。第一次使用前要先在 Google Cloud Console 申請 OAuth Client ID，並把 Client ID 跟你建立的 Sheet ID 填在下面。
+          </p>
+          <div className="fx-field">
+            <label>Google OAuth Client ID</label>
+            <input className="fx-input" value={clientId} onChange={e => setClientId(e.target.value)} placeholder="xxxxxxxx.apps.googleusercontent.com" />
+          </div>
+          <div className="fx-field">
+            <label>Google Sheet ID</label>
+            <input className="fx-input" value={sheetId} onChange={e => setSheetId(e.target.value)} placeholder="Sheet 網址中 /d/ 跟 /edit 之間那一段" />
+          </div>
+          <div className="settings-backup-actions">
+            <button className="button-secondary" onClick={handleConnectAndSync} disabled={syncing}>
+              {syncing ? '同步中…' : '連結並立即同步'}
+            </button>
+          </div>
         </div>
       </div>
 

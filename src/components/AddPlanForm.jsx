@@ -1,39 +1,14 @@
 import { useState } from 'react'
 import './AddPlanForm.css'
+import { dayFromMD } from '../utils/recurrence'
 
-function todayString() {
-  const d = new Date()
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
-}
-
-function toDisplayDate(isoDate) {
-  const [, m, d] = isoDate.split('-')
-  return `${Number(m)}/${Number(d)}`
-}
-
-// "6/15" → "2025-06-15"（補上當前年份，供 date input 預填）
-function mdToIso(md) {
-  if (!md) return todayString()
-  const [m, d] = md.split('/').map(Number)
-  const y = new Date().getFullYear()
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-}
-
-function calcDaysLeft(isoDate) {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const target = new Date(isoDate)
-  target.setHours(0, 0, 0, 0)
-  return Math.max(0, Math.round((target - today) / 86400000))
-}
-
-function calcStatus(daysLeft) {
-  if (daysLeft <= 1) return 'danger'
-  if (daysLeft <= 3) return 'warning'
-  return 'neutral'
+// 舊資料只有 nextDate（如 "6/15"）沒有 billingDay 時，從顯示字串推回每月幾號；
+// 新增時預設今天的號數，跟原本「下次扣款日」預填今天的行為一致
+function initialBillingDay(initialValues) {
+  if (!initialValues) return String(new Date().getDate())
+  if (initialValues.billingDay) return String(initialValues.billingDay)
+  const day = dayFromMD(initialValues.nextDate)
+  return day ? String(day) : String(new Date().getDate())
 }
 
 export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, initialValues = null }) {
@@ -50,7 +25,7 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
       ? String(initialValues.currency === 'USD' ? initialValues.amountOriginal : initialValues.amount)
       : ''
   )
-  const [nextDate, setNextDate] = useState(initialValues ? mdToIso(initialValues.nextDate) : todayString())
+  const [billingDay, setBillingDay] = useState(initialBillingDay(initialValues))
   const [totalCount, setTotalCount] = useState(initialValues?.totalCount ? String(initialValues.totalCount) : '')
   const [paidCountInput, setPaidCountInput] = useState(
     initialValues?.paidCount != null ? String(initialValues.paidCount) : ''
@@ -66,6 +41,8 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
     if (!name.trim()) { setError('請輸入名稱'); return }
     const num = Number(amount)
     if (!num || num <= 0) { setError('請輸入有效金額'); return }
+    const day = Number(billingDay)
+    if (!Number.isInteger(day) || day < 1 || day > 31) { setError('請輸入每月 1～31 號'); return }
 
     let paidCount = 0
     let total = 0
@@ -81,10 +58,6 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
     }
     setError('')
 
-    const daysLeft = calcDaysLeft(nextDate)
-    const status = calcStatus(daysLeft)
-    const displayDate = toDisplayDate(nextDate)
-
     const amountTWD = currency === 'USD'
       ? Math.round(num * usdRate * (1 + feeRate / 100))
       : num
@@ -97,9 +70,7 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
       currency,
       amount: amountTWD,
       period: type === 'subscription' ? '月' : '期',
-      nextDate: displayDate,
-      daysLeft,
-      status,
+      billingDay: day,
       ...(currency === 'USD' && { amountOriginal: num, usdRate, feeRate }),
     }
 
@@ -225,14 +196,19 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
 
         <div className="apf-field">
           <label className="apf-label">
-            {type === 'subscription' ? '下次扣款日' : '下次繳款日'}
+            {type === 'subscription' ? '每月幾號扣款' : '每月幾號繳款'}
           </label>
           <input
             className="apf-input"
-            type="date"
-            value={nextDate}
-            onChange={(e) => setNextDate(e.target.value)}
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max="31"
+            placeholder="15"
+            value={billingDay}
+            onChange={(e) => setBillingDay(e.target.value)}
           />
+          <span className="apf-fx-hint">日期會自動算到下一次發生日，不用每期手動改</span>
         </div>
       </div>
 

@@ -80,6 +80,8 @@ export default function Plans({ showToast, plans, cards, fxSettings, onAddPlan, 
             icon="📋"
             title="還沒有計畫"
             description="新增訂閱或分期，讓每筆帳務都在掌握之中"
+            actionLabel="立即新增計畫"
+            onAction={() => setShowAddSheet(true)}
           />
         ) : (
           filteredPlans.map((plan) => (

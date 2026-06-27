@@ -319,7 +319,6 @@ describe('每月必繳清單', () => {
     render(<App />)
     // 首頁＝刷卡狀態：只有刷卡 1000，必繳清單不計入
     expect(document.querySelector('.hero-card-amount').textContent).toBe('NT$1,000')
-    expect(document.querySelector('.hero-card-breakdown').textContent).toContain('已記錄刷卡 NT$1,000')
   })
 
   it('必要支出頁：收入扣掉必要支出後顯示生活結餘', () => {
@@ -553,12 +552,15 @@ describe('繳費提醒', () => {
     expect(document.querySelector('.pay-reminder')).toBeNull()
   })
 
-  it('沒設截止日就不出現在繳費提醒', () => {
+  it('沒設截止日時會自動用帳單日+寬限天數算出，仍會出現提醒', () => {
     seed({
+      // 帳單日 2 號 + 寬限 15 天 = 17 號自動成為截止日
       cards: [{ id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDay: 15, budget: 50000, actualBill: 3022 }],
     })
     render(<App />)
-    expect(document.querySelector('.pay-reminder')).toBeNull()
+    const reminder = document.querySelector('.pay-reminder')
+    expect(reminder).toBeTruthy()
+    expect(within(reminder).getByText('台新卡')).toBeInTheDocument()
   })
 })
 

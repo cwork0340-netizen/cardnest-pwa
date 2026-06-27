@@ -4,7 +4,7 @@ import './CardForm.css'
 export default function CardForm({ onSubmit, onClose, initialValues }) {
   const isEdit = !!initialValues
   const [name, setName] = useState(initialValues?.name ?? '')
-  const [color, setColor] = useState(initialValues?.color ?? '#5E7CE2')
+  const [color, setColor] = useState(initialValues?.color ?? '#A98274')
   const [billingDay, setBillingDay] = useState(initialValues?.billingDay ?? '')
   const [dueDay, setDueDay] = useState(initialValues?.dueDay ?? '')
   const [budget, setBudget] = useState(initialValues?.budget ?? '')
@@ -135,12 +135,12 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
             />
           </div>
           <div className="cdf-field cdf-field-half">
-            <label className="cdf-label">繳款截止日<span className="cdf-label-hint">（每月幾號）</span></label>
+            <label className="cdf-label">繳款截止日<span className="cdf-label-hint">（選填，留空會自動用帳單日+寬限天數算）</span></label>
             <input
               className="cdf-input"
               type="number"
               inputMode="numeric"
-              placeholder="例如 17"
+              placeholder="留空自動推算"
               min="1"
               max="31"
               value={dueDate}
