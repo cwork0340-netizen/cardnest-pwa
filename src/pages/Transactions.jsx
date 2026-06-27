@@ -11,11 +11,48 @@ function formatDisplayDate(isoDate) {
   return `${Number(m)}/${Number(d)}`
 }
 
+const PERIOD_TABS = [
+  { key: 'all', label: '全部' },
+  { key: 'week', label: '本週' },
+  { key: 'month', label: '本月' },
+]
+
+// 刷卡記錄的 date 是 "M/D" 字串（沒有年份），跟現在的月份／週比對即可判斷區間
+function isInPeriod(displayDate, period, from = new Date()) {
+  if (period === 'all' || !displayDate) return true
+  const [m, d] = displayDate.split('/').map(Number)
+  if (period === 'month') return m === from.getMonth() + 1
+  if (period === 'week') {
+    const txDate = new Date(from.getFullYear(), m - 1, d)
+    const startOfWeek = new Date(from)
+    startOfWeek.setDate(from.getDate() - from.getDay())
+    startOfWeek.setHours(0, 0, 0, 0)
+    const endOfWeek = new Date(startOfWeek)
+    endOfWeek.setDate(startOfWeek.getDate() + 7)
+    return txDate >= startOfWeek && txDate < endOfWeek
+  }
+  return true
+}
+
 export default function Transactions({ showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction }) {
   const [showSheet, setShowSheet] = useState(false)
   const [editingTx, setEditingTx] = useState(null)
+  const [keyword, setKeyword] = useState('')
+  const [cardFilter, setCardFilter] = useState('all')
+  const [periodFilter, setPeriodFilter] = useState('all')
 
   const sheetOpen = showSheet || !!editingTx
+
+  const filteredTransactions = transactions.filter((tx) => {
+    if (cardFilter !== 'all' && tx.card !== cardFilter) return false
+    if (!isInPeriod(tx.date, periodFilter)) return false
+    if (keyword.trim()) {
+      const kw = keyword.trim().toLowerCase()
+      const haystack = `${tx.name ?? ''} ${tx.note ?? ''} ${tx.category ?? ''} ${tx.card ?? ''}`.toLowerCase()
+      if (!haystack.includes(kw)) return false
+    }
+    return true
+  })
 
   function closeSheet() {
     setShowSheet(false)
@@ -52,6 +89,35 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
         <h1 className="tx-page-title">刷卡記錄</h1>
       </div>
 
+      {transactions.length > 0 && (
+        <div className="tx-filters">
+          <input
+            className="fx-input tx-search-input"
+            type="search"
+            placeholder="搜尋備註、分類、卡片…"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+          />
+          <div className="segmented-tabs">
+            {PERIOD_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                className={`segmented-tab${periodFilter === tab.key ? ' segmented-tab-active' : ''}`}
+                onClick={() => setPeriodFilter(tab.key)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <select className="fx-input tx-card-select" value={cardFilter} onChange={(e) => setCardFilter(e.target.value)}>
+            <option value="all">所有卡片</option>
+            {cards.map((c) => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="section">
         <SectionHeader title="所有消費" />
         {transactions.length === 0 ? (
@@ -62,8 +128,14 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
             actionLabel="立即記一筆"
             onAction={() => setShowSheet(true)}
           />
+        ) : filteredTransactions.length === 0 ? (
+          <EmptyState
+            icon="🔍"
+            title="找不到符合的記錄"
+            description="換個關鍵字或篩選條件試試"
+          />
         ) : (
-          transactions.map((tx) => (
+          filteredTransactions.map((tx) => (
             <div className="card" key={tx.id}>
               <TransactionItem tx={tx} onDelete={handleDelete} onEdit={setEditingTx} />
             </div>
