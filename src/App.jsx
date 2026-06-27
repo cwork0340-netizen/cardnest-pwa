@@ -225,10 +225,11 @@ export default function App() {
   const [envelopes, setEnvelopes] = useState(stored?.envelopes ?? [])
   const [income, setIncome] = useState(stored?.income ?? 0)
   const [savings, setSavings] = useState(stored?.savings ?? [])
+  const [googleSync, setGoogleSync] = useState(stored?.googleSync ?? null)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings }))
-  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync }))
+  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync])
 
   const showToast = useCallback((message) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -376,6 +377,7 @@ export default function App() {
     setIncome(0)
     setSavings([])
     setFxSettings({ usdRate: 32.5, feeRate: 1.5 })
+    setGoogleSync(null)
     setTab('dashboard')
   }, [])
 
@@ -545,6 +547,9 @@ export default function App() {
         backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings, income }}
         onImportData={handleImportData}
         onClearData={handleClearData}
+        transactions={transactions}
+        googleSync={googleSync}
+        onGoogleSyncChange={setGoogleSync}
       />
     ),
   }
