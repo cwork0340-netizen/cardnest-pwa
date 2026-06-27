@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within, fireEvent } from '@testing-library/react'
 import App from '../App.jsx'
 
@@ -28,6 +28,13 @@ function sheet() {
 
 beforeEach(() => {
   localStorage.clear()
+  // 固定測試時間：6/12（= 永豐卡結帳日），讓 todayMD() 與帳單週期計算結果可預期
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  vi.setSystemTime(new Date(2026, 5, 12))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('基本渲染', () => {
@@ -531,10 +538,11 @@ describe('各卡下期應繳', () => {
       ],
     })
     render(<App />)
-    // 永豐卡：1000 + 390 + 600 = 1990
+    // 永豐卡：上期應繳 = 1000（已過結帳日的刷卡）+ 390（訂閱）+ 600（分期）= 1990
     const cards = document.querySelectorAll('.credit-card-summary')
     const yongfeng = Array.from(cards).find(c => c.textContent.includes('永豐卡'))
-    expect(yongfeng.querySelector('.credit-card-summary-bill-amount').textContent).toBe('NT$1,990')
+    const amountValues = yongfeng.querySelectorAll('.credit-card-summary-amount-value')
+    expect(amountValues[0].textContent).toBe('NT$1,990')
   })
 })
 
@@ -583,19 +591,22 @@ describe('標記已繳從連動帳戶扣款', () => {
   })
 })
 
-describe('各卡狀態：日期與標記已繳', () => {
-  it('卡片顯示結帳/繳款日，按標記已繳後顯示本期已繳', () => {
+describe('各卡狀態：上期與本期累積', () => {
+  it('卡片顯示上期應繳（銀行帳單金額）與本期累積（結帳日之後新刷的）', () => {
+    // 固定測試日為 6/27，結帳日 2 號：6/2 之後才算「本期累積」
+    vi.setSystemTime(new Date(2026, 5, 27))
     seed({
       cards: [{ id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDay: 15, dueDate: 17, budget: 50000, actualBill: 3022 }],
+      transactions: [
+        { id: 't1', card: '台新卡', amount: 500, date: '6/10', category: '餐飲', name: '本期消費' },
+      ],
     })
     render(<App />)
     const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
       .find(c => c.textContent.includes('台新卡'))
-    expect(summary.textContent).toContain('2 號結帳')
-    expect(summary.textContent).toContain('17 號前繳款')
-    fireEvent.click(within(summary).getByText('標記已繳'))
-    const after = Array.from(document.querySelectorAll('.credit-card-summary'))
-      .find(c => c.textContent.includes('台新卡'))
-    expect(after.textContent).toContain('本期已繳')
+    expect(summary.textContent).toContain('上期應繳')
+    expect(summary.textContent).toContain('NT$3,022')
+    expect(summary.textContent).toContain('本期累積')
+    expect(summary.textContent).toContain('NT$500')
   })
 })

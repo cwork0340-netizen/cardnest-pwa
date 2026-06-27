@@ -104,6 +104,25 @@ function isThisMonth(displayDate, from = new Date()) {
   return m === from.getMonth() + 1
 }
 
+// 把沒有年份的 "M/D" 還原成跟 near 最接近的完整日期，避免跨年誤判（例如 12 月帳單週期跨到 1 月）
+function resolveNearDate(displayDate, near) {
+  const [m, d] = displayDate.split('/').map(Number)
+  let candidate = new Date(near.getFullYear(), m - 1, d)
+  const diffMonths = (candidate.getFullYear() - near.getFullYear()) * 12 + (candidate.getMonth() - near.getMonth())
+  if (diffMonths > 6) candidate = new Date(candidate.getFullYear() - 1, candidate.getMonth(), candidate.getDate())
+  else if (diffMonths < -6) candidate = new Date(candidate.getFullYear() + 1, candidate.getMonth(), candidate.getDate())
+  return candidate
+}
+
+// 依「結帳日」算出目前所在帳單週期的邊界：上次結帳日（本期帳單截止點）、上上次結帳日（上期帳單起點）
+function billingCycleBounds(billingDay, today) {
+  if (!billingDay) return null
+  const y = today.getFullYear(), m = today.getMonth(), d = today.getDate()
+  const lastBillingDate = d >= billingDay ? new Date(y, m, billingDay) : new Date(y, m - 1, billingDay)
+  const prevBillingDate = new Date(lastBillingDate.getFullYear(), lastBillingDate.getMonth() - 1, billingDay)
+  return { prevBillingDate, lastBillingDate }
+}
+
 function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = []) {
   // 預算／應繳只看本月的刷卡記錄，跨月的舊記錄不會一路往上累加
   const monthTx = transactions.filter(tx => isThisMonth(tx.date))
@@ -116,10 +135,24 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   const status = pct < 0.7 ? 'safe' : pct < 0.9 ? 'warning' : 'danger'
   const monthName = MONTH_NAMES[new Date().getMonth()]
 
-  const txByCard = {}
-  monthTx.forEach(tx => { txByCard[tx.card] = (txByCard[tx.card] ?? 0) + tx.amount })
+  const today = new Date()
   const enrichedCards = cards.map(card => {
-    const used = txByCard[card.name] ?? 0
+    const cardTx = transactions.filter(tx => tx.card === card.name)
+    const bounds = billingCycleBounds(card.billingDay, today)
+    // 上期（已結帳，等待繳款）／本期累積（結帳日之後新刷的，還沒出帳）：依結帳日切，不是日曆月
+    let used, currentCycleAmount
+    if (bounds) {
+      used = cardTx
+        .filter(tx => { const dt = resolveNearDate(tx.date, today); return dt > bounds.prevBillingDate && dt <= bounds.lastBillingDate })
+        .reduce((s, tx) => s + tx.amount, 0)
+      currentCycleAmount = cardTx
+        .filter(tx => { const dt = resolveNearDate(tx.date, today); return dt > bounds.lastBillingDate && dt <= today })
+        .reduce((s, tx) => s + tx.amount, 0)
+    } else {
+      // 沒填結帳日，退回原本日曆月估算
+      used = cardTx.filter(tx => isThisMonth(tx.date)).reduce((s, tx) => s + tx.amount, 0)
+      currentCycleAmount = 0
+    }
     // 下期應繳 = 這張卡的 刷卡消費 + 訂閱 + 未繳清的分期（每期）
     const subsOnCard = plans
       .filter(p => p.type === 'subscription' && (p.active ?? true) && p.card === card.name)
@@ -136,7 +169,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     // 繳款截止日：沒手動填就用「帳單日 + 繳款寬限天數」自動算
     const dueDate = Number(card.dueDate) > 0 ? Number(card.dueDate) : effectiveDueDay(card.billingDay, card.dueDay)
     return {
-      ...card, used, upcomingBill, dueDate,
+      ...card, used, currentCycleAmount, upcomingBill, dueDate,
       billIsActual: Number(card.actualBill) > 0,
       status: cardStatus,
       statusText: cardStatus === 'safe'
