@@ -54,6 +54,8 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
     return true
   })
 
+  const filteredTotal = filteredTransactions.reduce((s, tx) => s + tx.amount, 0)
+
   function closeSheet() {
     setShowSheet(false)
     setEditingTx(null)
@@ -120,6 +122,12 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
 
       <div className="section">
         <SectionHeader title="所有消費" />
+        {filteredTransactions.length > 0 && (
+          <div className="tx-total-bar">
+            <span className="tx-total-label">{cardFilter === 'all' ? '全部' : cardFilter} 合計（{filteredTransactions.length} 筆）</span>
+            <span className="tx-total-amount">-NT${filteredTotal.toLocaleString()}</span>
+          </div>
+        )}
         {transactions.length === 0 ? (
           <EmptyState
             icon="💳"

@@ -27,3 +27,21 @@
 .tx-card-select {
   appearance: none;
 }
+
+.tx-total-bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 4px 10px;
+}
+
+.tx-total-label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.tx-total-amount {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}

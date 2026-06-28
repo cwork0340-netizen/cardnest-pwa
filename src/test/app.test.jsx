@@ -51,6 +51,28 @@ describe('基本渲染', () => {
   })
 })
 
+describe('刷卡記錄：篩選後的合計', () => {
+  it('篩選特定卡別時，合計只加總該卡的記錄', () => {
+    seed({
+      transactions: [
+        { id: 't1', name: '午餐', card: '永豐卡', category: '餐飲', amount: 100, date: '6/10' },
+        { id: 't2', name: '晚餐', card: '永豐卡', category: '餐飲', amount: 200, date: '6/11' },
+        { id: 't3', name: '購物', card: '玉山卡', category: '購物', amount: 9999, date: '6/12' },
+      ],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+
+    expect(document.querySelector('.tx-total-amount').textContent).toBe('-NT$10,299')
+
+    const select = document.querySelector('.tx-card-select')
+    fireEvent.change(select, { target: { value: '永豐卡' } })
+
+    expect(document.querySelector('.tx-total-label').textContent).toContain('永豐卡')
+    expect(document.querySelector('.tx-total-amount').textContent).toBe('-NT$300')
+  })
+})
+
 describe('刷卡記錄：新增 / 編輯 / 刪除', () => {
   it('可新增、編輯金額、再刪除一筆記錄', () => {
     seed()
@@ -68,7 +90,7 @@ describe('刷卡記錄：新增 / 編輯 / 刪除', () => {
     fireEvent.click(within(addForm).getByRole('button', { name: '記一筆' }))
 
     expect(screen.getAllByText('星巴克').length).toBeGreaterThan(0)
-    expect(screen.getByText('-NT$500')).toBeInTheDocument()
+    expect(document.querySelector('.tx-amount').textContent).toBe('-NT$500')
 
     // 編輯
     fireEvent.click(screen.getByRole('button', { name: '編輯' }))
@@ -77,12 +99,11 @@ describe('刷卡記錄：新增 / 編輯 / 刪除', () => {
     fireEvent.change(editForm.querySelector('.qtf-amount-input'), { target: { value: '800' } })
     fireEvent.click(within(editForm).getByRole('button', { name: '儲存修改' }))
 
-    expect(screen.getByText('-NT$800')).toBeInTheDocument()
-    expect(screen.queryByText('-NT$500')).not.toBeInTheDocument()
+    expect(document.querySelector('.tx-amount').textContent).toBe('-NT$800')
 
     // 刪除
     fireEvent.click(screen.getByRole('button', { name: '刪除' }))
-    expect(screen.queryByText('-NT$800')).not.toBeInTheDocument()
+    expect(document.querySelector('.tx-amount')).toBeNull()
     expect(screen.getByText('還沒有刷卡記錄')).toBeInTheDocument()
   })
 
@@ -102,7 +123,7 @@ describe('刷卡記錄：新增 / 編輯 / 刪除', () => {
     fireEvent.change(form.querySelector('.qtf-amount-input'), { target: { value: '650' } })
     fireEvent.click(within(form).getByRole('button', { name: '儲存修改' }))
 
-    expect(screen.getByText('-NT$650')).toBeInTheDocument()
+    expect(document.querySelector('.tx-amount').textContent).toBe('-NT$650')
   })
 })
 
@@ -521,7 +542,7 @@ describe('資料備份：匯入還原', () => {
     await screen.findByText('已還原備份資料')
     fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
     expect(await screen.findByText('家樂福')).toBeInTheDocument()
-    expect(screen.getByText('-NT$1,234')).toBeInTheDocument()
+    expect(document.querySelector('.tx-amount').textContent).toBe('-NT$1,234')
   })
 })
 
