@@ -1,9 +1,20 @@
 .credit-card-summary {
+  padding: 0;
+}
+
+.credit-card-summary-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
   padding: 14px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
 }
 
 .credit-card-summary-name {
@@ -26,6 +37,16 @@
   color: var(--color-text-main);
 }
 
+.credit-card-summary-chevron {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+}
+
+.credit-card-summary-chevron-open {
+  transform: rotate(180deg);
+}
+
 .credit-card-summary-amounts {
   display: flex;
   gap: 20px;
@@ -45,6 +66,34 @@
 
 .credit-card-summary-amount-value {
   font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.credit-card-summary-breakdown {
+  padding: 0 16px 14px;
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.06));
+  padding-top: 10px;
+}
+
+.credit-card-summary-breakdown-note {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 8px;
+}
+
+.credit-card-summary-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  padding: 3px 0;
+}
+
+.credit-card-summary-breakdown-total {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--color-border, rgba(0, 0, 0, 0.1));
   font-weight: 700;
   color: var(--color-text-main);
 }

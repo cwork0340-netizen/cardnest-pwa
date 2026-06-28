@@ -170,6 +170,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     const dueDate = Number(card.dueDate) > 0 ? Number(card.dueDate) : effectiveDueDay(card.billingDay, card.dueDay)
     return {
       ...card, used, currentCycleAmount, upcomingBill, dueDate,
+      subsOnCard, instOnCard, computedBill,
       billIsActual: Number(card.actualBill) > 0,
       status: cardStatus,
       statusText: cardStatus === 'safe'

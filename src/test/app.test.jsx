@@ -630,4 +630,32 @@ describe('各卡狀態：上期與本期累積', () => {
     expect(summary.textContent).toContain('本期累積')
     expect(summary.textContent).toContain('NT$500')
   })
+
+  it('點卡片可展開看刷卡／訂閱／分期小計', () => {
+    vi.setSystemTime(new Date(2026, 5, 12))
+    seed({
+      transactions: [{ id: 't1', card: '永豐卡', amount: 1000, date: '6/12', category: '購物', name: '購物' }],
+      plans: [
+        { id: 's1', type: 'subscription', name: 'Netflix', card: '永豐卡', currency: 'TWD', amount: 390, period: '月', nextDate: '6/20', daysLeft: 8, status: 'neutral', active: true },
+        { id: 'i1', type: 'installment', name: '手機分期', card: '永豐卡', amount: 600, period: '期', paidCount: 2, totalCount: 6, nextDate: '6/15', daysLeft: 5, status: 'neutral', paid: false },
+      ],
+    })
+    render(<App />)
+    const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('永豐卡'))
+    expect(summary.querySelector('.credit-card-summary-breakdown')).not.toBeInTheDocument()
+
+    fireEvent.click(summary.querySelector('.credit-card-summary-row'))
+
+    const breakdown = summary.querySelector('.credit-card-summary-breakdown')
+    expect(breakdown).toBeInTheDocument()
+    expect(breakdown.textContent).toContain('刷卡小計')
+    expect(breakdown.textContent).toContain('NT$1,000')
+    expect(breakdown.textContent).toContain('訂閱小計')
+    expect(breakdown.textContent).toContain('NT$390')
+    expect(breakdown.textContent).toContain('分期小計')
+    expect(breakdown.textContent).toContain('NT$600')
+    expect(breakdown.textContent).toContain('App 估算合計')
+    expect(breakdown.textContent).toContain('NT$1,990')
+  })
 })
