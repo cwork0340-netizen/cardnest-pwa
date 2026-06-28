@@ -59,7 +59,7 @@ export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays,
       <div className="section">
         <SectionHeader title="各卡狀態" />
         {cards.map((card) => (
-          <CreditCardSummaryCard key={card.id} card={card} onMarkPaid={onMarkCardPaid} />
+          <CreditCardSummaryCard key={card.id} card={card} />
         ))}
       </div>
 

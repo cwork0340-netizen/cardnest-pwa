@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within, fireEvent } from '@testing-library/react'
 import App from '../App.jsx'
 
@@ -28,6 +28,13 @@ function sheet() {
 
 beforeEach(() => {
   localStorage.clear()
+  // 固定測試時間：6/12（= 永豐卡結帳日），讓 todayMD() 與帳單週期計算結果可預期
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  vi.setSystemTime(new Date(2026, 5, 12))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('基本渲染', () => {
@@ -41,6 +48,28 @@ describe('基本渲染', () => {
     render(<App />)
     expect(screen.getByText(/早安|午安|午後好|晚安|夜深/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '總覽' })).toBeInTheDocument()
+  })
+})
+
+describe('刷卡記錄：篩選後的合計', () => {
+  it('篩選特定卡別時，合計只加總該卡的記錄', () => {
+    seed({
+      transactions: [
+        { id: 't1', name: '午餐', card: '永豐卡', category: '餐飲', amount: 100, date: '6/10' },
+        { id: 't2', name: '晚餐', card: '永豐卡', category: '餐飲', amount: 200, date: '6/11' },
+        { id: 't3', name: '購物', card: '玉山卡', category: '購物', amount: 9999, date: '6/12' },
+      ],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+
+    expect(document.querySelector('.tx-total-amount').textContent).toBe('-NT$10,299')
+
+    const select = document.querySelector('.tx-card-select')
+    fireEvent.change(select, { target: { value: '永豐卡' } })
+
+    expect(document.querySelector('.tx-total-label').textContent).toContain('永豐卡')
+    expect(document.querySelector('.tx-total-amount').textContent).toBe('-NT$300')
   })
 })
 
@@ -61,7 +90,7 @@ describe('刷卡記錄：新增 / 編輯 / 刪除', () => {
     fireEvent.click(within(addForm).getByRole('button', { name: '記一筆' }))
 
     expect(screen.getAllByText('星巴克').length).toBeGreaterThan(0)
-    expect(screen.getByText('-NT$500')).toBeInTheDocument()
+    expect(document.querySelector('.tx-amount').textContent).toBe('-NT$500')
 
     // 編輯
     fireEvent.click(screen.getByRole('button', { name: '編輯' }))
@@ -70,12 +99,11 @@ describe('刷卡記錄：新增 / 編輯 / 刪除', () => {
     fireEvent.change(editForm.querySelector('.qtf-amount-input'), { target: { value: '800' } })
     fireEvent.click(within(editForm).getByRole('button', { name: '儲存修改' }))
 
-    expect(screen.getByText('-NT$800')).toBeInTheDocument()
-    expect(screen.queryByText('-NT$500')).not.toBeInTheDocument()
+    expect(document.querySelector('.tx-amount').textContent).toBe('-NT$800')
 
     // 刪除
     fireEvent.click(screen.getByRole('button', { name: '刪除' }))
-    expect(screen.queryByText('-NT$800')).not.toBeInTheDocument()
+    expect(document.querySelector('.tx-amount')).toBeNull()
     expect(screen.getByText('還沒有刷卡記錄')).toBeInTheDocument()
   })
 
@@ -95,7 +123,7 @@ describe('刷卡記錄：新增 / 編輯 / 刪除', () => {
     fireEvent.change(form.querySelector('.qtf-amount-input'), { target: { value: '650' } })
     fireEvent.click(within(form).getByRole('button', { name: '儲存修改' }))
 
-    expect(screen.getByText('-NT$650')).toBeInTheDocument()
+    expect(document.querySelector('.tx-amount').textContent).toBe('-NT$650')
   })
 })
 
@@ -514,7 +542,7 @@ describe('資料備份：匯入還原', () => {
     await screen.findByText('已還原備份資料')
     fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
     expect(await screen.findByText('家樂福')).toBeInTheDocument()
-    expect(screen.getByText('-NT$1,234')).toBeInTheDocument()
+    expect(document.querySelector('.tx-amount').textContent).toBe('-NT$1,234')
   })
 })
 
@@ -531,10 +559,11 @@ describe('各卡下期應繳', () => {
       ],
     })
     render(<App />)
-    // 永豐卡：1000 + 390 + 600 = 1990
+    // 永豐卡：上期應繳 = 1000（已過結帳日的刷卡）+ 390（訂閱）+ 600（分期）= 1990
     const cards = document.querySelectorAll('.credit-card-summary')
     const yongfeng = Array.from(cards).find(c => c.textContent.includes('永豐卡'))
-    expect(yongfeng.querySelector('.credit-card-summary-bill-amount').textContent).toBe('NT$1,990')
+    const amountValues = yongfeng.querySelectorAll('.credit-card-summary-amount-value')
+    expect(amountValues[0].textContent).toBe('NT$1,990')
   })
 })
 
@@ -583,19 +612,50 @@ describe('標記已繳從連動帳戶扣款', () => {
   })
 })
 
-describe('各卡狀態：日期與標記已繳', () => {
-  it('卡片顯示結帳/繳款日，按標記已繳後顯示本期已繳', () => {
+describe('各卡狀態：上期與本期累積', () => {
+  it('卡片顯示上期應繳（銀行帳單金額）與本期累積（結帳日之後新刷的）', () => {
+    // 固定測試日為 6/27，結帳日 2 號：6/2 之後才算「本期累積」
+    vi.setSystemTime(new Date(2026, 5, 27))
     seed({
       cards: [{ id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDay: 15, dueDate: 17, budget: 50000, actualBill: 3022 }],
+      transactions: [
+        { id: 't1', card: '台新卡', amount: 500, date: '6/10', category: '餐飲', name: '本期消費' },
+      ],
     })
     render(<App />)
     const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
       .find(c => c.textContent.includes('台新卡'))
-    expect(summary.textContent).toContain('2 號結帳')
-    expect(summary.textContent).toContain('17 號前繳款')
-    fireEvent.click(within(summary).getByText('標記已繳'))
-    const after = Array.from(document.querySelectorAll('.credit-card-summary'))
-      .find(c => c.textContent.includes('台新卡'))
-    expect(after.textContent).toContain('本期已繳')
+    expect(summary.textContent).toContain('上期應繳')
+    expect(summary.textContent).toContain('NT$3,022')
+    expect(summary.textContent).toContain('本期累積')
+    expect(summary.textContent).toContain('NT$500')
+  })
+
+  it('點卡片可展開看刷卡／訂閱／分期小計', () => {
+    vi.setSystemTime(new Date(2026, 5, 12))
+    seed({
+      transactions: [{ id: 't1', card: '永豐卡', amount: 1000, date: '6/12', category: '購物', name: '購物' }],
+      plans: [
+        { id: 's1', type: 'subscription', name: 'Netflix', card: '永豐卡', currency: 'TWD', amount: 390, period: '月', nextDate: '6/20', daysLeft: 8, status: 'neutral', active: true },
+        { id: 'i1', type: 'installment', name: '手機分期', card: '永豐卡', amount: 600, period: '期', paidCount: 2, totalCount: 6, nextDate: '6/15', daysLeft: 5, status: 'neutral', paid: false },
+      ],
+    })
+    render(<App />)
+    const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('永豐卡'))
+    expect(summary.querySelector('.credit-card-summary-breakdown')).not.toBeInTheDocument()
+
+    fireEvent.click(summary.querySelector('.credit-card-summary-row'))
+
+    const breakdown = summary.querySelector('.credit-card-summary-breakdown')
+    expect(breakdown).toBeInTheDocument()
+    expect(breakdown.textContent).toContain('刷卡小計')
+    expect(breakdown.textContent).toContain('NT$1,000')
+    expect(breakdown.textContent).toContain('訂閱小計')
+    expect(breakdown.textContent).toContain('NT$390')
+    expect(breakdown.textContent).toContain('分期小計')
+    expect(breakdown.textContent).toContain('NT$600')
+    expect(breakdown.textContent).toContain('App 估算合計')
+    expect(breakdown.textContent).toContain('NT$1,990')
   })
 })
