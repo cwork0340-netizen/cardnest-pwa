@@ -115,7 +115,9 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   const txByCard = {}
   transactions.forEach(tx => { txByCard[tx.card] = (txByCard[tx.card] ?? 0) + tx.amount })
   const enrichedCards = cards.map(card => {
-    const used = txByCard[card.name] ?? 0
+    const txUsed = txByCard[card.name] ?? 0
+    // 有手動填銀行「本期已刷」就以實際金額為準，否則用逐筆交易加總估算
+    const used = Number(card.usedOverride) > 0 ? Number(card.usedOverride) : txUsed
     // 本期應繳 = 這張卡的 刷卡消費 + 訂閱 + 已勾「本期支付」的分期（每期）
     const subsOnCard = plans
       .filter(p => p.type === 'subscription' && (p.active ?? true) && p.card === card.name)
@@ -140,6 +142,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     return {
       ...card, used, upcomingBill,
       billIsActual: Number(card.actualBill) > 0,
+      usedIsActual: Number(card.usedOverride) > 0,
       status: cardStatus,
       statusText: cardStatus === 'safe'
         ? `還有 NT$${cardRemaining.toLocaleString()} 可用`

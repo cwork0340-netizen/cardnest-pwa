@@ -6,9 +6,9 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
   const [name, setName] = useState(initialValues?.name ?? '')
   const [color, setColor] = useState(initialValues?.color ?? '#5E7CE2')
   const [billingDay, setBillingDay] = useState(initialValues?.billingDay ?? '')
-  const [dueDay, setDueDay] = useState(initialValues?.dueDay ?? '')
   const [budget, setBudget] = useState(initialValues?.budget ?? '')
   const [actualBill, setActualBill] = useState(initialValues?.actualBill ? String(initialValues.actualBill) : '')
+  const [usedOverride, setUsedOverride] = useState(initialValues?.usedOverride ? String(initialValues.usedOverride) : '')
   const [dueDate, setDueDate] = useState(initialValues?.dueDate ? String(initialValues.dueDate) : '')
   const [error, setError] = useState('')
 
@@ -17,14 +17,17 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
     if (!name.trim()) { setError('請輸入卡名'); return }
     const bd = Number(billingDay)
     if (!bd || bd < 1 || bd > 31) { setError('帳單日請填 1–31'); return }
-    const dd = Number(dueDay)
-    if (!dd || dd < 1 || dd > 30) { setError('繳款寬限天數請填 1–30'); return }
     const bgt = Number(budget)
     if (!bgt || bgt <= 0) { setError('請輸入有效預算'); return }
     let bill = 0
     if (actualBill !== '') {
       bill = Number(actualBill)
       if (Number.isNaN(bill) || bill < 0) { setError('本期應繳請填有效金額'); return }
+    }
+    let used = 0
+    if (usedOverride !== '') {
+      used = Number(usedOverride)
+      if (Number.isNaN(used) || used < 0) { setError('本期已刷請填有效金額'); return }
     }
     let due = 0
     if (dueDate !== '') {
@@ -39,10 +42,10 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
       nickname: name.trim(),
       color,
       billingDay: bd,
-      dueDay: dd,
       dueDate: due,
       budget: bgt,
       actualBill: bill,
+      usedOverride: used,
       billPaidMonth: initialValues?.billPaidMonth ?? null,
       used: initialValues?.used ?? 0,
       prevUsed: initialValues?.prevUsed ?? 0,
@@ -96,16 +99,16 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
             />
           </div>
           <div className="cdf-field cdf-field-half">
-            <label className="cdf-label">繳款寬限（帳單後幾天）</label>
+            <label className="cdf-label">繳款截止日<span className="cdf-label-hint">（每月幾號）</span></label>
             <input
               className="cdf-input"
               type="number"
               inputMode="numeric"
-              placeholder="20"
+              placeholder="例如 17"
               min="1"
-              max="30"
-              value={dueDay}
-              onChange={(e) => setDueDay(e.target.value)}
+              max="31"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
             />
           </div>
         </div>
@@ -122,31 +125,33 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
           />
         </div>
 
-        <div className="cdf-row">
-          <div className="cdf-field cdf-field-half">
-            <label className="cdf-label">本期應繳<span className="cdf-label-hint">（選填，銀行帳單金額）</span></label>
-            <input
-              className="cdf-input"
-              type="number"
-              inputMode="decimal"
-              placeholder="例如 4605"
-              value={actualBill}
-              onChange={(e) => setActualBill(e.target.value)}
-            />
+        <div className="cdf-field cdf-reconcile">
+          <span className="cdf-reconcile-title">📱 銀行帳單對帳（選填，打開銀行 App 抄兩個數字）</span>
+          <div className="cdf-row">
+            <div className="cdf-field cdf-field-half">
+              <label className="cdf-label">本期應繳</label>
+              <input
+                className="cdf-input"
+                type="number"
+                inputMode="decimal"
+                placeholder="例如 4605"
+                value={actualBill}
+                onChange={(e) => setActualBill(e.target.value)}
+              />
+            </div>
+            <div className="cdf-field cdf-field-half">
+              <label className="cdf-label">本期已刷</label>
+              <input
+                className="cdf-input"
+                type="number"
+                inputMode="decimal"
+                placeholder="例如 8400"
+                value={usedOverride}
+                onChange={(e) => setUsedOverride(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="cdf-field cdf-field-half">
-            <label className="cdf-label">繳款截止日<span className="cdf-label-hint">（每月幾號）</span></label>
-            <input
-              className="cdf-input"
-              type="number"
-              inputMode="numeric"
-              placeholder="例如 17"
-              min="1"
-              max="31"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </div>
+          <span className="cdf-reconcile-hint">不填就照舊用逐筆刷卡紀錄加總估算；填了就以這裡的數字為準。</span>
         </div>
       </div>
 

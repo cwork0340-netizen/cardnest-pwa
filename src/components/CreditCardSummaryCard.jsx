@@ -88,7 +88,13 @@ export default function CreditCardSummaryCard({ card, onMarkPaid }) {
             <ProgressBar value={card.used} max={card.budget} status={card.status} />
           </div>
           <div className="credit-card-summary-detail">
-            <span>已刷 {fmt(card.used)} / 額度 {fmt(card.budget)}</span>
+            <span>
+              已刷 {fmt(card.used)}
+              <span className={`credit-card-summary-source${card.usedIsActual ? ' credit-card-summary-source-bank' : ''}`}>
+                {card.usedIsActual ? '銀行帳單' : 'App 估算'}
+              </span>
+              {' '}/ 額度 {fmt(card.budget)}
+            </span>
             <span className="credit-card-summary-status">{card.statusText}</span>
           </div>
         </div>

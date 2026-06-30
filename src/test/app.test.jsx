@@ -577,6 +577,48 @@ describe('各卡本期應繳', () => {
   })
 })
 
+describe('本期已刷（手動覆寫，比照本期應繳）', () => {
+  function yongfengSummary() {
+    return Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('永豐卡'))
+  }
+  function showLimit() {
+    fireEvent.click(within(yongfengSummary()).getByText('顯示信用額度 ▾'))
+  }
+
+  it('沒填 usedOverride 時，已刷沿用逐筆交易加總，標示「App 估算」', () => {
+    seed({
+      transactions: [
+        { id: 't1', name: '購物', card: '永豐卡', category: '購物', amount: 1100, date: todayMD() },
+      ],
+    })
+    render(<App />)
+    showLimit()
+    const detail = yongfengSummary().textContent
+    expect(detail).toContain('已刷 NT$1,100')
+    expect(detail).toContain('App 估算')
+    expect(detail).not.toContain('銀行帳單')
+  })
+
+  it('填了 usedOverride 時，已刷改用手動金額，標示「銀行帳單」，不受漏記交易影響', () => {
+    seed({
+      cards: [
+        { id: 'c1', name: '永豐卡', color: '#5E7CE2', billingDay: 12, dueDay: 2, budget: 20000, usedOverride: 8400 },
+        { id: 'c2', name: '玉山卡', color: '#6FA37C', billingDay: 18, dueDay: 8, budget: 30000 },
+      ],
+      transactions: [
+        { id: 't1', name: '購物', card: '永豐卡', category: '購物', amount: 1100, date: todayMD() },
+      ],
+    })
+    render(<App />)
+    showLimit()
+    const detail = yongfengSummary().textContent
+    expect(detail).toContain('已刷 NT$8,400')
+    expect(detail).toContain('銀行帳單')
+    expect(detail).not.toContain('NT$1,100')
+  })
+})
+
 describe('繳費提醒', () => {
   it('首頁列出設有截止日且本期應繳的卡，標記已繳後消失', () => {
     seed({

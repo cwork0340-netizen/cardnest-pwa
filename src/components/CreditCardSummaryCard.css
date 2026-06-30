@@ -130,6 +130,22 @@
   color: var(--color-text-secondary);
 }
 
+.credit-card-summary-source {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin: 0 4px;
+  background: var(--color-warning-soft);
+  color: #8a6420;
+}
+
+.credit-card-summary-source-bank {
+  background: var(--color-success-soft);
+  color: #3f6b4a;
+}
+
 .credit-card-summary-history {
   list-style: none;
   margin: 8px 0 0;

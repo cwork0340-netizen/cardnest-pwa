@@ -127,7 +127,7 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
                 <span className="settings-card-dot" style={{ background: card.color }} />
               </div>
               <span className="settings-card-detail">帳單日：每月 {card.billingDay} 日</span>
-              <span className="settings-card-detail">繳款期限：帳單後 {card.dueDay} 日</span>
+              {card.dueDate > 0 && <span className="settings-card-detail">繳款截止：每月 {card.dueDate} 日</span>}
               <span className="settings-card-detail">預算上限：{'NT$' + Number(card.budget).toLocaleString()}</span>
             </div>
             <div className="settings-card-actions">
