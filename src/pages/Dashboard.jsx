@@ -2,6 +2,7 @@ import './Dashboard.css'
 import PageHeader from '../components/PageHeader'
 import SectionHeader from '../components/SectionHeader'
 import HeroStatusCard from '../components/HeroStatusCard'
+import MonthlyBalanceCard from '../components/MonthlyBalanceCard'
 import PaymentReminderCard from '../components/PaymentReminderCard'
 import WeekCalendar from '../components/WeekCalendar'
 import BudgetCard from '../components/BudgetCard'
@@ -11,7 +12,12 @@ import TrendChartCard from '../components/TrendChartCard'
 import DebtOverviewCard from '../components/DebtOverviewCard'
 import EnvelopeBudgetCard from '../components/EnvelopeBudgetCard'
 
-export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays, cards, categories, trends, liabilityItems = [], totalDebt = 0, envelopeView = [], envelopeSummary = null, paymentReminders = [], onMarkCardPaid }) {
+export default function Dashboard({
+  greeting, dateLabel, currentMonth, weekDays, cards, categories, trends,
+  liabilityItems = [], totalDebt = 0, envelopeView = [], envelopeSummary = null,
+  paymentReminders = [], onMarkCardPaid,
+  income = 0, essentialTotal = 0, unpaidCardBillsTotal = 0, lifeBalance = 0, onGoToChecklist,
+}) {
   return (
     <div className="dashboard">
       <PageHeader
@@ -19,18 +25,29 @@ export default function Dashboard({ greeting, dateLabel, currentMonth, weekDays,
         dateLabel={dateLabel}
       />
 
+      <MonthlyBalanceCard
+        income={income}
+        essentialTotal={essentialTotal}
+        unpaidCardBillsTotal={unpaidCardBillsTotal}
+        lifeBalance={lifeBalance}
+        onGoToChecklist={onGoToChecklist}
+      />
+
       <PaymentReminderCard reminders={paymentReminders} onMarkPaid={onMarkCardPaid} />
 
-      <HeroStatusCard
-        month={currentMonth.name}
-        total={currentMonth.total}
-        remaining={currentMonth.remaining}
-        budget={currentMonth.budget}
-        fixedMonthlyAmount={currentMonth.fixedMonthlyAmount}
-        estimatedTotal={currentMonth.estimatedTotal}
-        status={currentMonth.status}
-        statusText={currentMonth.statusText}
-      />
+      <div className="section" style={{ marginTop: 'var(--section-gap)' }}>
+        <SectionHeader title="本月刷卡狀況" />
+        <HeroStatusCard
+          month={currentMonth.name}
+          total={currentMonth.total}
+          remaining={currentMonth.remaining}
+          budget={currentMonth.budget}
+          fixedMonthlyAmount={currentMonth.fixedMonthlyAmount}
+          estimatedTotal={currentMonth.estimatedTotal}
+          status={currentMonth.status}
+          statusText={currentMonth.statusText}
+        />
+      </div>
 
       <div className="section" style={{ marginTop: 'var(--section-gap)' }}>
         <SectionHeader title="本週扣款" />

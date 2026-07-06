@@ -521,6 +521,11 @@ export default function App() {
         envelopeSummary={envelopeSummary}
         paymentReminders={paymentReminders}
         onMarkCardPaid={handleMarkCardPaid}
+        income={income}
+        essentialTotal={essentialTotal}
+        unpaidCardBillsTotal={unpaidCardBillsTotal}
+        lifeBalance={lifeBalance}
+        onGoToChecklist={() => setTab('checklist')}
       />
     ),
     plans: (

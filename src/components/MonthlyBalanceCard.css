@@ -1,0 +1,83 @@
+.mb-card {
+  background: linear-gradient(180deg, var(--card) 0%, var(--secondary) 160%);
+  border-radius: var(--radius-hero);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+}
+
+.mb-card--danger {
+  background: linear-gradient(180deg, var(--card) 0%, color-mix(in srgb, var(--color-danger) 12%, var(--secondary)) 160%);
+}
+
+.mb-card-label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.mb-card-amount {
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--color-primary);
+  line-height: 1;
+}
+
+.mb-card--danger .mb-card-amount {
+  color: var(--color-danger);
+}
+
+.mb-card-status {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+.mb-card-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.mb-card-actions {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--divider);
+}
+
+.mb-card-hint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.mb-card-btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mb-card-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--divider);
+  background: var(--card);
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mb-card-fill-income {
+  margin-top: 14px;
+  padding: 10px;
+  width: 100%;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--divider);
+  background: var(--card);
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
