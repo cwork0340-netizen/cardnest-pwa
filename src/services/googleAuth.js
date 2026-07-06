@@ -1,4 +1,4 @@
-const CLIENT_ID = '796868580184-95icssh2hj3rfaffiek6jojo8k66ub3h.apps.googleusercontent.com'
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file'
 const AUTH_KEY = 'cardnest_gauth'
 
