@@ -83,6 +83,14 @@
   -webkit-appearance: none;
 }
 
+/* Convert-to-installment hint */
+.apf-convert-hint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
 /* FX hint */
 .apf-label-hint {
   font-size: 12px;

@@ -5,7 +5,7 @@ const CATEGORY_COLORS = {
   日常: '#B98D6F', 交通: '#C86E62', 娛樂: '#D6A04D', 其他: '#B9ADA6',
 }
 
-export default function TransactionItem({ tx, onDelete, onEdit }) {
+export default function TransactionItem({ tx, onDelete, onEdit, onConvert }) {
   const dotColor = CATEGORY_COLORS[tx.category] ?? '#B9ADA6'
 
   return (
@@ -30,6 +30,9 @@ export default function TransactionItem({ tx, onDelete, onEdit }) {
         {tx.note ? <span className="tx-note">{tx.note}</span> : null}
       </div>
       <div className="tx-action-btns">
+        {onConvert && (
+          <button className="tx-convert-btn" onClick={(e) => { e.stopPropagation(); onConvert(tx) }} aria-label="轉為分期">轉分期</button>
+        )}
         <button className="tx-edit-btn" onClick={(e) => { e.stopPropagation(); onEdit(tx) }} aria-label="編輯">✎</button>
         <button className="tx-delete-btn" onClick={(e) => { e.stopPropagation(); onDelete(tx.id) }} aria-label="刪除">✕</button>
       </div>

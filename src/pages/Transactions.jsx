@@ -4,6 +4,7 @@ import SectionHeader from '../components/SectionHeader'
 import TransactionItem from '../components/TransactionItem'
 import BottomSheet from '../components/BottomSheet'
 import QuickTransactionForm from '../components/QuickTransactionForm'
+import ConvertToInstallmentForm from '../components/ConvertToInstallmentForm'
 import EmptyState from '../components/EmptyState'
 
 function formatDisplayDate(isoDate) {
@@ -34,9 +35,10 @@ function isInPeriod(displayDate, period, from = new Date()) {
   return true
 }
 
-export default function Transactions({ showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction }) {
+export default function Transactions({ showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction, onConvertToInstallment }) {
   const [showSheet, setShowSheet] = useState(false)
   const [editingTx, setEditingTx] = useState(null)
+  const [convertingTx, setConvertingTx] = useState(null)
   const [keyword, setKeyword] = useState('')
   const [cardFilter, setCardFilter] = useState('all')
   const [periodFilter, setPeriodFilter] = useState('all')
@@ -83,6 +85,12 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
   function handleDelete(id) {
     onDeleteTransaction(id)
     showToast('已從清單移除')
+  }
+
+  function handleConvertSubmit(plan) {
+    onConvertToInstallment(convertingTx.id, plan)
+    showToast(`已轉為分期，「${plan.name}」改由分期計畫追蹤`)
+    setConvertingTx(null)
   }
 
   return (
@@ -145,7 +153,7 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
         ) : (
           filteredTransactions.map((tx) => (
             <div className="card" key={tx.id}>
-              <TransactionItem tx={tx} onDelete={handleDelete} onEdit={setEditingTx} />
+              <TransactionItem tx={tx} onDelete={handleDelete} onEdit={setEditingTx} onConvert={setConvertingTx} />
             </div>
           ))
         )}
@@ -171,6 +179,20 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
           cards={cards}
           initialValues={editingTx}
         />
+      </BottomSheet>
+
+      <BottomSheet
+        open={!!convertingTx}
+        onClose={() => setConvertingTx(null)}
+        title="轉為分期"
+      >
+        {convertingTx && (
+          <ConvertToInstallmentForm
+            tx={convertingTx}
+            onSubmit={handleConvertSubmit}
+            onClose={() => setConvertingTx(null)}
+          />
+        )}
       </BottomSheet>
     </div>
   )

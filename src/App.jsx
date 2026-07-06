@@ -311,6 +311,11 @@ export default function App() {
   // Transactions handlers
   const handleAddTransaction = useCallback((tx) => setTransactions(p => [tx, ...p]), [])
   const handleUpdateTransaction = useCallback((updated) => setTransactions(p => p.map(t => t.id === updated.id ? updated : t)), [])
+  // 單筆刷卡轉分期：新增分期計畫並移除原本的單筆記錄，避免重複計入本月支出
+  const handleConvertToInstallment = useCallback((txId, plan) => {
+    setPlans(p => [plan, ...p])
+    setTransactions(p => p.filter(t => t.id !== txId))
+  }, [])
   const handleDeleteTransaction = useCallback((id) => {
     setTransactions(prev => {
       const idx = prev.findIndex(x => x.id === id)
@@ -548,6 +553,7 @@ export default function App() {
         onAddTransaction={handleAddTransaction}
         onUpdateTransaction={handleUpdateTransaction}
         onDeleteTransaction={handleDeleteTransaction}
+        onConvertToInstallment={handleConvertToInstallment}
       />
     ),
     checklist: (
