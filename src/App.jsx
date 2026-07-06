@@ -443,9 +443,15 @@ export default function App() {
     .filter(g => !g.linkedChecklistId && g.countInEssential)
     .reduce((s, g) => s + Number(g.monthly || 0), 0)
   const essentialTotal = checklistTotal + essentialSavings
-  const lifeBalance = income - essentialTotal
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
+
+  // 上期卡費：本期應繳 > 0 且本月尚未標記已繳的各卡加總，計入生活結餘
+  const unpaidCardBills = enrichedCards
+    .filter(c => Number(c.upcomingBill) > 0 && c.billPaidMonth !== currentMonthKey)
+    .map(c => ({ id: c.id, name: c.name, amount: Number(c.upcomingBill) }))
+  const unpaidCardBillsTotal = unpaidCardBills.reduce((s, c) => s + c.amount, 0)
+  const lifeBalance = income - essentialTotal - unpaidCardBillsTotal
   const weekDays = buildWeekDays(plans, enrichedCards)
   const enrichedPlans = enrichPlans(plans)
 
@@ -550,6 +556,8 @@ export default function App() {
         savingsMonthly={savingsMonthly}
         essentialSavings={essentialSavings}
         lifeBalance={lifeBalance}
+        unpaidCardBills={unpaidCardBills}
+        unpaidCardBillsTotal={unpaidCardBillsTotal}
         savings={savings}
         cardBills={enrichedCards.map(c => ({ id: c.id, name: c.name, bill: c.upcomingBill }))}
         onIncomeChange={setIncome}

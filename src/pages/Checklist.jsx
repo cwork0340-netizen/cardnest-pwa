@@ -12,6 +12,7 @@ import SavingsSpendForm from '../components/SavingsSpendForm'
 export default function Checklist({
   showToast, items, monthName,
   income = 0, essentialTotal = 0, checklistTotal = 0, essentialSavings = 0, lifeBalance = 0,
+  unpaidCardBills = [], unpaidCardBillsTotal = 0,
   savings = [], cardBills = [], onIncomeChange,
   onAdd, onToggle, onUpdate, onDelete,
   onAddSaving, onUpdateSaving, onDeleteSaving, onContributeSaving, onSpendSaving, onResetSaving,
@@ -146,6 +147,19 @@ export default function Checklist({
             <span>・額外儲蓄 NT${essentialSavings.toLocaleString()}</span>
           </div>
         )}
+        {unpaidCardBillsTotal > 0 && (
+          <div className="checklist-budget-row">
+            <span className="checklist-budget-label">上期卡費</span>
+            <span className="checklist-budget-amount">NT${unpaidCardBillsTotal.toLocaleString()}</span>
+          </div>
+        )}
+        {unpaidCardBills.length > 0 && (
+          <div className="checklist-budget-sub">
+            {unpaidCardBills.map((c) => (
+              <span key={c.id}>・{c.name} NT${c.amount.toLocaleString()}</span>
+            ))}
+          </div>
+        )}
         <div className="checklist-budget-divider" />
         <div className="checklist-budget-row">
           <span className="checklist-budget-label">生活結餘</span>
@@ -159,6 +173,12 @@ export default function Checklist({
             <span className="checklist-budget-hint">填上月收入即可看生活結餘</span>
           )}
         </div>
+        {lifeBalance < 0 && unpaidCardBills.length > 0 && (
+          <div className="checklist-budget-hint" style={{ marginTop: 4 }}>
+            主要是{[...unpaidCardBills].sort((a, b) => b.amount - a.amount)[0].name}卡費 NT$
+            {[...unpaidCardBills].sort((a, b) => b.amount - a.amount)[0].amount.toLocaleString()} 拖累，可考慮調整必要支出或延後非必要刷卡
+          </div>
+        )}
       </div>
 
       {items.length > 0 && (
