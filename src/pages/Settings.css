@@ -218,6 +218,59 @@
   line-height: 1.5;
 }
 
+/* Google account */
+.google-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.google-user-email {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-main);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.google-sync-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.google-sync-idle,
+.google-sync-done {
+  background: var(--color-success-soft, #E6F4EA);
+  color: var(--color-success, #3A8A53);
+}
+
+.google-sync-syncing {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.google-sync-error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.google-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.google-action-btn {
+  flex: 1;
+}
+
 /* Logout confirm */
 .settings-logout-confirm {
   margin-top: 16px;
