@@ -260,10 +260,13 @@ export default function App() {
   const [income, setIncome] = useState(stored?.income ?? 0)
   const [savings, setSavings] = useState(stored?.savings ?? [])
   const [googleSync, setGoogleSync] = useState(stored?.googleSync ?? null)
+  const [cardImport, setCardImport] = useState(
+    stored?.cardImport ?? { sheetId: '', bankCardMap: {}, importedKeys: [] }
+  )
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync }))
-  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync, cardImport }))
+  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync, cardImport])
 
   const showToast = useCallback((message) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -315,6 +318,18 @@ export default function App() {
   const handleConvertToInstallment = useCallback((txId, plan) => {
     setPlans(p => [plan, ...p])
     setTransactions(p => p.filter(t => t.id !== txId))
+  }, [])
+
+  // 銀行自動收集的刷卡通知匯入：Settings 已用 permalink 去重複、篩掉沒對應卡片的銀行，
+  // 這裡只負責把過濾後的新交易加進來，並記錄這批 permalink 避免下次重複匯入
+  const handleImportTransactions = useCallback((newTxs, newKeys) => {
+    setTransactions(p => [...newTxs, ...p])
+    setCardImport(prev => ({
+      ...prev,
+      importedKeys: [...prev.importedKeys, ...newKeys],
+      lastImportAt: Date.now(),
+      lastImportCount: newTxs.length,
+    }))
   }, [])
   const handleDeleteTransaction = useCallback((id) => {
     setTransactions(prev => {
@@ -603,6 +618,9 @@ export default function App() {
         transactions={transactions}
         googleSync={googleSync}
         onGoogleSyncChange={setGoogleSync}
+        cardImport={cardImport}
+        onCardImportChange={setCardImport}
+        onImportTransactions={handleImportTransactions}
       />
     ),
   }

@@ -5,8 +5,17 @@ import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
 import { getAccessToken, syncTransactionsToSheet } from '../utils/googleSheetSync'
+import { fetchImportRows, toDisplayDate } from '../utils/importSheetSync'
 
-export default function Settings({ showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard, backupData, onImportData, onClearData, transactions, googleSync, onGoogleSyncChange }) {
+// card-import（projects/card-import/Code.gs）目前支援的銀行。之後那支腳本加新銀行，
+// 這裡也要跟著加一行，才有對應的卡片可以選。
+const SUPPORTED_BANKS = ['富邦', '永豐', '國泰世華']
+
+export default function Settings({
+  showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard,
+  backupData, onImportData, onClearData, transactions, googleSync, onGoogleSyncChange,
+  cardImport, onCardImportChange, onImportTransactions,
+}) {
   const [editingCard, setEditingCard] = useState(null)
   const [showAddCard, setShowAddCard] = useState(false)
   const [deletingCardId, setDeletingCardId] = useState(null)
@@ -18,6 +27,9 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
   const [clientId, setClientId] = useState(googleSync?.clientId ?? '')
   const [sheetId, setSheetId] = useState(googleSync?.sheetId ?? '')
   const [syncing, setSyncing] = useState(false)
+  const [importSheetId, setImportSheetId] = useState(cardImport?.sheetId ?? '')
+  const [bankCardMap, setBankCardMap] = useState(cardImport?.bankCardMap ?? {})
+  const [importing, setImporting] = useState(false)
 
   async function handleConnectAndSync() {
     if (!clientId.trim() || !sheetId.trim()) {
@@ -34,6 +46,61 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
       showToast(e.message || '同步失敗，請稍後再試')
     } finally {
       setSyncing(false)
+    }
+  }
+
+  function handleBankMapChange(bank, cardName) {
+    const next = { ...bankCardMap, [bank]: cardName }
+    setBankCardMap(next)
+    onCardImportChange({ ...cardImport, bankCardMap: next, sheetId: importSheetId })
+  }
+
+  function handleImportSheetIdBlur() {
+    onCardImportChange({ ...cardImport, sheetId: importSheetId, bankCardMap })
+  }
+
+  async function handleImportClick() {
+    if (!clientId.trim() || !importSheetId.trim()) {
+      showToast('請先填入 Client ID 跟消費記錄 Sheet ID')
+      return
+    }
+    setImporting(true)
+    try {
+      const token = await getAccessToken(clientId.trim())
+      const rows = await fetchImportRows({ accessToken: token, sheetId: importSheetId.trim() })
+      const importedKeys = new Set(cardImport?.importedKeys ?? [])
+
+      const newTxs = []
+      const newKeys = []
+      let skippedUnmapped = 0
+
+      rows.forEach((row) => {
+        if (importedKeys.has(row.permalink)) return
+        const cardName = bankCardMap[row.bank]
+        if (!cardName) { skippedUnmapped++; return }
+        newTxs.push({
+          id: crypto.randomUUID(),
+          name: row.merchant || row.bank,
+          category: '其他',
+          card: cardName,
+          amount: row.amount,
+          date: toDisplayDate(row.rawDate),
+          note: `自動匯入・${row.bank}`,
+        })
+        newKeys.push(row.permalink)
+      })
+
+      onImportTransactions(newTxs, newKeys)
+
+      if (skippedUnmapped > 0) {
+        showToast(`已匯入 ${newTxs.length} 筆，${skippedUnmapped} 筆銀行尚未設定對應卡片`)
+      } else {
+        showToast(`已匯入 ${newTxs.length} 筆刷卡記錄`)
+      }
+    } catch (e) {
+      showToast(e.message || '匯入失敗，請稍後再試')
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -265,6 +332,54 @@ export default function Settings({ showToast, cards, fxSettings, onFxChange, onA
           <div className="settings-backup-actions">
             <button className="button-secondary" onClick={handleConnectAndSync} disabled={syncing}>
               {syncing ? '同步中…' : '連結並立即同步'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 自動匯入信用卡消費 */}
+      <div className="section">
+        <SectionHeader title="自動匯入信用卡消費" />
+        <div className="card settings-cloud-sync">
+          <span className="settings-cloud-sync-status">
+            {cardImport?.lastImportAt
+              ? `上次匯入：${new Date(cardImport.lastImportAt).toLocaleString('zh-TW')}・${cardImport.lastImportCount} 筆`
+              : '尚未匯入過'}
+          </span>
+          <p className="settings-backup-hint">
+            讀取 card-import 腳本自動收集到「CardNest 消費記錄」Sheet 裡的刷卡通知，轉成刷卡記錄。
+            用的是上面同一組 Google OAuth Client ID。授權時請選擇有權限讀取那份 Sheet 的 Google 帳號。
+          </p>
+          <div className="fx-field">
+            <label>消費記錄 Sheet ID</label>
+            <input
+              className="fx-input"
+              value={importSheetId}
+              onChange={(e) => setImportSheetId(e.target.value)}
+              onBlur={handleImportSheetIdBlur}
+              placeholder="「CardNest 消費記錄」Sheet 網址中 /d/ 跟 /edit 之間那一段"
+            />
+          </div>
+
+          {SUPPORTED_BANKS.map((bank) => (
+            <div className="fx-field" key={bank}>
+              <label>{bank} 對應卡片</label>
+              <select
+                className="fx-input"
+                value={bankCardMap[bank] ?? ''}
+                onChange={(e) => handleBankMapChange(bank, e.target.value)}
+              >
+                <option value="">尚未設定</option>
+                {cards.map((c) => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+
+          <div className="settings-backup-actions">
+            <button className="button-secondary" onClick={handleImportClick} disabled={importing}>
+              {importing ? '匯入中…' : '匯入自動收集的刷卡紀錄'}
             </button>
           </div>
         </div>
