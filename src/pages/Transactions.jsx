@@ -16,10 +16,28 @@ const PERIOD_TABS = [
   { key: 'all', label: '全部' },
   { key: 'week', label: '本週' },
   { key: 'month', label: '本月' },
+  { key: 'range', label: '自訂區間' },
 ]
 
+// 用本地時區解析 "YYYY-MM-DD"（<input type="date"> 的格式），不能直接 new Date(字串)——
+// 那會被當成 UTC 午夜，跟其他本地時間日期比較時會因時區產生誤差。
+function parseYmd(s) {
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+// 把沒有年份的 "M/D" 還原成跟 near 最接近的完整日期，避免跨年誤判
+function resolveNearDate(displayDate, near) {
+  const [m, d] = displayDate.split('/').map(Number)
+  let candidate = new Date(near.getFullYear(), m - 1, d)
+  const diffMonths = (candidate.getFullYear() - near.getFullYear()) * 12 + (candidate.getMonth() - near.getMonth())
+  if (diffMonths > 6) candidate = new Date(candidate.getFullYear() - 1, candidate.getMonth(), candidate.getDate())
+  else if (diffMonths < -6) candidate = new Date(candidate.getFullYear() + 1, candidate.getMonth(), candidate.getDate())
+  return candidate
+}
+
 // 刷卡記錄的 date 是 "M/D" 字串（沒有年份），跟現在的月份／週比對即可判斷區間
-function isInPeriod(displayDate, period, from = new Date()) {
+function isInPeriod(displayDate, period, { from = new Date(), rangeStart, rangeEnd } = {}) {
   if (period === 'all' || !displayDate) return true
   const [m, d] = displayDate.split('/').map(Number)
   if (period === 'month') return m === from.getMonth() + 1
@@ -32,6 +50,14 @@ function isInPeriod(displayDate, period, from = new Date()) {
     endOfWeek.setDate(startOfWeek.getDate() + 7)
     return txDate >= startOfWeek && txDate < endOfWeek
   }
+  if (period === 'range') {
+    if (!rangeStart && !rangeEnd) return true
+    const near = parseYmd(rangeEnd || rangeStart)
+    const txDate = resolveNearDate(displayDate, near)
+    if (rangeStart && txDate < parseYmd(rangeStart)) return false
+    if (rangeEnd && txDate > parseYmd(rangeEnd)) return false
+    return true
+  }
   return true
 }
 
@@ -42,12 +68,14 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
   const [keyword, setKeyword] = useState('')
   const [cardFilter, setCardFilter] = useState('all')
   const [periodFilter, setPeriodFilter] = useState('all')
+  const [rangeStart, setRangeStart] = useState('')
+  const [rangeEnd, setRangeEnd] = useState('')
 
   const sheetOpen = showSheet || !!editingTx
 
   const filteredTransactions = transactions.filter((tx) => {
     if (cardFilter !== 'all' && tx.card !== cardFilter) return false
-    if (!isInPeriod(tx.date, periodFilter)) return false
+    if (!isInPeriod(tx.date, periodFilter, { rangeStart, rangeEnd })) return false
     if (keyword.trim()) {
       const kw = keyword.trim().toLowerCase()
       const haystack = `${tx.name ?? ''} ${tx.note ?? ''} ${tx.category ?? ''} ${tx.card ?? ''}`.toLowerCase()
@@ -125,6 +153,23 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
               <option key={c.id} value={c.name}>{c.name}</option>
             ))}
           </select>
+          {periodFilter === 'range' && (
+            <div className="tx-range-row">
+              <input
+                type="date"
+                className="fx-input tx-range-input"
+                value={rangeStart}
+                onChange={(e) => setRangeStart(e.target.value)}
+              />
+              <span className="tx-range-sep">～</span>
+              <input
+                type="date"
+                className="fx-input tx-range-input"
+                value={rangeEnd}
+                onChange={(e) => setRangeEnd(e.target.value)}
+              />
+            </div>
+          )}
         </div>
       )}
 

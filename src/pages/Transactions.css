@@ -28,6 +28,23 @@
   appearance: none;
 }
 
+.tx-range-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tx-range-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.tx-range-sep {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
 .tx-total-bar {
   display: flex;
   align-items: baseline;
