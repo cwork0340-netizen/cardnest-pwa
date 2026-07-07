@@ -85,37 +85,28 @@ export async function getAccessToken(clientId) {
   }
 }
 
-async function ensureSheetExists(sheetId, accessToken) {
+async function ensureSheetExists(sheetId, accessToken, title = SHEET_TITLE) {
   const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
   if (!res.ok) throw new Error('找不到這個 Google Sheet，請確認 Sheet ID 跟授權帳號是否正確')
   const data = await res.json()
-  const exists = data.sheets?.some(s => s.properties.title === SHEET_TITLE)
+  const exists = data.sheets?.some(s => s.properties.title === title)
   if (exists) return
   const addRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requests: [{ addSheet: { properties: { title: SHEET_TITLE } } }] }),
+    body: JSON.stringify({ requests: [{ addSheet: { properties: { title } } }] }),
   })
   if (!addRes.ok) throw new Error('建立分頁失敗')
 }
 
-const HEADER = ['日期', '卡片', '金額', '類別', '備註']
-
-function transactionToRow(tx) {
-  return [tx.date ?? '', tx.card ?? '', tx.amount ?? 0, tx.category ?? '', tx.note ?? '']
-}
-
-export async function syncTransactionsToSheet({ accessToken, sheetId, transactions }) {
-  await ensureSheetExists(sheetId, accessToken)
-  // 先清空整個分頁，避免刪除過的舊紀錄留在底部變成殘留資料
-  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(SHEET_TITLE)}:clear`, {
+async function writeRows(sheetId, accessToken, title, rows) {
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(title)}:clear`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}` },
   })
-  const rows = [HEADER, ...transactions.map(transactionToRow)]
-  const range = `${SHEET_TITLE}!A1:Z${rows.length}`
+  const range = `${title}!A1:Z${rows.length}`
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
     {
@@ -129,4 +120,45 @@ export async function syncTransactionsToSheet({ accessToken, sheetId, transactio
     throw new Error(err?.error?.message || '同步失敗，請稍後再試')
   }
   return rows.length - 1
+}
+
+const HEADER = ['日期', '卡片', '金額', '類別', '備註']
+
+function transactionToRow(tx) {
+  return [tx.date ?? '', tx.card ?? '', tx.amount ?? 0, tx.category ?? '', tx.note ?? '']
+}
+
+export async function syncTransactionsToSheet({ accessToken, sheetId, transactions }) {
+  await ensureSheetExists(sheetId, accessToken, SHEET_TITLE)
+  const rows = [HEADER, ...transactions.map(transactionToRow)]
+  return writeRows(sheetId, accessToken, SHEET_TITLE, rows)
+}
+
+const CYCLE_SHEET_TITLE = '帳單週期'
+const CYCLE_HEADER = ['卡片', '帳單月份', '結帳日', '到期日', '金額', '是否已繳', '已繳日期']
+
+function cycleToRow(cardName, cycle) {
+  return [
+    cardName,
+    cycle.cycleKey ?? '',
+    cycle.closeDate ?? '',
+    cycle.dueDate ?? '',
+    cycle.amount ?? 0,
+    cycle.paid ? '已繳' : '未繳',
+    cycle.paidAt ?? '',
+  ]
+}
+
+// 每張卡的帳單週期歷史（每期結帳日、到期日、金額、是否已繳）寫進獨立分頁，
+// 方便留底查閱哪個月繳了多少、有沒有遲繳，跟刷卡記錄的同步共用同一組授權。
+export async function syncBillingCyclesToSheet({ accessToken, sheetId, cards }) {
+  await ensureSheetExists(sheetId, accessToken, CYCLE_SHEET_TITLE)
+  const dataRows = cards
+    .flatMap((card) => (card.billingCycles ?? []).map((cycle) => ({ card, cycle })))
+    .sort((a, b) => (a.card.name === b.card.name
+      ? a.cycle.cycleKey.localeCompare(b.cycle.cycleKey)
+      : a.card.name.localeCompare(b.card.name)))
+    .map(({ card, cycle }) => cycleToRow(card.name, cycle))
+  const rows = [CYCLE_HEADER, ...dataRows]
+  return writeRows(sheetId, accessToken, CYCLE_SHEET_TITLE, rows)
 }

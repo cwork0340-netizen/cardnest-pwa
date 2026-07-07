@@ -4,7 +4,7 @@ import SectionHeader from '../components/SectionHeader'
 import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
-import { getAccessToken, syncTransactionsToSheet } from '../utils/googleSheetSync'
+import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet } from '../utils/googleSheetSync'
 import { fetchImportRows, toDisplayDate } from '../utils/importSheetSync'
 
 // card-import（projects/card-import/Code.gs）目前支援的銀行。之後那支腳本加新銀行，
@@ -40,8 +40,9 @@ export default function Settings({
     try {
       const token = await getAccessToken(clientId.trim())
       const count = await syncTransactionsToSheet({ accessToken: token, sheetId: sheetId.trim(), transactions })
+      const cycleCount = await syncBillingCyclesToSheet({ accessToken: token, sheetId: sheetId.trim(), cards })
       onGoogleSyncChange({ clientId: clientId.trim(), sheetId: sheetId.trim(), lastSyncAt: Date.now(), lastSyncCount: count })
-      showToast(`已同步 ${count} 筆刷卡紀錄到 Google Sheet`)
+      showToast(`已同步 ${count} 筆刷卡紀錄、${cycleCount} 筆帳單週期到 Google Sheet`)
     } catch (e) {
       showToast(e.message || '同步失敗，請稍後再試')
     } finally {
@@ -319,7 +320,7 @@ export default function Settings({
               : '尚未同步'}
           </span>
           <p className="settings-backup-hint">
-            把刷卡紀錄寫進你自己的 Google Sheet，方便額外做分析。第一次使用前要先在 Google Cloud Console 申請 OAuth Client ID，並把 Client ID 跟你建立的 Sheet ID 填在下面。
+            把刷卡紀錄跟每張卡的帳單週期歷史（哪個月繳了多少、有沒有遲繳）都寫進你自己的 Google Sheet 兩個分頁，方便額外做分析或留底查閱。第一次使用前要先在 Google Cloud Console 申請 OAuth Client ID，並把 Client ID 跟你建立的 Sheet ID 填在下面。
           </p>
           <div className="fx-field">
             <label>Google OAuth Client ID</label>
