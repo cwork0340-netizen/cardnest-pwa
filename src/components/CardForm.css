@@ -83,6 +83,12 @@
   font-family: monospace;
 }
 
+.cdf-field-note {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
 /* Error */
 .cdf-error {
   font-size: 13px;

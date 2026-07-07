@@ -8,8 +8,6 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
   const [billingDay, setBillingDay] = useState(initialValues?.billingDay ?? '')
   const [dueDay, setDueDay] = useState(initialValues?.dueDay ?? '')
   const [budget, setBudget] = useState(initialValues?.budget ?? '')
-  const [actualBill, setActualBill] = useState(initialValues?.actualBill ? String(initialValues.actualBill) : '')
-  const [dueDate, setDueDate] = useState(initialValues?.dueDate ? String(initialValues.dueDate) : '')
   const [error, setError] = useState('')
 
   function handleSubmit(e) {
@@ -21,16 +19,6 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
     if (!dd || dd < 1 || dd > 30) { setError('繳款寬限天數請填 1–30'); return }
     const bgt = Number(budget)
     if (!bgt || bgt <= 0) { setError('請輸入有效預算'); return }
-    let bill = 0
-    if (actualBill !== '') {
-      bill = Number(actualBill)
-      if (Number.isNaN(bill) || bill < 0) { setError('本期應繳請填有效金額'); return }
-    }
-    let due = 0
-    if (dueDate !== '') {
-      due = Number(dueDate)
-      if (!Number.isInteger(due) || due < 1 || due > 31) { setError('繳款截止日請填 1–31'); return }
-    }
     setError('')
 
     const card = {
@@ -40,14 +28,8 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
       color,
       billingDay: bd,
       dueDay: dd,
-      dueDate: due,
       budget: bgt,
-      actualBill: bill,
-      billPaidMonth: initialValues?.billPaidMonth ?? null,
-      used: initialValues?.used ?? 0,
-      prevUsed: initialValues?.prevUsed ?? 0,
-      status: initialValues?.status ?? 'safe',
-      statusText: initialValues?.statusText ?? '還有可用額度',
+      billingCycles: initialValues?.billingCycles ?? [],
     }
 
     onSubmit(card)
@@ -122,32 +104,9 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
           />
         </div>
 
-        <div className="cdf-row">
-          <div className="cdf-field cdf-field-half">
-            <label className="cdf-label">本期應繳<span className="cdf-label-hint">（選填，銀行帳單金額）</span></label>
-            <input
-              className="cdf-input"
-              type="number"
-              inputMode="decimal"
-              placeholder="例如 4605"
-              value={actualBill}
-              onChange={(e) => setActualBill(e.target.value)}
-            />
-          </div>
-          <div className="cdf-field cdf-field-half">
-            <label className="cdf-label">繳款截止日<span className="cdf-label-hint">（選填，留空會自動用帳單日+寬限天數算）</span></label>
-            <input
-              className="cdf-input"
-              type="number"
-              inputMode="numeric"
-              placeholder="留空自動推算"
-              min="1"
-              max="31"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </div>
-        </div>
+        <p className="cdf-field-note">
+          每期的實際應繳金額跟到期日，新增卡片後會自動產生，可以在「各卡狀態」展開後編輯。
+        </p>
       </div>
 
       {error && <span className="cdf-error">{error}</span>}

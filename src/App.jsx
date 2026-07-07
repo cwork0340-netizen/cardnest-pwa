@@ -8,7 +8,8 @@ import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
-import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD, effectiveDueDay } from './utils/recurrence'
+import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
+import { ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
 
 const STORAGE_KEY = 'cardnest_v1'
 
@@ -153,25 +154,26 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
       used = cardTx.filter(tx => isThisMonth(tx.date)).reduce((s, tx) => s + tx.amount, 0)
       currentCycleAmount = 0
     }
-    // 下期應繳 = 這張卡的 刷卡消費 + 訂閱 + 未繳清的分期（每期）
+    // 這一期進行中的訂閱／分期，給「本期累積」明細參考用（跟帳單週期歷史記錄是兩件事）
     const subsOnCard = plans
       .filter(p => p.type === 'subscription' && (p.active ?? true) && p.card === card.name)
       .reduce((s, p) => s + p.amount, 0)
     const instOnCard = plans
       .filter(p => p.type === 'installment' && !p.paid && p.card === card.name)
       .reduce((s, p) => s + p.amount, 0)
-    // 有手動填銀行「本期應繳」就以實際金額為準，否則用 app 估算
-    const computedBill = used + subsOnCard + instOnCard
-    const upcomingBill = Number(card.actualBill) > 0 ? Number(card.actualBill) : computedBill
     const cardRemaining = card.budget - used
     const cp = card.budget > 0 ? used / card.budget : 0
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
-    // 繳款截止日：沒手動填就用「帳單日 + 繳款寬限天數」自動算
-    const dueDate = Number(card.dueDate) > 0 ? Number(card.dueDate) : effectiveDueDay(card.billingDay, card.dueDay)
+
+    // 帳單週期：每一期都是有真實日期的獨立紀錄，未繳的會一直累加，不會因為換月而消失或被誤判
+    const unpaid = unpaidCycles(card)
+    const unpaidTotal = totalUnpaid(card)
+    const unpaidWithDaysLeft = unpaid.map(c => ({ ...c, daysLeft: daysUntilDue(c) }))
+
     return {
-      ...card, used, currentCycleAmount, upcomingBill, dueDate,
-      subsOnCard, instOnCard, computedBill,
-      billIsActual: Number(card.actualBill) > 0,
+      ...card, used, currentCycleAmount,
+      subsOnCard, instOnCard,
+      unpaidCycles: unpaidWithDaysLeft, unpaidTotal,
       status: cardStatus,
       statusText: cardStatus === 'safe'
         ? `還有 NT$${cardRemaining.toLocaleString()} 可用`
@@ -237,20 +239,10 @@ export default function App() {
     ? storedChecklist
     : storedChecklist.map(i => ({ ...i, done: false }))
 
-  // 卡片帳單週期「跨月自動重置」：上次標記已繳是在過去某個月，代表那是上一期的
-  // 銀行帳單金額，開啟新月份時清空「本期應繳」，回到用刷卡＋訂閱／分期估算，
-  // 避免本期應繳一直沿用上一期數字，跟必繳清單一樣每月自動重新開始。
-  const storedCards = stored?.cards ?? []
-  const initialCards = storedCards.map(c =>
-    c.billPaidMonth && c.billPaidMonth !== currentMonthKey && Number(c.actualBill) > 0
-      ? { ...c, actualBill: 0 }
-      : c
-  )
-
   const [tab, setTab] = useState('dashboard')
   const [toast, setToast] = useState(null) // { message, onUndo? }
   const toastTimer = useRef(null)
-  const [cards, setCards] = useState(initialCards)
+  const [cards, setCards] = useState(stored?.cards ?? [])
   const [plans, setPlans] = useState(stored?.plans ?? [])
   const [transactions, setTransactions] = useState(stored?.transactions ?? [])
   const [fxSettings, setFxSettings] = useState(stored?.fxSettings ?? { usdRate: 32.5, feeRate: 1.5 })
@@ -267,6 +259,23 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync, cardImport }))
   }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync, cardImport])
+
+  // 補齊每張卡的帳單週期：新卡片、或距離上次開啟已經跨過新的結帳日，都會在這裡自動生成
+  // 新的一期紀錄並寫回 cards。已經存在的舊週期不會被動到，未繳的會一直留著不會消失。
+  useEffect(() => {
+    setCards((prev) => {
+      let changed = false
+      const next = prev.map((card) => {
+        const cycles = ensureBillingCycles(card, { transactions, plans })
+        if (cycles.length !== (card.billingCycles?.length ?? 0)) {
+          changed = true
+          return { ...card, billingCycles: cycles }
+        }
+        return card
+      })
+      return changed ? next : prev
+    })
+  }, [cards, transactions, plans])
 
   const showToast = useCallback((message) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
@@ -413,13 +422,44 @@ export default function App() {
   const handleAddCard = useCallback((card) => setCards(p => [...p, card]), [])
   const handleSaveCard = useCallback((updated) => setCards(p => p.map(c => c.id === updated.id ? updated : c)), [])
   const handleDeleteCard = useCallback((id) => setCards(p => p.filter(c => c.id !== id)), [])
-  // 標記本期卡費已繳：當月不再提醒；可選擇從連動的儲蓄帳戶扣款
-  const handleMarkCardPaid = useCallback((id, opts = {}) => {
-    setCards(p => p.map(c => c.id === id ? { ...c, billPaidMonth: currentMonthKey } : c))
+  // 標記某一期帳單已繳：cycleId 全域唯一，直接找出對應的卡片跟那一期改掉；
+  // 可選擇從連動的儲蓄帳戶扣款
+  const handleMarkCardPaid = useCallback((cycleId, opts = {}) => {
+    const paidAt = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
+    setCards(prev => prev.map(c => {
+      if (!c.billingCycles?.some(cy => cy.id === cycleId)) return c
+      return {
+        ...c,
+        billingCycles: c.billingCycles.map(cy => cy.id === cycleId ? { ...cy, paid: true, paidAt } : cy),
+      }
+    }))
     if (opts.fromSavingId && Number(opts.amount) > 0) {
       handleSpendSaving(opts.fromSavingId, Number(opts.amount), '繳卡費')
     }
-  }, [currentMonthKey, handleSpendSaving])
+  }, [handleSpendSaving])
+
+  // 一次把某張卡所有未繳的期數都標記已繳（例如補繳好幾期積欠的帳單）
+  const handleMarkAllCyclesPaid = useCallback((cardId) => {
+    const paidAt = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
+    setCards(prev => prev.map(c => {
+      if (c.id !== cardId) return c
+      return {
+        ...c,
+        billingCycles: (c.billingCycles ?? []).map(cy => cy.paid ? cy : { ...cy, paid: true, paidAt }),
+      }
+    }))
+  }, [])
+
+  // 手動改某一期的到期日（延後繳款），或編輯金額（銀行實際帳單跟估算不同時）
+  const handleUpdateCycle = useCallback((cardId, cycleId, fields) => {
+    setCards(prev => prev.map(c => {
+      if (c.id !== cardId) return c
+      return {
+        ...c,
+        billingCycles: (c.billingCycles ?? []).map(cy => cy.id === cycleId ? { ...cy, ...fields } : cy),
+      }
+    }))
+  }, [])
 
   const handleClearData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
@@ -466,39 +506,39 @@ export default function App() {
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
 
-  // 上期卡費：本期應繳 > 0 且本月尚未標記已繳的各卡加總，計入生活結餘
+  // 上期卡費：各卡所有未繳週期加總，計入生活結餘。未繳的期數會一直累加，
+  // 不會因為換月就消失，也不會被下一期覆蓋掉。
   const unpaidCardBills = enrichedCards
-    .filter(c => Number(c.upcomingBill) > 0 && c.billPaidMonth !== currentMonthKey)
-    .map(c => ({ id: c.id, name: c.name, amount: Number(c.upcomingBill) }))
+    .filter(c => c.unpaidTotal > 0)
+    .map(c => ({ id: c.id, name: c.name, amount: c.unpaidTotal }))
   const unpaidCardBillsTotal = unpaidCardBills.reduce((s, c) => s + c.amount, 0)
   const lifeBalance = income - essentialTotal - unpaidCardBillsTotal
   const weekDays = buildWeekDays(plans, enrichedCards)
   const enrichedPlans = enrichPlans(plans)
 
-  // 繳費提醒：本期應繳 > 0、有設繳款截止日、且本月尚未標記已繳
-  const todayDate = new Date().getDate()
+  // 繳費提醒：把每張卡「所有」未繳的週期攤平成一筆一筆提醒（同一張卡可能同時有兩期沒繳），
+  // 天數用真正的日期相減，不再受換月影響。
   const paymentReminders = enrichedCards
-    .filter(c => Number(c.upcomingBill) > 0 && Number(c.dueDate) > 0 && c.billPaidMonth !== currentMonthKey)
-    .map(c => {
+    .flatMap(c => {
       const reserve = savings.find(g => g.linkedCardId === c.id)
-      return {
-        id: c.id,
+      return c.unpaidCycles.map(cycle => ({
+        id: cycle.id,
+        cardId: c.id,
         name: c.name,
         color: c.color,
-        amount: Number(c.upcomingBill),
-        dueDate: Number(c.dueDate),
-        daysLeft: Number(c.dueDate) - todayDate,
+        amount: cycle.amount,
+        dueDateLabel: `${Number(cycle.dueDate.slice(5, 7))}/${Number(cycle.dueDate.slice(8, 10))}`,
+        daysLeft: cycle.daysLeft,
         reserve: reserve ? { id: reserve.id, name: reserve.name, saved: Number(reserve.saved) } : null,
-      }
+      }))
     })
     .sort((a, b) => a.daysLeft - b.daysLeft)
 
-  // 各卡狀態用：補上「本期是否已繳」與連動的卡費預留帳戶
+  // 各卡狀態用：補上連動的卡費預留帳戶
   const dashboardCards = enrichedCards.map(c => {
     const reserve = savings.find(g => g.linkedCardId === c.id)
     return {
       ...c,
-      billPaid: c.billPaidMonth === currentMonthKey,
       reserve: reserve ? { id: reserve.id, name: reserve.name, saved: Number(reserve.saved) } : null,
     }
   })
@@ -541,6 +581,8 @@ export default function App() {
         envelopeSummary={envelopeSummary}
         paymentReminders={paymentReminders}
         onMarkCardPaid={handleMarkCardPaid}
+        onMarkAllCyclesPaid={handleMarkAllCyclesPaid}
+        onUpdateCycle={handleUpdateCycle}
         income={income}
         essentialTotal={essentialTotal}
         unpaidCardBillsTotal={unpaidCardBillsTotal}
@@ -585,7 +627,7 @@ export default function App() {
         unpaidCardBills={unpaidCardBills}
         unpaidCardBillsTotal={unpaidCardBillsTotal}
         savings={savings}
-        cardBills={enrichedCards.map(c => ({ id: c.id, name: c.name, bill: c.upcomingBill }))}
+        cardBills={enrichedCards.map(c => ({ id: c.id, name: c.name, bill: c.unpaidTotal }))}
         onIncomeChange={setIncome}
         onAdd={handleAddChecklistItem}
         onToggle={handleToggleChecklistItem}

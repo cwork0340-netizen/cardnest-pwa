@@ -41,7 +41,7 @@ export default function PaymentReminderCard({ reminders, onMarkPaid }) {
             <span className="pay-reminder-dot" style={{ background: r.color }} />
             <div className="pay-reminder-info">
               <span className="pay-reminder-name">{r.name}</span>
-              <span className="pay-reminder-due">每月 {r.dueDate} 號・<span className={`pay-reminder-when pay-reminder-when--${u.cls}`}>{u.text}</span></span>
+              <span className="pay-reminder-due">{r.dueDateLabel} 到期・<span className={`pay-reminder-when pay-reminder-when--${u.cls}`}>{u.text}</span></span>
               {confirming && (
                 <div className="pay-reminder-confirm">
                   <span className="pay-reminder-confirm-q">用「{r.reserve.name}」扣款？</span>

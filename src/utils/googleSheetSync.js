@@ -3,6 +3,9 @@
 const GIS_SRC = 'https://accounts.google.com/gsi/client'
 const SCOPE = 'https://www.googleapis.com/auth/spreadsheets'
 const SHEET_TITLE = '刷卡紀錄'
+const TOKEN_STORAGE_KEY = 'cardnest_google_token'
+// access token 效期通常 1 小時，提前 2 分鐘視為過期，避免卡在請求中途才過期
+const EXPIRY_BUFFER_MS = 2 * 60 * 1000
 
 let gisLoadPromise = null
 function loadGis() {
@@ -19,11 +22,28 @@ function loadGis() {
   return gisLoadPromise
 }
 
-let tokenClient = null
-let cachedToken = null
+function loadStoredToken() {
+  try {
+    const raw = localStorage.getItem(TOKEN_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.token || !parsed?.expiresAt) return null
+    if (Date.now() > parsed.expiresAt - EXPIRY_BUFFER_MS) return null
+    return parsed.token
+  } catch {
+    return null
+  }
+}
 
-export async function getAccessToken(clientId) {
-  await loadGis()
+function storeToken(token, expiresInSeconds) {
+  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
+    token,
+    expiresAt: Date.now() + Number(expiresInSeconds || 3600) * 1000,
+  }))
+}
+
+let tokenClient = null
+function getTokenClient(clientId) {
   if (!tokenClient) {
     tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
@@ -31,14 +51,38 @@ export async function getAccessToken(clientId) {
       callback: () => {}, // 在 requestAccessToken 呼叫時用 promise 覆寫
     })
   }
+  return tokenClient
+}
+
+function requestToken(client, prompt) {
   return new Promise((resolve, reject) => {
-    tokenClient.callback = (resp) => {
+    client.callback = (resp) => {
       if (resp.error) return reject(new Error(resp.error))
-      cachedToken = resp.access_token
-      resolve(cachedToken)
+      resolve(resp)
     }
-    tokenClient.requestAccessToken({ prompt: cachedToken ? '' : 'consent' })
+    client.requestAccessToken({ prompt })
   })
+}
+
+// 之前登入過、token 還沒過期就直接沿用；過期了先嘗試背景默默換新（大部分時候
+// 不會再跳出選帳號畫面），只有真的需要重新同意時才彈出完整畫面。
+export async function getAccessToken(clientId) {
+  const cached = loadStoredToken()
+  if (cached) return cached
+
+  await loadGis()
+  const client = getTokenClient(clientId)
+
+  try {
+    const resp = await requestToken(client, '')
+    storeToken(resp.access_token, resp.expires_in)
+    return resp.access_token
+  } catch {
+    // 背景換新失敗（例如從未同意過、或已撤銷授權），退回完整同意畫面
+    const resp = await requestToken(client, 'consent')
+    storeToken(resp.access_token, resp.expires_in)
+    return resp.access_token
+  }
 }
 
 async function ensureSheetExists(sheetId, accessToken) {

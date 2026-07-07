@@ -240,7 +240,7 @@ export default function Settings({
         <SectionHeader title="繳費通知" />
         <div className="card">
           <p className="settings-backup-hint">
-          首頁會依「帳單日＋繳款寬限天數」自動算出繳款截止日，列出待繳卡費並倒數提醒（也可在卡片設定手動填繳款截止日覆寫）。開啟瀏覽器通知後，打開 App 時若有快到期（3 天內）或逾期的卡費會跳通知。
+          首頁會依「帳單日＋繳款寬限天數」自動算出繳款截止日，列出待繳卡費並倒數提醒（也可在「各卡狀態」展開後，針對某一期手動改到期日）。開啟瀏覽器通知後，打開 App 時若有快到期（3 天內）或逾期的卡費會跳通知。
           </p>
           <p className="settings-backup-hint">📱 iPhone 必須先把本站「加入主畫面」並從主畫面開啟，通知才會生效（Safari 分頁內無法通知）。</p>
           {!notifySupported() ? (

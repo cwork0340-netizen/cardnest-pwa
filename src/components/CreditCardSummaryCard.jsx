@@ -5,8 +5,31 @@ function fmt(n) {
   return 'NT$' + Number(n).toLocaleString()
 }
 
-export default function CreditCardSummaryCard({ card }) {
+function dueLabel(cycle) {
+  const md = `${Number(cycle.dueDate.slice(5, 7))}/${Number(cycle.dueDate.slice(8, 10))}`
+  if (cycle.daysLeft < 0) return `到期 ${md}・逾期 ${-cycle.daysLeft} 天`
+  if (cycle.daysLeft === 0) return `到期 ${md}・今天到期`
+  return `到期 ${md}・還有 ${cycle.daysLeft} 天`
+}
+
+export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid, onUpdateCycle }) {
   const [expanded, setExpanded] = useState(false)
+  const [editingCycleId, setEditingCycleId] = useState(null)
+  const [editDate, setEditDate] = useState('')
+
+  const unpaid = card.unpaidCycles ?? []
+
+  function startEdit(e, cycle) {
+    e.stopPropagation()
+    setEditingCycleId(cycle.id)
+    setEditDate(cycle.dueDate)
+  }
+
+  function saveEdit(e, cycle) {
+    e.stopPropagation()
+    onUpdateCycle(card.id, cycle.id, { dueDate: editDate })
+    setEditingCycleId(null)
+  }
 
   return (
     <div className="card credit-card-summary">
@@ -23,8 +46,10 @@ export default function CreditCardSummaryCard({ card }) {
         </div>
         <div className="credit-card-summary-amounts">
           <div className="credit-card-summary-amount-col">
-            <span className="credit-card-summary-amount-label">上期應繳</span>
-            <span className="credit-card-summary-amount-value">{fmt(card.upcomingBill ?? 0)}</span>
+            <span className="credit-card-summary-amount-label">
+              未繳合計{unpaid.length > 1 ? `（${unpaid.length} 期）` : ''}
+            </span>
+            <span className="credit-card-summary-amount-value">{fmt(card.unpaidTotal ?? 0)}</span>
           </div>
           <div className="credit-card-summary-amount-col">
             <span className="credit-card-summary-amount-label">本期累積</span>
@@ -35,11 +60,50 @@ export default function CreditCardSummaryCard({ card }) {
 
       {expanded && (
         <div className="credit-card-summary-breakdown">
-          {card.billIsActual && (
-            <p className="credit-card-summary-breakdown-note">
-              上期應繳已用你手動填寫的銀行帳單金額，以下是 App 估算的明細（僅供參考）
-            </p>
+          {unpaid.length === 0 ? (
+            <p className="credit-card-summary-breakdown-note">目前沒有未繳的帳單</p>
+          ) : (
+            <>
+              {unpaid.map((cycle) => (
+                <div className="credit-card-cycle-row" key={cycle.id}>
+                  <div className="credit-card-cycle-info">
+                    <span className="credit-card-cycle-amount">{fmt(cycle.amount)}</span>
+                    {editingCycleId === cycle.id ? (
+                      <span className="credit-card-cycle-edit" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="date"
+                          className="credit-card-cycle-date-input"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                        />
+                        <button className="credit-card-cycle-save" onClick={(e) => saveEdit(e, cycle)}>存</button>
+                      </span>
+                    ) : (
+                      <button className="credit-card-cycle-due" onClick={(e) => startEdit(e, cycle)}>
+                        {dueLabel(cycle)}
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    className="credit-card-cycle-pay"
+                    onClick={(e) => { e.stopPropagation(); onMarkPaid(cycle.id) }}
+                  >
+                    已繳
+                  </button>
+                </div>
+              ))}
+              {unpaid.length > 1 && (
+                <button
+                  className="credit-card-cycle-pay-all"
+                  onClick={(e) => { e.stopPropagation(); onMarkAllPaid(card.id) }}
+                >
+                  全部標記已繳
+                </button>
+              )}
+            </>
           )}
+
+          <p className="credit-card-summary-breakdown-note">最新一期未繳金額的組成：</p>
           <div className="credit-card-summary-breakdown-row">
             <span>刷卡小計</span>
             <span>{fmt(card.used ?? 0)}</span>
@@ -54,7 +118,7 @@ export default function CreditCardSummaryCard({ card }) {
           </div>
           <div className="credit-card-summary-breakdown-row credit-card-summary-breakdown-total">
             <span>App 估算合計</span>
-            <span>{fmt(card.computedBill ?? 0)}</span>
+            <span>{fmt((card.used ?? 0) + (card.subsOnCard ?? 0) + (card.instOnCard ?? 0))}</span>
           </div>
         </div>
       )}

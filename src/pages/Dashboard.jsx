@@ -15,7 +15,7 @@ import EnvelopeBudgetCard from '../components/EnvelopeBudgetCard'
 export default function Dashboard({
   greeting, dateLabel, currentMonth, weekDays, cards, categories, trends,
   liabilityItems = [], totalDebt = 0, envelopeView = [], envelopeSummary = null,
-  paymentReminders = [], onMarkCardPaid,
+  paymentReminders = [], onMarkCardPaid, onMarkAllCyclesPaid, onUpdateCycle,
   income = 0, essentialTotal = 0, unpaidCardBillsTotal = 0, lifeBalance = 0, onGoToChecklist,
 }) {
   return (
@@ -76,7 +76,13 @@ export default function Dashboard({
       <div className="section">
         <SectionHeader title="各卡狀態" />
         {cards.map((card) => (
-          <CreditCardSummaryCard key={card.id} card={card} />
+          <CreditCardSummaryCard
+            key={card.id}
+            card={card}
+            onMarkPaid={onMarkCardPaid}
+            onMarkAllPaid={onMarkAllCyclesPaid}
+            onUpdateCycle={onUpdateCycle}
+          />
         ))}
       </div>
 
