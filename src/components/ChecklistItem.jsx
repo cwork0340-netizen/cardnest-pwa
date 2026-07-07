@@ -13,7 +13,7 @@ export default function ChecklistItem({ item, onToggle, onEdit, onDelete }) {
       <button
         className={`cl-check${item.done ? ' cl-check-done' : ''}`}
         onClick={stop(() => onToggle(item.id))}
-        aria-label={item.done ? '取消已繳標記' : '標記已繳'}
+        aria-label={item.done ? '取消規劃' : '標記已規劃'}
       >
         {item.done ? '✓' : ''}
       </button>

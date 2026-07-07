@@ -312,11 +312,11 @@ describe('每月必繳清單', () => {
     expect(screen.getByText('房租')).toBeInTheDocument()
     // 金額同時出現在項目與「尚未繳清」摘要
     expect(screen.getAllByText('NT$15,000').length).toBeGreaterThan(0)
-    expect(screen.getByText('0/1 已繳')).toBeInTheDocument()
+    expect(screen.getByText('0/1 已規劃')).toBeInTheDocument()
 
-    // 標記繳清 → 進度與剩餘金額更新
-    fireEvent.click(screen.getByRole('button', { name: '標記已繳' }))
-    expect(screen.getByText('1/1 已繳')).toBeInTheDocument()
+    // 標記規劃 → 進度與剩餘金額更新
+    fireEvent.click(screen.getByRole('button', { name: '標記已規劃' }))
+    expect(screen.getByText('1/1 已規劃')).toBeInTheDocument()
 
     // 刪除
     fireEvent.click(screen.getByRole('button', { name: '刪除' }))
@@ -330,8 +330,8 @@ describe('每月必繳清單', () => {
     })
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: '必繳' }))
-    // done 應被重置為未繳
-    expect(screen.getByText('0/1 已繳')).toBeInTheDocument()
+    // done 應被重置為未規劃
+    expect(screen.getByText('0/1 已規劃')).toBeInTheDocument()
   })
 
   it('首頁本月支出只算刷卡＋訂閱分期，不含必繳清單', () => {
@@ -340,7 +340,7 @@ describe('每月必繳清單', () => {
       transactions: [{ id: 't1', name: '午餐', card: '永豐卡', category: '餐飲', amount: 1000, date: todayMD() }],
       checklist: [
         { id: 'cl1', name: '房租', amount: 3000, day: 5, done: false },
-        { id: 'cl2', name: '已繳項', amount: 500, day: 6, done: true },
+        { id: 'cl2', name: '已規劃項', amount: 500, day: 6, done: true },
       ],
       checklistMonth: `${d.getFullYear()}-${d.getMonth()}`, // 當月，避免觸發月初重置
     })
@@ -352,7 +352,7 @@ describe('每月必繳清單', () => {
   it('必要支出頁：收入扣掉必要支出後顯示生活結餘', () => {
     seed({
       income: 10000,
-      checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: false }],
+      checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: true }],
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
@@ -364,7 +364,7 @@ describe('每月必繳清單', () => {
   it('必要支出頁：必要支出超過收入顯示沒有餘裕', () => {
     seed({
       income: 2000,
-      checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: false }],
+      checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: true }],
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
@@ -376,7 +376,7 @@ describe('每月必繳清單', () => {
   it('預設儲蓄不重複計入必要支出（已含在必繳清單）', () => {
     seed({
       income: 10000,
-      checklist: [{ id: 'cl1', name: '學費', amount: 3000, day: 5, done: false }],
+      checklist: [{ id: 'cl1', name: '學費', amount: 3000, day: 5, done: true }],
       savings: [{ id: 's1', name: '學費累積', monthly: 3000, target: 60000, saved: 0 }],
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
@@ -389,7 +389,7 @@ describe('每月必繳清單', () => {
   it('勾選額外預留的儲蓄才計入必要支出', () => {
     seed({
       income: 10000,
-      checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: false }],
+      checklist: [{ id: 'cl1', name: '房租', amount: 3000, day: 5, done: true }],
       savings: [{ id: 's1', name: '旅遊基金', monthly: 2000, target: 0, saved: 0, countInEssential: true }],
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
@@ -436,15 +436,17 @@ describe('每月必繳清單', () => {
     })
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: '必繳' }))
-    // 連動不重複計入：必要支出＝必繳 3000，生活結餘 10000−3000＝7000
-    expect(screen.getByText(/還有 NT\$7,000 可生活/)).toBeInTheDocument()
+    // 尚未勾選：還在規劃階段，必要支出＝0，生活結餘＝收入 10000
+    expect(screen.getByText(/還有 NT\$10,000 可生活/)).toBeInTheDocument()
     expect(document.querySelector('.sg-saved').textContent).toBe('NT$0')
-    // 勾選必繳項目 → 自動存入 3000
-    fireEvent.click(screen.getByLabelText('標記已繳'))
+    // 勾選必繳項目 → 自動存入 3000，且必要支出只算一次 3000（不會因為連動儲蓄又多算一次變 6000）
+    fireEvent.click(screen.getByLabelText('標記已規劃'))
     expect(document.querySelector('.sg-saved').textContent).toBe('NT$3,000')
-    // 取消勾選 → 退回本月撥入
-    fireEvent.click(screen.getByLabelText('取消已繳標記'))
+    expect(screen.getByText(/還有 NT\$7,000 可生活/)).toBeInTheDocument()
+    // 取消勾選 → 退回本月撥入，必要支出也退回 0
+    fireEvent.click(screen.getByLabelText('取消規劃'))
     expect(document.querySelector('.sg-saved').textContent).toBe('NT$0')
+    expect(screen.getByText(/還有 NT\$10,000 可生活/)).toBeInTheDocument()
   })
 
   it('記一筆支出從帳戶扣款', () => {
@@ -513,9 +515,9 @@ describe('整列點擊即可編輯', () => {
     seed({ checklist: [{ id: 'cl1', name: '電信費', amount: 599, day: 8, done: false }] })
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: '必繳' }))
-    fireEvent.click(screen.getByRole('button', { name: '標記已繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '標記已規劃' }))
     expect(screen.queryByText('修改項目')).not.toBeInTheDocument()
-    expect(screen.getByText('1/1 已繳')).toBeInTheDocument()
+    expect(screen.getByText('1/1 已規劃')).toBeInTheDocument()
   })
 })
 

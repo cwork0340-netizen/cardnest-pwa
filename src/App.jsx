@@ -495,7 +495,9 @@ export default function App() {
     .reduce((s, p) => s + p.amount, 0)
 
   // 必要支出 / 生活預算
-  const checklistTotal = checklist.reduce((s, i) => s + Number(i.amount), 0)
+  // 只算「已勾選」的必繳項目：勾選代表這個月已經確定把這筆錢留下來，
+  // 未勾選的還在規劃階段，不該提前算進必要支出總額。
+  const checklistTotal = checklist.filter(i => i.done).reduce((s, i) => s + Number(i.amount), 0)
   // 連動必繳項目的儲蓄：金額已在必繳清單裡，不重複計入。
   // 只有「未連動且勾選額外預留」的帳戶，才是收入之外另外存、會加進必要支出。
   const savingsMonthly = savings.reduce((s, g) => s + Number(g.monthly || 0), 0)

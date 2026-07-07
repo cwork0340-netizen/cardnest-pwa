@@ -55,7 +55,7 @@ export default function Checklist({
   function handleToggle(id) {
     const item = items.find((i) => i.id === id)
     onToggle(id)
-    showToast(item?.done ? '已取消已繳標記' : '已標記繳清')
+    showToast(item?.done ? '已取消規劃' : '已規劃這筆支出')
   }
 
   function handleDelete(id) {
@@ -185,10 +185,10 @@ export default function Checklist({
         <div className="card checklist-summary">
           <div className="checklist-summary-row">
             <span className="checklist-summary-label">本月進度</span>
-            <span className="checklist-summary-value">{doneCount}/{items.length} 已繳</span>
+            <span className="checklist-summary-value">{doneCount}/{items.length} 已規劃</span>
           </div>
           <div className="checklist-summary-row">
-            <span className="checklist-summary-label">尚未繳清</span>
+            <span className="checklist-summary-label">尚未規劃</span>
             <span className="checklist-summary-amount">NT${remainingAmount.toLocaleString()}</span>
           </div>
         </div>
@@ -200,7 +200,7 @@ export default function Checklist({
           <EmptyState
             icon="🧾"
             title="還沒有必繳項目"
-            description="把房租、水電、電信等每月固定支出加進來，繳完打勾就好"
+            description="把房租、水電、電信等每月固定支出加進來，確定要留這筆錢再打勾"
             actionLabel="新增必繳項目"
             onAction={() => setShowAddSheet(true)}
           />
