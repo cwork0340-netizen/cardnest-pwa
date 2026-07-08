@@ -16,7 +16,7 @@ export default function Dashboard({
   greeting, dateLabel, currentMonth, weekDays, cards, categories, trends,
   liabilityItems = [], totalDebt = 0, envelopeView = [], envelopeSummary = null,
   paymentReminders = [], onMarkCardPaid, onMarkAllCyclesPaid, onUpdateCycle,
-  income = 0, essentialTotal = 0, unpaidCardBillsTotal = 0, lifeBalance = 0, onGoToChecklist,
+  income = 0, essentialTotal = 0, cardEstimateTotal = 0, lifeBalance = 0, onGoToChecklist,
 }) {
   return (
     <div className="dashboard">
@@ -28,7 +28,7 @@ export default function Dashboard({
       <MonthlyBalanceCard
         income={income}
         essentialTotal={essentialTotal}
-        unpaidCardBillsTotal={unpaidCardBillsTotal}
+        cardEstimateTotal={cardEstimateTotal}
         lifeBalance={lifeBalance}
         onGoToChecklist={onGoToChecklist}
       />

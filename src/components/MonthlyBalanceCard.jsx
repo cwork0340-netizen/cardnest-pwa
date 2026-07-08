@@ -7,7 +7,7 @@ function fmt(amount) {
 export default function MonthlyBalanceCard({
   income = 0,
   essentialTotal = 0,
-  unpaidCardBillsTotal = 0,
+  cardEstimateTotal = 0,
   lifeBalance = 0,
   onGoToChecklist,
 }) {
@@ -37,7 +37,7 @@ export default function MonthlyBalanceCard({
       <div className="mb-card-breakdown">
         <span>收入 {fmt(income)}</span>
         <span>－ 必要支出（含預留）{fmt(essentialTotal)}</span>
-        <span>－ 上期卡費 {fmt(unpaidCardBillsTotal)}</span>
+        <span>－ 信用卡預估帳單 {fmt(cardEstimateTotal)}</span>
       </div>
 
       {!isNegative && lifeBalance > 0 && (

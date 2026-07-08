@@ -299,6 +299,23 @@ export default function App() {
     })
   }, [cards, transactions, plans])
 
+  // 每月信用卡預估帳單：月初規劃時，每張卡給一個「這個月大概要繳多少」的數字，
+  // 整月穩定不變（不會因為有沒有封帳、標記已繳而忽高忽低）。跨月時預設帶入
+  // 上一期實際封帳的金額，當作起始估計，Chia 可以在必繳頁手動調整。
+  useEffect(() => {
+    setCards((prev) => {
+      let changed = false
+      const next = prev.map((card) => {
+        if (card.estimatedBillMonth === currentMonthKey) return card
+        changed = true
+        const cycles = card.billingCycles ?? []
+        const lastClosed = [...cycles].sort((a, b) => a.cycleKey.localeCompare(b.cycleKey)).pop()
+        return { ...card, estimatedBill: lastClosed?.amount ?? 0, estimatedBillMonth: currentMonthKey }
+      })
+      return changed ? next : prev
+    })
+  }, [cards, currentMonthKey])
+
   // 補齊每筆分期的期數紀錄：邏輯跟卡片帳單週期一樣，依時間流逝自動累加未繳期數，
   // 不再只靠手動點擊「標記已付款」推進，忘記點也不會跟時間脫節。
   useEffect(() => {
@@ -512,6 +529,11 @@ export default function App() {
     }))
   }, [])
 
+  // 手動調整這個月的信用卡預估帳單金額（月初規劃用，整月穩定，不受封帳/已繳狀態影響）
+  const handleUpdateEstimatedBill = useCallback((cardId, amount) => {
+    setCards(prev => prev.map(c => c.id === cardId ? { ...c, estimatedBill: Number(amount) || 0 } : c))
+  }, [])
+
   const handleClearData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
     setCards([])
@@ -559,13 +581,13 @@ export default function App() {
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
 
-  // 上期卡費：各卡所有未繳週期加總，計入生活結餘。未繳的期數會一直累加，
-  // 不會因為換月就消失，也不會被下一期覆蓋掉。
-  const unpaidCardBills = enrichedCards
-    .filter(c => c.unpaidTotal > 0)
-    .map(c => ({ id: c.id, name: c.name, amount: c.unpaidTotal }))
-  const unpaidCardBillsTotal = unpaidCardBills.reduce((s, c) => s + c.amount, 0)
-  const lifeBalance = income - essentialTotal - unpaidCardBillsTotal
+  // 信用卡預估帳單：月初規劃時設定的數字，整月穩定不變，不受封帳／已繳狀態影響——
+  // 這個月的錢已經花掉就是花掉了，不會因為標記已繳就「還」回生活結餘。
+  const cardEstimates = cards
+    .filter(c => Number(c.estimatedBill) > 0)
+    .map(c => ({ id: c.id, name: c.name, amount: Number(c.estimatedBill) }))
+  const cardEstimateTotal = cardEstimates.reduce((s, c) => s + c.amount, 0)
+  const lifeBalance = income - essentialTotal - cardEstimateTotal
   const weekDays = buildWeekDays(plans, enrichedCards)
   const enrichedPlans = enrichPlans(plans)
 
@@ -638,7 +660,7 @@ export default function App() {
         onUpdateCycle={handleUpdateCycle}
         income={income}
         essentialTotal={essentialTotal}
-        unpaidCardBillsTotal={unpaidCardBillsTotal}
+        cardEstimateTotal={cardEstimateTotal}
         lifeBalance={lifeBalance}
         onGoToChecklist={() => setTab('checklist')}
       />
@@ -677,10 +699,11 @@ export default function App() {
         savingsMonthly={savingsMonthly}
         essentialSavings={essentialSavings}
         lifeBalance={lifeBalance}
-        unpaidCardBills={unpaidCardBills}
-        unpaidCardBillsTotal={unpaidCardBillsTotal}
+        cardEstimates={cardEstimates}
+        cardEstimateTotal={cardEstimateTotal}
+        onUpdateEstimatedBill={handleUpdateEstimatedBill}
         savings={savings}
-        cardBills={enrichedCards.map(c => ({ id: c.id, name: c.name, bill: c.unpaidTotal }))}
+        cardBills={cards.map(c => ({ id: c.id, name: c.name, bill: Number(c.estimatedBill) || 0 }))}
         onIncomeChange={setIncome}
         onAdd={handleAddChecklistItem}
         onToggle={handleToggleChecklistItem}

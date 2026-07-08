@@ -12,7 +12,7 @@ import SavingsSpendForm from '../components/SavingsSpendForm'
 export default function Checklist({
   showToast, items, monthName,
   income = 0, essentialTotal = 0, checklistTotal = 0, essentialSavings = 0, lifeBalance = 0,
-  unpaidCardBills = [], unpaidCardBillsTotal = 0,
+  cardEstimates = [], cardEstimateTotal = 0, onUpdateEstimatedBill,
   savings = [], cardBills = [], onIncomeChange,
   onAdd, onToggle, onUpdate, onDelete,
   onAddSaving, onUpdateSaving, onDeleteSaving, onContributeSaving, onSpendSaving, onResetSaving,
@@ -24,6 +24,7 @@ export default function Checklist({
   const [spendingGoal, setSpendingGoal] = useState(null)
   const [spendSuggest, setSpendSuggest] = useState(0)
   const [incomeInput, setIncomeInput] = useState(income ? String(income) : '')
+  const [estimateInputs, setEstimateInputs] = useState({})
 
   const sheetOpen = showAddSheet || !!editingItem
   const savingsSheetOpen = showSavingsSheet || !!editingSaving
@@ -112,6 +113,25 @@ export default function Checklist({
     showToast('已刪除儲蓄目標')
   }
 
+  function estimateValue(card) {
+    return estimateInputs[card.id] ?? String(card.bill || '')
+  }
+
+  function handleEstimateInput(cardId, value) {
+    setEstimateInputs((prev) => ({ ...prev, [cardId]: value }))
+  }
+
+  function commitEstimate(card) {
+    const raw = estimateInputs[card.id]
+    if (raw === undefined) return
+    const n = Number(raw)
+    if (!Number.isNaN(n) && n !== card.bill) {
+      onUpdateEstimatedBill(card.id, n)
+      showToast(`已更新「${card.name}」本月預估帳單`)
+    }
+    setEstimateInputs((prev) => { const next = { ...prev }; delete next[card.id]; return next })
+  }
+
   return (
     <div className="checklist-page">
       <div className="checklist-header">
@@ -147,15 +167,15 @@ export default function Checklist({
             <span>・額外儲蓄 NT${essentialSavings.toLocaleString()}</span>
           </div>
         )}
-        {unpaidCardBillsTotal > 0 && (
+        {cardEstimateTotal > 0 && (
           <div className="checklist-budget-row">
-            <span className="checklist-budget-label">上期卡費</span>
-            <span className="checklist-budget-amount">NT${unpaidCardBillsTotal.toLocaleString()}</span>
+            <span className="checklist-budget-label">信用卡預估帳單</span>
+            <span className="checklist-budget-amount">NT${cardEstimateTotal.toLocaleString()}</span>
           </div>
         )}
-        {unpaidCardBills.length > 0 && (
+        {cardEstimates.length > 0 && (
           <div className="checklist-budget-sub">
-            {unpaidCardBills.map((c) => (
+            {cardEstimates.map((c) => (
               <span key={c.id}>・{c.name} NT${c.amount.toLocaleString()}</span>
             ))}
           </div>
@@ -173,10 +193,10 @@ export default function Checklist({
             <span className="checklist-budget-hint">填上月收入即可看生活結餘</span>
           )}
         </div>
-        {lifeBalance < 0 && unpaidCardBills.length > 0 && (
+        {lifeBalance < 0 && cardEstimates.length > 0 && (
           <div className="checklist-budget-hint" style={{ marginTop: 4 }}>
-            主要是{[...unpaidCardBills].sort((a, b) => b.amount - a.amount)[0].name}卡費 NT$
-            {[...unpaidCardBills].sort((a, b) => b.amount - a.amount)[0].amount.toLocaleString()} 拖累，可考慮調整必要支出或延後非必要刷卡
+            主要是{[...cardEstimates].sort((a, b) => b.amount - a.amount)[0].name}卡費 NT$
+            {[...cardEstimates].sort((a, b) => b.amount - a.amount)[0].amount.toLocaleString()} 拖累，可考慮調整必要支出或延後非必要刷卡
           </div>
         )}
       </div>
@@ -190,6 +210,35 @@ export default function Checklist({
           <div className="checklist-summary-row">
             <span className="checklist-summary-label">尚未規劃</span>
             <span className="checklist-summary-amount">NT${remainingAmount.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
+      {cardBills.length > 0 && (
+        <div className="section" style={{ marginTop: 'var(--section-gap)' }}>
+          <SectionHeader title="信用卡預估帳單" />
+          <p className="checklist-estimate-hint">
+            月初規劃用，先抓上一期實際金額當預設，可依這個月狀況手動調整——整月都用這個數字，不會因為銀行有沒有出帳、有沒有標記已繳而變動。
+          </p>
+          <div className="card checklist-estimate-card">
+            {cardBills.map((c) => (
+              <div className="checklist-estimate-row" key={c.id}>
+                <span className="checklist-estimate-name">{c.name}</span>
+                <div className="checklist-budget-input-wrap checklist-estimate-input-wrap">
+                  <span className="checklist-budget-prefix">NT$</span>
+                  <input
+                    className="checklist-budget-input"
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="填預估金額"
+                    value={estimateValue(c)}
+                    onChange={(e) => handleEstimateInput(c.id, e.target.value)}
+                    onBlur={() => commitEstimate(c)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
