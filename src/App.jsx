@@ -10,6 +10,10 @@ import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
+import {
+  ensureInstallmentOccurrences, unpaidInstallmentOccurrences, paidCountOf,
+  daysUntilDue as daysUntilInstallmentDue,
+} from './utils/installmentCycles'
 
 const STORAGE_KEY = 'cardnest_v1'
 
@@ -52,6 +56,24 @@ function billingDayOf(plan) {
 // 這樣日期就不會卡在建立當天，永遠跟著「今天」往後跑。
 function enrichPlans(plans) {
   return plans.map(p => {
+    if (p.type === 'installment') {
+      const unpaid = unpaidInstallmentOccurrences(p)
+      const paidCount = paidCountOf(p)
+      const next = unpaid[0]
+      if (!next) {
+        // 已經全部繳完（或還沒補齊資料），維持既有欄位不強行覆寫
+        return { ...p, paidCount, unpaidOccurrences: unpaid }
+      }
+      const daysLeft = daysUntilInstallmentDue(next)
+      return {
+        ...p,
+        paidCount,
+        nextDate: `${Number(next.dueDate.slice(5, 7))}/${Number(next.dueDate.slice(8, 10))}`,
+        daysLeft,
+        status: statusForDaysLeft(daysLeft),
+        unpaidOccurrences: unpaid,
+      }
+    }
     const billingDay = billingDayOf(p)
     const next = nextOccurrence(billingDay)
     const daysLeft = daysUntil(next)
@@ -80,7 +102,7 @@ function buildWeekDays(plans, cards) {
   plans.forEach(p => {
     const stillActive = p.type === 'subscription'
       ? (p.active ?? true)
-      : (p.paidCount < p.totalCount)
+      : (paidCountOf(p) < p.totalCount)
     if (!stillActive) return
     const dt = nextOccurrence(billingDayOf(p))
     dt.setHours(0, 0, 0, 0)
@@ -159,7 +181,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
       .filter(p => p.type === 'subscription' && (p.active ?? true) && p.card === card.name)
       .reduce((s, p) => s + p.amount, 0)
     const instOnCard = plans
-      .filter(p => p.type === 'installment' && !p.paid && p.card === card.name)
+      .filter(p => p.type === 'installment' && p.card === card.name && unpaidInstallmentOccurrences(p).length > 0)
       .reduce((s, p) => s + p.amount, 0)
     const cardRemaining = card.budget - used
     const cp = card.budget > 0 ? used / card.budget : 0
@@ -277,6 +299,24 @@ export default function App() {
     })
   }, [cards, transactions, plans])
 
+  // 補齊每筆分期的期數紀錄：邏輯跟卡片帳單週期一樣，依時間流逝自動累加未繳期數，
+  // 不再只靠手動點擊「標記已付款」推進，忘記點也不會跟時間脫節。
+  useEffect(() => {
+    setPlans((prev) => {
+      let changed = false
+      const next = prev.map((plan) => {
+        if (plan.type !== 'installment') return plan
+        const occurrences = ensureInstallmentOccurrences(plan)
+        if (occurrences.length !== (plan.occurrences?.length ?? 0)) {
+          changed = true
+          return { ...plan, occurrences }
+        }
+        return plan
+      })
+      return changed ? next : prev
+    })
+  }, [plans])
+
   const showToast = useCallback((message) => {
     if (toastTimer.current) clearTimeout(toastTimer.current)
     setToast({ message })
@@ -311,12 +351,23 @@ export default function App() {
     setPlans(p => p.map(x => {
       if (x.id !== id) return x
       // 訂閱沒有期數概念，只切換已付狀態
-      if (x.totalCount == null) return { ...x, paid: !x.paid }
-      // 分期：標記已付時前進一期，取消時退回一期，並夾在 0 ~ 總期數之間
-      const paidCount = x.paid
-        ? Math.max(0, (x.paidCount ?? 0) - 1)
-        : Math.min(x.totalCount, (x.paidCount ?? 0) + 1)
-      return { ...x, paid: !x.paid, paidCount }
+      if (x.type !== 'installment') return { ...x, paid: !x.paid }
+
+      // 分期：標記「最早未繳的一期」為已繳；若目前沒有未繳的（剛好都繳完了），
+      // 代表這次點擊是要取消最近一次標記，改回撤銷「到期日最晚的已繳那期」
+      const occurrences = x.occurrences ?? []
+      const unpaid = [...occurrences].filter(o => !o.paid).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+      const today = new Date()
+      const paidAt = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+      if (unpaid.length > 0) {
+        const targetId = unpaid[0].id
+        return { ...x, occurrences: occurrences.map(o => o.id === targetId ? { ...o, paid: true, paidAt } : o) }
+      }
+      const paidOnes = [...occurrences].filter(o => o.paid).sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))
+      if (paidOnes.length === 0) return x
+      const undoId = paidOnes[0].id
+      return { ...x, occurrences: occurrences.map(o => o.id === undoId ? { ...o, paid: false, paidAt: null } : o) }
     }))
   }, [])
 
@@ -491,7 +542,7 @@ export default function App() {
 
   // 首頁＝刷卡狀態：本月支出的「固定部分」＝ 所有訂閱 + 未繳清分期（每期），不含必繳清單
   const fixedMonthlyAmount = plans
-    .filter(p => p.type === 'subscription' ? (p.active ?? true) : (p.paidCount < p.totalCount))
+    .filter(p => p.type === 'subscription' ? (p.active ?? true) : (paidCountOf(p) < p.totalCount))
     .reduce((s, p) => s + p.amount, 0)
 
   // 必要支出 / 生活預算
@@ -552,14 +603,14 @@ export default function App() {
 
   // 未償負債（資產負債清晰）：只計分期未繳清的剩餘期數 × 每期金額
   const liabilityItems = plans
-    .filter(p => p.type === 'installment' && p.totalCount - p.paidCount > 0)
+    .filter(p => p.type === 'installment' && p.totalCount - paidCountOf(p) > 0)
     .map(p => ({
       id: p.id,
       name: p.name,
       card: p.card,
       perPeriod: p.amount,
-      remainingPeriods: p.totalCount - p.paidCount,
-      outstanding: (p.totalCount - p.paidCount) * p.amount,
+      remainingPeriods: p.totalCount - paidCountOf(p),
+      outstanding: (p.totalCount - paidCountOf(p)) * p.amount,
     }))
   const totalDebt = liabilityItems.reduce((s, i) => s + i.outstanding, 0)
 

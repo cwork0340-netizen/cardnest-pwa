@@ -10,6 +10,7 @@
 // - dueDate 是完整日期（含年月日），可以手動改成任何一天，不再限制「當月同一天」
 
 import { clampDayInMonth } from './recurrence'
+import { ensureInstallmentOccurrences } from './installmentCycles'
 
 function ymd(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -65,9 +66,12 @@ function snapshotAmount({ cardName, windowStart, windowEnd, transactions, plans 
     })
     .reduce((s, p) => s + p.amount, 0)
 
-  // 分期：這期結帳當下還沒繳清的分期，每期金額算進這一期（跟舊邏輯 instOnCard 一致）
+  // 分期：這期結帳當下還有未繳期數的分期，每期金額算進這一期。用 ensure（現算）
+  // 而不是直接讀 p.occurrences，因為卡片與分期的資料補齊是兩個獨立的 effect，
+  // 執行順序不保證，snapshot 當下 plans 可能還沒補齊過 occurrences。
   const instAmount = plans
-    .filter((p) => p.type === 'installment' && !p.paid && p.card === cardName)
+    .filter((p) => p.type === 'installment' && p.card === cardName)
+    .filter((p) => ensureInstallmentOccurrences(p).some((o) => !o.paid))
     .reduce((s, p) => s + p.amount, 0)
 
   return txAmount + subsAmount + instAmount
