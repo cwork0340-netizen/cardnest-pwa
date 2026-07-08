@@ -107,7 +107,7 @@ input, select, textarea {
 .app-page {
   max-width: 430px;
   margin: 0 auto;
-  padding: 16px var(--page-padding-x) 96px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) var(--page-padding-x) 96px;
   width: 100%;
   flex: 1;
 }
