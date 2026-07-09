@@ -31,6 +31,13 @@ export default function Settings({
   const [bankCardMap, setBankCardMap] = useState(cardImport?.bankCardMap ?? {})
   const [importing, setImporting] = useState(false)
 
+  // 填完離開欄位就存，不用等同步成功——否則第一次同步失敗的話，
+  // 每次進設定頁都要重打一次 Client ID / Sheet ID
+  function saveSyncSettings() {
+    if (clientId.trim() === (googleSync?.clientId ?? '') && sheetId.trim() === (googleSync?.sheetId ?? '')) return
+    onGoogleSyncChange({ ...googleSync, clientId: clientId.trim(), sheetId: sheetId.trim() })
+  }
+
   async function handleConnectAndSync() {
     if (!clientId.trim() || !sheetId.trim()) {
       showToast('請先填入 Client ID 跟 Sheet ID')
@@ -327,11 +334,11 @@ export default function Settings({
           </p>
           <div className="fx-field">
             <label>Google OAuth Client ID</label>
-            <input className="fx-input" value={clientId} onChange={e => setClientId(e.target.value)} placeholder="xxxxxxxx.apps.googleusercontent.com" />
+            <input className="fx-input" value={clientId} onChange={e => setClientId(e.target.value)} onBlur={saveSyncSettings} placeholder="xxxxxxxx.apps.googleusercontent.com" />
           </div>
           <div className="fx-field">
             <label>Google Sheet ID</label>
-            <input className="fx-input" value={sheetId} onChange={e => setSheetId(e.target.value)} placeholder="Sheet 網址中 /d/ 跟 /edit 之間那一段" />
+            <input className="fx-input" value={sheetId} onChange={e => setSheetId(e.target.value)} onBlur={saveSyncSettings} placeholder="Sheet 網址中 /d/ 跟 /edit 之間那一段" />
           </div>
           <div className="settings-backup-actions">
             <button className="button-secondary" onClick={handleConnectAndSync} disabled={syncing}>
