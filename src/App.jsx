@@ -191,10 +191,18 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     const unpaidTotal = totalUnpaid(card)
     const unpaidWithDaysLeft = unpaid.map(c => ({ ...c, daysLeft: daysUntilDue(c) }))
 
+    // 固定顯示的下次結帳／繳款日：直接從卡片設定推算，不依賴有沒有未繳帳單，
+    // 就算這期金額是 0 也看得到「這張卡每月何時結帳、何時要繳」
+    const nextClose = nextOccurrence(Number(card.billingDay) || 1)
+    const nextDue = new Date(nextClose)
+    nextDue.setDate(nextDue.getDate() + (Number(card.dueDay) || 0))
+
     return {
       ...card, used, currentCycleAmount,
       subsOnCard, instOnCard,
       unpaidCycles: unpaidWithDaysLeft, unpaidTotal,
+      nextCloseLabel: formatMD(nextClose),
+      nextDueLabel: formatMD(nextDue),
       status: cardStatus,
       statusText: cardStatus === 'safe'
         ? `還有 NT$${cardRemaining.toLocaleString()} 可用`

@@ -17,11 +17,25 @@
   color: inherit;
 }
 
+.credit-card-summary-name-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
 .credit-card-summary-name {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.credit-card-summary-schedule {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .credit-card-summary-dot {

@@ -39,10 +39,17 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
       >
-        <div className="credit-card-summary-name">
-          <span className="credit-card-summary-dot" style={{ background: card.color }} />
-          <span className="credit-card-summary-label">{card.name}</span>
-          <span className={`credit-card-summary-chevron${expanded ? ' credit-card-summary-chevron-open' : ''}`}>▾</span>
+        <div className="credit-card-summary-name-block">
+          <div className="credit-card-summary-name">
+            <span className="credit-card-summary-dot" style={{ background: card.color }} />
+            <span className="credit-card-summary-label">{card.name}</span>
+            <span className={`credit-card-summary-chevron${expanded ? ' credit-card-summary-chevron-open' : ''}`}>▾</span>
+          </div>
+          {card.nextCloseLabel && (
+            <span className="credit-card-summary-schedule">
+              結帳 {card.nextCloseLabel}・繳款 {card.nextDueLabel}
+            </span>
+          )}
         </div>
         <div className="credit-card-summary-amounts">
           <div className="credit-card-summary-amount-col">

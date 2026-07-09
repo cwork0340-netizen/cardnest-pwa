@@ -43,13 +43,17 @@ function storeToken(token, expiresInSeconds) {
 }
 
 let tokenClient = null
+let tokenClientId = null
 function getTokenClient(clientId) {
-  if (!tokenClient) {
+  // Client ID 變更時要重建連線物件——否則使用者在同一個畫面修正過 ID 之後，
+  // 重試仍然拿著第一次的舊 ID 去請求，永遠失敗
+  if (!tokenClient || tokenClientId !== clientId) {
     tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: SCOPE,
       callback: () => {}, // 在 requestAccessToken 呼叫時用 promise 覆寫
     })
+    tokenClientId = clientId
   }
   return tokenClient
 }
