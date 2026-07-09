@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import Dashboard from './pages/Dashboard'
-import Plans from './pages/Plans'
 import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
@@ -665,18 +664,6 @@ export default function App() {
         onGoToChecklist={() => setTab('checklist')}
       />
     ),
-    plans: (
-      <Plans
-        showToast={showToast}
-        plans={enrichedPlans}
-        cards={cards}
-        fxSettings={fxSettings}
-        onAddPlan={handleAddPlan}
-        onUpdatePlan={handleUpdatePlan}
-        onDeletePlan={handleDeletePlan}
-        onMarkPaid={handleMarkPaid}
-      />
-    ),
     transactions: (
       <Transactions
         showToast={showToast}
@@ -715,6 +702,13 @@ export default function App() {
         onContributeSaving={handleContributeSaving}
         onSpendSaving={handleSpendSaving}
         onResetSaving={handleResetSaving}
+        plans={enrichedPlans}
+        cards={cards}
+        fxSettings={fxSettings}
+        onAddPlan={handleAddPlan}
+        onUpdatePlan={handleUpdatePlan}
+        onDeletePlan={handleDeletePlan}
+        onMarkPlanPaid={handleMarkPaid}
       />
     ),
     settings: (
@@ -739,6 +733,14 @@ export default function App() {
         cardImport={cardImport}
         onCardImportChange={setCardImport}
         onImportTransactions={handleImportTransactions}
+        planSummary={{
+          monthKey: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+          income,
+          essentialTotal,
+          essentialSavings,
+          cardEstimateTotal,
+          lifeBalance,
+        }}
       />
     ),
   }

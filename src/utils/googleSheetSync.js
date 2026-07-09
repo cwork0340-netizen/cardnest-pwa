@@ -149,6 +149,63 @@ function cycleToRow(cardName, cycle) {
   ]
 }
 
+const MONTHLY_SHEET_TITLE = '月度規劃'
+const MONTHLY_HEADER = ['月份', '收入', '必要支出', '額外儲蓄', '信用卡預估', '生活結餘', '更新時間']
+
+// 每月規劃摘要：一個月一列，同步時 upsert 當月那一列（已存在就更新，不存在就往下加），
+// 讓 Sheet 累積成逐月的財務總帳，可以回頭看每個月的收支結構變化。
+export async function syncMonthlyPlanToSheet({ accessToken, sheetId, summary }) {
+  await ensureSheetExists(sheetId, accessToken, MONTHLY_SHEET_TITLE)
+
+  const getRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(MONTHLY_SHEET_TITLE)}!A1:A200`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+  if (!getRes.ok) throw new Error('讀取月度規劃分頁失敗')
+  const existing = (await getRes.json()).values ?? []
+
+  const now = new Date()
+  const row = [
+    summary.monthKey,
+    summary.income,
+    summary.essentialTotal,
+    summary.essentialSavings,
+    summary.cardEstimateTotal,
+    summary.lifeBalance,
+    `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+  ]
+
+  const hasHeader = existing.length > 0 && existing[0][0] === MONTHLY_HEADER[0]
+  const rowIndex = existing.findIndex((r) => r[0] === summary.monthKey)
+
+  const writes = []
+  if (!hasHeader) {
+    writes.push({ range: `${MONTHLY_SHEET_TITLE}!A1`, values: [MONTHLY_HEADER] })
+  }
+  if (rowIndex > 0) {
+    writes.push({ range: `${MONTHLY_SHEET_TITLE}!A${rowIndex + 1}`, values: [row] })
+  } else {
+    const nextRow = Math.max(existing.length + 1, 2)
+    writes.push({ range: `${MONTHLY_SHEET_TITLE}!A${nextRow}`, values: [row] })
+  }
+
+  for (const w of writes) {
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(w.range)}?valueInputOption=USER_ENTERED`,
+      {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: w.values }),
+      }
+    )
+    if (!res.ok) {
+      const err = await res.json().catch(() => null)
+      throw new Error(err?.error?.message || '月度規劃同步失敗')
+    }
+  }
+  return true
+}
+
 // 每張卡的帳單週期歷史（每期結帳日、到期日、金額、是否已繳）寫進獨立分頁，
 // 方便留底查閱哪個月繳了多少、有沒有遲繳，跟刷卡記錄的同步共用同一組授權。
 export async function syncBillingCyclesToSheet({ accessToken, sheetId, cards }) {

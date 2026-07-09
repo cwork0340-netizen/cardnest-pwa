@@ -8,6 +8,8 @@ import ChecklistForm from '../components/ChecklistForm'
 import SavingGoalCard from '../components/SavingGoalCard'
 import SavingsForm from '../components/SavingsForm'
 import SavingsSpendForm from '../components/SavingsSpendForm'
+import PlanCard from '../components/PlanCard'
+import AddPlanForm from '../components/AddPlanForm'
 
 export default function Checklist({
   showToast, items, monthName,
@@ -16,6 +18,8 @@ export default function Checklist({
   savings = [], cardBills = [], onIncomeChange,
   onAdd, onToggle, onUpdate, onDelete,
   onAddSaving, onUpdateSaving, onDeleteSaving, onContributeSaving, onSpendSaving, onResetSaving,
+  plans = [], cards = [], fxSettings,
+  onAddPlan, onUpdatePlan, onDeletePlan, onMarkPlanPaid,
 }) {
   const [showAddSheet, setShowAddSheet] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
@@ -25,6 +29,10 @@ export default function Checklist({
   const [spendSuggest, setSpendSuggest] = useState(0)
   const [incomeInput, setIncomeInput] = useState(income ? String(income) : '')
   const [estimateInputs, setEstimateInputs] = useState({})
+  const [expandedCardId, setExpandedCardId] = useState(null)
+  const [showPlanSheet, setShowPlanSheet] = useState(false)
+  const [editingPlan, setEditingPlan] = useState(null)
+  const planSheetOpen = showPlanSheet || !!editingPlan
 
   const sheetOpen = showAddSheet || !!editingItem
   const savingsSheetOpen = showSavingsSheet || !!editingSaving
@@ -132,11 +140,49 @@ export default function Checklist({
     setEstimateInputs((prev) => { const next = { ...prev }; delete next[card.id]; return next })
   }
 
+  // 這張卡「已知一定會發生」的部分：啟用中的訂閱＋還沒繳完的分期（每期金額）。
+  // 預估帳單低於這個底線代表估太低了——訂閱分期是確定會扣的錢。
+  function cardCommitted(cardName) {
+    return plans
+      .filter((p) => p.card === cardName)
+      .filter((p) => p.type === 'subscription' ? (p.active ?? true) : (p.unpaidOccurrences?.length ?? 0) > 0)
+      .reduce((s, p) => s + p.amount, 0)
+  }
+
+  function cardPlans(cardName) {
+    return plans.filter((p) => p.card === cardName)
+  }
+
+  function handlePlanSubmit(plan) {
+    if (editingPlan) {
+      onUpdatePlan(plan)
+      showToast('計畫已更新')
+    } else {
+      onAddPlan(plan)
+      showToast('新的計畫已加入')
+    }
+    setShowPlanSheet(false)
+    setEditingPlan(null)
+  }
+
+  function handleMarkPlanPaid(id) {
+    const plan = plans.find(p => p.id === id)
+    onMarkPlanPaid(id)
+    const wasFullyPaid = plan?.type === 'subscription'
+      ? plan?.paid
+      : (plan?.unpaidOccurrences?.length ?? 0) === 0
+    showToast(wasFullyPaid ? '已取消付款標記' : '這期已標記付款')
+  }
+
+  function handleDeletePlan(id) {
+    onDeletePlan(id)
+  }
+
   return (
     <div className="checklist-page">
       <div className="checklist-header">
-        <h1 className="checklist-title">必要支出</h1>
-        {monthName && <span className="checklist-sub">{monthName}．收入扣掉必要支出＝可生活的錢</span>}
+        <h1 className="checklist-title">每月規劃</h1>
+        {monthName && <span className="checklist-sub">{monthName}．收入扣掉必要支出與卡費＝可生活的錢</span>}
       </div>
 
       <div className="card checklist-budget">
@@ -216,29 +262,77 @@ export default function Checklist({
 
       {cardBills.length > 0 && (
         <div className="section" style={{ marginTop: 'var(--section-gap)' }}>
-          <SectionHeader title="信用卡預估帳單" />
+          <div className="checklist-section-header-row">
+            <SectionHeader title="信用卡承諾" />
+            <button className="checklist-add-plan-btn" onClick={() => setShowPlanSheet(true)}>
+              ＋ 訂閱/分期
+            </button>
+          </div>
           <p className="checklist-estimate-hint">
-            月初規劃用，先抓上一期實際金額當預設，可依這個月狀況手動調整——整月都用這個數字，不會因為銀行有沒有出帳、有沒有標記已繳而變動。
+            每張卡填一個「這個月預估要繳多少」，整月穩定不變。展開可看這張卡已被訂閱／分期吃掉多少——預估金額至少要蓋過這些確定會扣的錢。
           </p>
           <div className="card checklist-estimate-card">
-            {cardBills.map((c) => (
-              <div className="checklist-estimate-row" key={c.id}>
-                <span className="checklist-estimate-name">{c.name}</span>
-                <div className="checklist-budget-input-wrap checklist-estimate-input-wrap">
-                  <span className="checklist-budget-prefix">NT$</span>
-                  <input
-                    className="checklist-budget-input"
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="填預估金額"
-                    value={estimateValue(c)}
-                    onChange={(e) => handleEstimateInput(c.id, e.target.value)}
-                    onBlur={() => commitEstimate(c)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }}
-                  />
+            {cardBills.map((c) => {
+              const committed = cardCommitted(c.name)
+              const plansOnCard = cardPlans(c.name)
+              const expanded = expandedCardId === c.id
+              const tooLow = Number(estimateValue(c) || 0) < committed
+              return (
+                <div className="checklist-estimate-group" key={c.id}>
+                  <div className="checklist-estimate-row">
+                    <button
+                      className="checklist-estimate-name checklist-estimate-toggle"
+                      onClick={() => setExpandedCardId(expanded ? null : c.id)}
+                      aria-expanded={expanded}
+                    >
+                      {c.name}
+                      {plansOnCard.length > 0 && (
+                        <span className="checklist-estimate-count">{plansOnCard.length} 筆訂閱/分期</span>
+                      )}
+                      <span className={`checklist-estimate-chevron${expanded ? ' checklist-estimate-chevron-open' : ''}`}>▾</span>
+                    </button>
+                    <div className="checklist-budget-input-wrap checklist-estimate-input-wrap">
+                      <span className="checklist-budget-prefix">NT$</span>
+                      <input
+                        className="checklist-budget-input"
+                        type="number"
+                        inputMode="numeric"
+                        placeholder="填預估金額"
+                        value={estimateValue(c)}
+                        onChange={(e) => handleEstimateInput(c.id, e.target.value)}
+                        onBlur={() => commitEstimate(c)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }}
+                      />
+                    </div>
+                  </div>
+                  {committed > 0 && tooLow && (
+                    <div className="checklist-estimate-warning">
+                      這張卡的訂閱＋分期就有 NT${committed.toLocaleString()}，預估金額低於這個底線，
+                      <button className="checklist-estimate-fill" onClick={() => { onUpdateEstimatedBill(c.id, committed); setEstimateInputs((prev) => { const next = { ...prev }; delete next[c.id]; return next }); showToast(`已帶入底線金額 NT$${committed.toLocaleString()}`) }}>
+                        一鍵帶入
+                      </button>
+                    </div>
+                  )}
+                  {expanded && (
+                    <div className="checklist-estimate-plans">
+                      {plansOnCard.length === 0 ? (
+                        <p className="checklist-estimate-hint" style={{ margin: '8px 0' }}>這張卡沒有訂閱或分期</p>
+                      ) : (
+                        plansOnCard.map((plan) => (
+                          <PlanCard
+                            key={plan.id}
+                            plan={plan}
+                            onMarkPaid={handleMarkPlanPaid}
+                            onDelete={handleDeletePlan}
+                            onEdit={setEditingPlan}
+                          />
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -327,6 +421,20 @@ export default function Checklist({
           initialValues={editingSaving}
           checklistItems={items}
           cardBills={cardBills}
+        />
+      </BottomSheet>
+
+      <BottomSheet
+        open={planSheetOpen}
+        onClose={() => { setShowPlanSheet(false); setEditingPlan(null) }}
+        title={editingPlan ? '修改計畫' : '新增訂閱/分期'}
+      >
+        <AddPlanForm
+          onSubmit={handlePlanSubmit}
+          onClose={() => { setShowPlanSheet(false); setEditingPlan(null) }}
+          cards={cards}
+          fxSettings={fxSettings}
+          initialValues={editingPlan}
         />
       </BottomSheet>
 

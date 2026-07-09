@@ -131,8 +131,8 @@ describe('分期計畫：已繳期數', () => {
   it('新增分期時填已繳期數，會算出剩餘期數與剩餘總額', () => {
     seed()
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '訂閱分期' }))
-    fireEvent.click(screen.getByRole('button', { name: '新增計畫' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
+    fireEvent.click(screen.getByText('＋ 訂閱/分期'))
 
     const form = sheet()
     fireEvent.click(within(form).getByRole('button', { name: '分期' }))
@@ -146,6 +146,8 @@ describe('分期計畫：已繳期數', () => {
 
     fireEvent.click(within(form).getByRole('button', { name: '新增計畫' }))
 
+    // 展開永豐卡群組才看得到這張卡的分期
+    fireEvent.click(document.querySelector('.checklist-estimate-toggle'))
     expect(screen.getByText('手機分期')).toBeInTheDocument()
     expect(screen.getByText(/已付 8\/12 期/)).toBeInTheDocument()
     expect(screen.getByText(/剩餘總額.*NT\$4,000/)).toBeInTheDocument()
@@ -154,8 +156,8 @@ describe('分期計畫：已繳期數', () => {
   it('已繳期數留空時預設為整筆未繳（已付 0）', () => {
     seed()
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '訂閱分期' }))
-    fireEvent.click(screen.getByRole('button', { name: '新增計畫' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
+    fireEvent.click(screen.getByText('＋ 訂閱/分期'))
 
     const form = sheet()
     fireEvent.click(within(form).getByRole('button', { name: '分期' }))
@@ -165,6 +167,7 @@ describe('分期計畫：已繳期數', () => {
     fireEvent.change(inputs[3], { target: { value: '6' } })
     fireEvent.click(within(form).getByRole('button', { name: '新增計畫' }))
 
+    fireEvent.click(document.querySelector('.checklist-estimate-toggle'))
     expect(screen.getByText(/已付 0\/6 期/)).toBeInTheDocument()
   })
 
@@ -177,7 +180,8 @@ describe('分期計畫：已繳期數', () => {
       }],
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '訂閱分期' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
+    fireEvent.click(document.querySelector('.checklist-estimate-toggle'))
     expect(screen.getByText(/已付 8\/12 期/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: '編輯' }))
@@ -296,7 +300,7 @@ describe('每月必繳清單', () => {
   it('可新增項目、標記繳清、再刪除', () => {
     seed()
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
 
     // 空狀態
     expect(screen.getByText('還沒有必繳項目')).toBeInTheDocument()
@@ -329,7 +333,7 @@ describe('每月必繳清單', () => {
       checklistMonth: '2000-0', // 久遠的月份，模擬跨月
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     // done 應被重置為未規劃
     expect(screen.getByText('0/1 已規劃')).toBeInTheDocument()
   })
@@ -356,7 +360,7 @@ describe('每月必繳清單', () => {
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     // 收入 10000 − 必要支出 3000 → 生活結餘 7000
     expect(screen.getByText(/還有 NT\$7,000 可生活/)).toBeInTheDocument()
   })
@@ -368,7 +372,7 @@ describe('每月必繳清單', () => {
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     // 收入 2000 − 必要支出 3000 → 超出 1000
     expect(screen.getByText(/超出 NT\$1,000/)).toBeInTheDocument()
   })
@@ -381,7 +385,7 @@ describe('每月必繳清單', () => {
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     // 必要支出＝必繳 3000（儲蓄不另外加）；生活結餘 10000 − 3000 = 7000
     expect(screen.getByText(/還有 NT\$7,000 可生活/)).toBeInTheDocument()
   })
@@ -394,7 +398,7 @@ describe('每月必繳清單', () => {
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     // 必要支出＝必繳 3000 + 額外儲蓄 2000 = 5000；生活結餘 10000 − 5000 = 5000
     expect(screen.getByText(/還有 NT\$5,000 可生活/)).toBeInTheDocument()
     expect(screen.getByText(/額外儲蓄 NT\$2,000/)).toBeInTheDocument()
@@ -407,7 +411,7 @@ describe('每月必繳清單', () => {
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     expect(screen.getByText('NT$4,000')).toBeInTheDocument()
     fireEvent.click(screen.getByText(/撥入本月/))
     // 4000 + 2000 = 6000
@@ -422,7 +426,7 @@ describe('每月必繳清單', () => {
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     fireEvent.click(screen.getByText(/領出全部/))
     expect(document.querySelector('.sg-saved').textContent).toBe('NT$0')
   })
@@ -435,7 +439,7 @@ describe('每月必繳清單', () => {
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     // 尚未勾選：還在規劃階段，必要支出＝0，生活結餘＝收入 10000
     expect(screen.getByText(/還有 NT\$10,000 可生活/)).toBeInTheDocument()
     expect(document.querySelector('.sg-saved').textContent).toBe('NT$0')
@@ -457,7 +461,7 @@ describe('每月必繳清單', () => {
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     fireEvent.click(screen.getByText('記一筆支出'))
     fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '4000' } })
     fireEvent.click(screen.getByText('記錄支出'))
@@ -473,7 +477,7 @@ describe('每月必繳清單', () => {
       checklistMonth: `${new Date().getFullYear()}-${new Date().getMonth()}`,
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     // 本期卡費＝永豐卡本月刷卡 5000
     fireEvent.click(screen.getByText('支付卡費 NT$5,000'))
     fireEvent.click(screen.getByText('記錄支出'))
@@ -490,7 +494,8 @@ describe('整列點擊即可編輯', () => {
         nextDate: '6/15', daysLeft: 5, status: 'neutral', paid: false }],
     })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '訂閱分期' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
+    fireEvent.click(document.querySelector('.checklist-estimate-toggle'))
     fireEvent.click(document.querySelector('.plan-card-clickable'))
     expect(screen.getByText('修改計畫')).toBeInTheDocument()
   })
@@ -498,7 +503,7 @@ describe('整列點擊即可編輯', () => {
   it('點整筆必繳項目開啟編輯', () => {
     seed({ checklist: [{ id: 'cl1', name: '房租', amount: 15000, day: 5, done: false }] })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     fireEvent.click(document.querySelector('.cl-item-clickable'))
     expect(screen.getByText('修改項目')).toBeInTheDocument()
   })
@@ -514,7 +519,7 @@ describe('整列點擊即可編輯', () => {
   it('點必繳項目的勾選鈕只切換狀態、不會開啟編輯', () => {
     seed({ checklist: [{ id: 'cl1', name: '電信費', amount: 599, day: 8, done: false }] })
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     fireEvent.click(screen.getByRole('button', { name: '標記已規劃' }))
     expect(screen.queryByText('修改項目')).not.toBeInTheDocument()
     expect(screen.getByText('1/1 已規劃')).toBeInTheDocument()
@@ -609,7 +614,7 @@ describe('標記已繳從連動帳戶扣款', () => {
     // 提醒消失
     expect(document.querySelector('.pay-reminder')).toBeNull()
     // 到必繳頁看帳戶餘額：5000 − 3000 = 2000
-    fireEvent.click(screen.getByRole('button', { name: '必繳' }))
+    fireEvent.click(screen.getByRole('button', { name: '規劃' }))
     expect(document.querySelector('.sg-saved').textContent).toBe('NT$2,000')
   })
 })

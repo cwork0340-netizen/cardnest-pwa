@@ -5,7 +5,6 @@ import HeroStatusCard from '../components/HeroStatusCard'
 import MonthlyBalanceCard from '../components/MonthlyBalanceCard'
 import PaymentReminderCard from '../components/PaymentReminderCard'
 import WeekCalendar from '../components/WeekCalendar'
-import BudgetCard from '../components/BudgetCard'
 import CreditCardSummaryCard from '../components/CreditCardSummaryCard'
 import CategoryBreakdownCard from '../components/CategoryBreakdownCard'
 import TrendChartCard from '../components/TrendChartCard'
@@ -52,18 +51,6 @@ export default function Dashboard({
       <div className="section" style={{ marginTop: 'var(--section-gap)' }}>
         <SectionHeader title="本週扣款" />
         <WeekCalendar days={weekDays} />
-      </div>
-
-      <div className="section">
-        <SectionHeader title="本月可用額度" />
-        <div className="card">
-          <BudgetCard
-            total={currentMonth.estimatedTotal}
-            budget={currentMonth.budget}
-            used={currentMonth.estimatedTotal}
-            remaining={currentMonth.remaining}
-          />
-        </div>
       </div>
 
       {envelopeView.length > 0 && (

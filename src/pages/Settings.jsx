@@ -4,7 +4,7 @@ import SectionHeader from '../components/SectionHeader'
 import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
-import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet } from '../utils/googleSheetSync'
+import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet, syncMonthlyPlanToSheet } from '../utils/googleSheetSync'
 import { fetchImportRows, toDisplayDate } from '../utils/importSheetSync'
 
 // card-import（projects/card-import/Code.gs）目前支援的銀行。之後那支腳本加新銀行，
@@ -14,7 +14,7 @@ const SUPPORTED_BANKS = ['富邦', '永豐', '國泰世華']
 export default function Settings({
   showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard,
   backupData, onImportData, onClearData, transactions, googleSync, onGoogleSyncChange,
-  cardImport, onCardImportChange, onImportTransactions,
+  cardImport, onCardImportChange, onImportTransactions, planSummary,
 }) {
   const [editingCard, setEditingCard] = useState(null)
   const [showAddCard, setShowAddCard] = useState(false)
@@ -41,8 +41,11 @@ export default function Settings({
       const token = await getAccessToken(clientId.trim())
       const count = await syncTransactionsToSheet({ accessToken: token, sheetId: sheetId.trim(), transactions })
       const cycleCount = await syncBillingCyclesToSheet({ accessToken: token, sheetId: sheetId.trim(), cards })
+      if (planSummary?.income > 0) {
+        await syncMonthlyPlanToSheet({ accessToken: token, sheetId: sheetId.trim(), summary: planSummary })
+      }
       onGoogleSyncChange({ clientId: clientId.trim(), sheetId: sheetId.trim(), lastSyncAt: Date.now(), lastSyncCount: count })
-      showToast(`已同步 ${count} 筆刷卡紀錄、${cycleCount} 筆帳單週期到 Google Sheet`)
+      showToast(`已同步 ${count} 筆刷卡紀錄、${cycleCount} 筆帳單週期，並更新本月規劃總帳`)
     } catch (e) {
       showToast(e.message || '同步失敗，請稍後再試')
     } finally {
