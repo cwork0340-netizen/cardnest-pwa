@@ -13,7 +13,7 @@ const SUPPORTED_BANKS = ['富邦', '永豐', '國泰世華']
 
 export default function Settings({
   showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard,
-  backupData, onImportData, onClearData, transactions, googleSync, onGoogleSyncChange,
+  backupData, onImportData, onClearData, transactions, plans, googleSync, onGoogleSyncChange,
   cardImport, onCardImportChange, onImportTransactions, planSummary,
 }) {
   const [editingCard, setEditingCard] = useState(null)
@@ -89,13 +89,29 @@ export default function Settings({
         if (importedKeys.has(row.permalink)) return
         const cardName = bankCardMap[row.bank]
         if (!cardName) { skippedUnmapped++; return }
+        const date = toDisplayDate(row.rawDate)
+
+        // 銀行那邊有時會用不同信件連結重複通知同一筆交易，光靠 permalink 去重複會漏網。
+        // 這裡再用「卡片＋金額＋日期」比對一次現有刷卡記錄，跟已經轉過分期的原始交易，
+        // 避免同一筆帳又被當成新交易匯入一次（尤其是已經轉分期、金額比較大的那種）。
+        const alreadyInTransactions = transactions.some(
+          (t) => t.card === cardName && Number(t.amount) === row.amount && t.date === date
+        )
+        const alreadyConvertedToInstallment = (plans ?? []).some(
+          (p) => p.type === 'installment' && p.card === cardName && Number(p.sourceAmount) === row.amount && p.sourceDate === date
+        )
+        if (alreadyInTransactions || alreadyConvertedToInstallment) {
+          newKeys.push(row.permalink) // 記住這個連結，下次匯入才能靠 permalink 直接跳過
+          return
+        }
+
         newTxs.push({
           id: crypto.randomUUID(),
           name: row.merchant || row.bank,
           category: '其他',
           card: cardName,
           amount: row.amount,
-          date: toDisplayDate(row.rawDate),
+          date,
           note: `自動匯入・${row.bank}`,
         })
         newKeys.push(row.permalink)
