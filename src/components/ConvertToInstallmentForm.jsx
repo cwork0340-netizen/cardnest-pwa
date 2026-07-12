@@ -39,6 +39,9 @@ export default function ConvertToInstallmentForm({ tx, onSubmit, onClose }) {
       paidCount: 0,
       totalCount: total,
       paid: false,
+      // 記住原始那筆刷卡記錄，避免之後重複匯入同一筆帳時，因為找不到「已轉分期」的痕跡而誤判成新交易
+      sourceAmount: Number(tx.amount),
+      sourceDate: tx.date,
     })
   }
 

@@ -6,6 +6,7 @@ import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
 import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet, syncMonthlyPlanToSheet } from '../utils/googleSheetSync'
 import { fetchImportRows, toDisplayDate } from '../utils/importSheetSync'
+import { unpaidInstallmentOccurrences } from '../utils/installmentCycles'
 
 // card-import（projects/card-import/Code.gs）目前支援的銀行。之後那支腳本加新銀行，
 // 這裡也要跟著加一行，才有對應的卡片可以選。
@@ -13,7 +14,7 @@ const SUPPORTED_BANKS = ['富邦', '永豐', '國泰世華']
 
 export default function Settings({
   showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard,
-  backupData, onImportData, onClearData, transactions, googleSync, onGoogleSyncChange,
+  backupData, onImportData, onClearData, transactions, plans, googleSync, onGoogleSyncChange,
   cardImport, onCardImportChange, onImportTransactions, planSummary,
 }) {
   const [editingCard, setEditingCard] = useState(null)
@@ -84,18 +85,51 @@ export default function Settings({
       const newTxs = []
       const newKeys = []
       let skippedUnmapped = 0
+      let matchedPlanCount = 0
 
       rows.forEach((row) => {
         if (importedKeys.has(row.permalink)) return
         const cardName = bankCardMap[row.bank]
         if (!cardName) { skippedUnmapped++; return }
+        const date = toDisplayDate(row.rawDate)
+
+        // 銀行那邊有時會用不同信件連結重複通知同一筆交易，光靠 permalink 去重複會漏網。
+        // 這裡再用「卡片＋金額＋日期」比對一次現有刷卡記錄，跟已經轉過分期的原始交易，
+        // 避免同一筆帳又被當成新交易匯入一次（尤其是已經轉分期、金額比較大的那種）。
+        const alreadyInTransactions = transactions.some(
+          (t) => t.card === cardName && Number(t.amount) === row.amount && t.date === date
+        )
+        const alreadyConvertedToInstallment = (plans ?? []).some(
+          (p) => p.type === 'installment' && p.card === cardName && Number(p.sourceAmount) === row.amount && p.sourceDate === date
+        )
+        if (alreadyInTransactions || alreadyConvertedToInstallment) {
+          newKeys.push(row.permalink) // 記住這個連結，下次匯入才能靠 permalink 直接跳過
+          return
+        }
+
+        // 分期／訂閱每期扣款，銀行通常還是會各發一次刷卡通知。這筆錢已經由計畫自己
+        // 按時間追蹤在繳了，不該再以「一般刷卡消費」的身分計入本期累積，否則等於算兩次。
+        // 用「卡片＋金額」比對進行中的分期（每期金額）／啟用中的訂閱（每月金額），
+        // 對得上就不建立刷卡記錄，只記住連結避免下次又重複判斷。
+        const matchedPlan = (plans ?? []).find((p) => {
+          if (p.card !== cardName || Number(p.amount) !== row.amount) return false
+          if (p.type === 'installment') return unpaidInstallmentOccurrences(p).length > 0
+          if (p.type === 'subscription') return p.active ?? true
+          return false
+        })
+        if (matchedPlan) {
+          matchedPlanCount++
+          newKeys.push(row.permalink)
+          return
+        }
+
         newTxs.push({
           id: crypto.randomUUID(),
           name: row.merchant || row.bank,
           category: '其他',
           card: cardName,
           amount: row.amount,
-          date: toDisplayDate(row.rawDate),
+          date,
           note: `自動匯入・${row.bank}`,
         })
         newKeys.push(row.permalink)
@@ -103,11 +137,10 @@ export default function Settings({
 
       onImportTransactions(newTxs, newKeys)
 
-      if (skippedUnmapped > 0) {
-        showToast(`已匯入 ${newTxs.length} 筆，${skippedUnmapped} 筆銀行尚未設定對應卡片`)
-      } else {
-        showToast(`已匯入 ${newTxs.length} 筆刷卡記錄`)
-      }
+      const notes = []
+      if (skippedUnmapped > 0) notes.push(`${skippedUnmapped} 筆銀行尚未設定對應卡片`)
+      if (matchedPlanCount > 0) notes.push(`${matchedPlanCount} 筆已比對到分期/訂閱扣款，未重複記錄`)
+      showToast(notes.length > 0 ? `已匯入 ${newTxs.length} 筆，${notes.join('，')}` : `已匯入 ${newTxs.length} 筆刷卡記錄`)
     } catch (e) {
       showToast(e.message || '匯入失敗，請稍後再試')
     } finally {

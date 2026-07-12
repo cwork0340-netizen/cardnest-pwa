@@ -736,6 +736,7 @@ export default function App() {
         onImportData={handleImportData}
         onClearData={handleClearData}
         transactions={transactions}
+        plans={plans}
         googleSync={googleSync}
         onGoogleSyncChange={setGoogleSync}
         cardImport={cardImport}
