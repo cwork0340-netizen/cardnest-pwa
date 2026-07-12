@@ -153,6 +153,11 @@ export default function Checklist({
     return plans.filter((p) => p.card === cardName)
   }
 
+  // 訂閱分頁拿掉後，訂閱只會出現在各卡片展開後的清單裡，很容易忘記自己訂了什麼、
+  // 每月加起來多少錢。這裡固定顯示全部啟用中的訂閱，不用逐卡展開才看得到。
+  const activeSubscriptions = plans.filter((p) => p.type === 'subscription' && (p.active ?? true))
+  const subscriptionMonthlyTotal = activeSubscriptions.reduce((s, p) => s + Number(p.amount), 0)
+
   function handlePlanSubmit(plan) {
     if (editingPlan) {
       onUpdatePlan(plan)
@@ -256,6 +261,29 @@ export default function Checklist({
           <div className="checklist-summary-row">
             <span className="checklist-summary-label">尚未規劃</span>
             <span className="checklist-summary-amount">NT${remainingAmount.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
+      {activeSubscriptions.length > 0 && (
+        <div className="section" style={{ marginTop: 'var(--section-gap)' }}>
+          <SectionHeader title="訂閱總覽" />
+          <div className="card checklist-summary">
+            <div className="checklist-summary-row">
+              <span className="checklist-summary-label">每月訂閱合計</span>
+              <span className="checklist-summary-amount">NT${subscriptionMonthlyTotal.toLocaleString()}</span>
+            </div>
+          </div>
+          <div className="checklist-estimate-plans" style={{ marginTop: 8 }}>
+            {activeSubscriptions.map((plan) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                onMarkPaid={handleMarkPlanPaid}
+                onDelete={handleDeletePlan}
+                onEdit={setEditingPlan}
+              />
+            ))}
           </div>
         </div>
       )}
