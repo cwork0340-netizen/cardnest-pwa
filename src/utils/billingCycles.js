@@ -11,6 +11,7 @@
 
 import { clampDayInMonth } from './recurrence'
 import { ensureInstallmentOccurrences } from './installmentCycles'
+import { matchesCard, parseISODate, planAmountNotRecorded } from './financeData'
 
 function ymd(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -39,40 +40,37 @@ function nextCloseDate(prevClose, billingDay) {
 // 把一段時間窗內的刷卡記錄、訂閱、未繳分期，加總成那個結帳週期「結帳當下」該有的金額。
 // tx.date 是 "M/D" 字串，跟 App.jsx 既有的 resolveNearDate 邏輯一致（避免跨年誤判）。
 function resolveNearDate(displayDate, near) {
-  const [m, d] = displayDate.split('/').map(Number)
-  let candidate = new Date(near.getFullYear(), m - 1, d)
-  const diffMonths = (candidate.getFullYear() - near.getFullYear()) * 12 + (candidate.getMonth() - near.getMonth())
-  if (diffMonths > 6) candidate = new Date(candidate.getFullYear() - 1, candidate.getMonth(), candidate.getDate())
-  else if (diffMonths < -6) candidate = new Date(candidate.getFullYear() + 1, candidate.getMonth(), candidate.getDate())
-  return candidate
+  return parseISODate(displayDate, near)
 }
 
-function snapshotAmount({ cardName, windowStart, windowEnd, transactions, plans }) {
+function snapshotAmount({ card, cardName, windowStart, windowEnd, transactions, plans }) {
+  const cardRef = card ?? { name: cardName }
+  const cards = card?.id ? [card] : []
   const txAmount = transactions
-    .filter((tx) => tx.card === cardName)
+    .filter((tx) => matchesCard(tx, cardRef))
     .filter((tx) => {
       const dt = resolveNearDate(tx.date, windowEnd)
-      return dt > windowStart && dt <= windowEnd
+      return dt && dt > windowStart && dt <= windowEnd
     })
     .reduce((s, tx) => s + tx.amount, 0)
 
   // 訂閱：扣款日落在這個結帳週期時間窗內才算進這一期（不是無條件全部塞進每一期）
   const subsAmount = plans
-    .filter((p) => p.type === 'subscription' && (p.active ?? true) && p.card === cardName)
+    .filter((p) => p.type === 'subscription' && (p.active ?? true) && matchesCard(p, cardRef))
     .filter((p) => {
       const day = Number(p.billingDay) || 1
       const occurrence = new Date(windowEnd.getFullYear(), windowEnd.getMonth(), clampDayInMonth(windowEnd.getFullYear(), windowEnd.getMonth(), day))
       return occurrence > windowStart && occurrence <= windowEnd
     })
-    .reduce((s, p) => s + p.amount, 0)
+    .reduce((s, p) => s + planAmountNotRecorded({ plan: p, transactions, cards, windowStart, windowEnd }), 0)
 
   // 分期：這期結帳當下還有未繳期數的分期，每期金額算進這一期。用 ensure（現算）
   // 而不是直接讀 p.occurrences，因為卡片與分期的資料補齊是兩個獨立的 effect，
   // 執行順序不保證，snapshot 當下 plans 可能還沒補齊過 occurrences。
   const instAmount = plans
-    .filter((p) => p.type === 'installment' && p.card === cardName)
+    .filter((p) => p.type === 'installment' && matchesCard(p, cardRef))
     .filter((p) => ensureInstallmentOccurrences(p).some((o) => !o.paid))
-    .reduce((s, p) => s + p.amount, 0)
+    .reduce((s, p) => s + planAmountNotRecorded({ plan: p, transactions, cards, windowStart, windowEnd }), 0)
 
   return txAmount + subsAmount + instAmount
 }
@@ -95,7 +93,7 @@ export function ensureBillingCycles(card, { transactions, plans, today = new Dat
 
     const amount = Number(card.actualBill) > 0
       ? Number(card.actualBill)
-      : snapshotAmount({ cardName: card.name, windowStart: prevClose, windowEnd: lastClose, transactions, plans })
+      : snapshotAmount({ card, cardName: card.name, windowStart: prevClose, windowEnd: lastClose, transactions, plans })
 
     cycles.push({
       id: crypto.randomUUID(),
@@ -128,7 +126,7 @@ export function ensureBillingCycles(card, { transactions, plans, today = new Dat
       cycleKey: cycleKeyOf(windowEnd),
       closeDate: ymd(windowEnd),
       dueDate: ymd(dueDate),
-      amount: snapshotAmount({ cardName: card.name, windowStart, windowEnd, transactions, plans }),
+      amount: snapshotAmount({ card, cardName: card.name, windowStart, windowEnd, transactions, plans }),
       amountIsActual: false,
       paid: false,
       paidAt: null,

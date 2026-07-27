@@ -35,3 +35,10 @@ export function toDisplayDate(rawDate) {
   const [, m, d] = parts
   return `${m}/${d}`
 }
+
+export function toISODate(rawDate) {
+  const parts = String(rawDate).split(/[/-]/).map(Number)
+  if (parts.length < 3 || parts.some(Number.isNaN)) return rawDate
+  const [y, m, d] = parts
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}

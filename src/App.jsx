@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+﻿import { useState, useCallback, useEffect, useRef } from 'react'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import Dashboard from './pages/Dashboard'
@@ -13,46 +13,50 @@ import {
   ensureInstallmentOccurrences, unpaidInstallmentOccurrences, paidCountOf,
   daysUntilDue as daysUntilInstallmentDue,
 } from './utils/installmentCycles'
+import {
+  getCardName,
+  isSameMonth,
+  matchesCard,
+  normalizeFinanceData,
+  parseISODate,
+  planAmountNotRecorded,
+  resolveCardId,
+  toISODate,
+} from './utils/financeData'
+
+/* eslint-disable react-hooks/set-state-in-effect */
 
 const STORAGE_KEY = 'cardnest_v1'
 
 function loadStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : null
+    return raw ? normalizeFinanceData(JSON.parse(raw)) : null
   } catch {
     return null
   }
 }
 
-const MONTH_NAMES = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月']
-const WEEKDAY_NAMES = ['日','一','二','三','四','五','六']
-const CATEGORY_COLORS = {
-  餐飲: '#A98274', 購物: '#D6A04D', 訂閱: '#8DAA91',
-  日常: '#B98D6F', 交通: '#C86E62', 娛樂: '#D6A04D', 其他: '#B9ADA6',
-}
-const TREND_BASE = [
-  { month: '12月', amount: 31200 }, { month: '1月', amount: 28940 },
-  { month: '2月', amount: 25380 }, { month: '3月', amount: 36120 },
-  { month: '4月', amount: 33880 }, { month: '5月', amount: 39140 },
-]
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const CATEGORY_COLORS = {}
 
 function getGreeting(hour) {
-  if (hour < 5) return '夜深了，記得早點休息'
+  if (hour < 5) return '夜深'
   if (hour < 11) return '早安'
   if (hour < 13) return '午安'
   if (hour < 18) return '午後好'
   return '晚安'
 }
 
-// 每月幾號扣款／繳款的錨點：新資料用 billingDay，舊資料從 nextDate 字串推回去
+// 瘥?撟曇???狡嚗像甈曄??券?嚗鞈???billingDay嚗?鞈?敺?nextDate 摮葡?典???
 function billingDayOf(plan) {
   return plan.billingDay ?? dayFromMD(plan.nextDate) ?? 1
 }
 
-// 把訂閱／分期的下次發生日、剩餘天數、狀態，每次渲染都即時算一次，
-// 不再相信新增當下凍結進資料裡的 nextDate / daysLeft / status，
-// 這樣日期就不會卡在建立當天，永遠跟著「今天」往後跑。
+// ???梧?????甈∠??擗予?詻???瘥活皜脫??賢??銝甈∴?
+// 銝??訾縑?啣??嗡????脰??ㄐ??nextDate / daysLeft / status嚗?
+// ?見?交?撠曹???典遣蝡憭抬?瘞賊?頝???憭押?敺???
 function enrichPlans(plans) {
   return plans.map(p => {
     if (p.type === 'installment') {
@@ -60,7 +64,7 @@ function enrichPlans(plans) {
       const paidCount = paidCountOf(p)
       const next = unpaid[0]
       if (!next) {
-        // 已經全部繳完（或還沒補齊資料），維持既有欄位不強行覆寫
+        // 撌脩??券蝜喳?嚗???鋆?鞈?嚗?蝬剜??Ｘ?甈?銝撥銵?撖?
         return { ...p, paidCount, unpaidOccurrences: unpaid }
       }
       const daysLeft = daysUntilInstallmentDue(next)
@@ -80,15 +84,17 @@ function enrichPlans(plans) {
   })
 }
 
-// 建立本週（週日起算）七天的扣款行事曆，事件以卡片顏色標示
+// 撱箇??祇梧??望韏瑞?嚗?憭拍???狡銵???鈭辣隞亙???脫?蝷?
 function buildWeekDays(plans, cards) {
   const colorByCard = {}
+  const colorByCardId = {}
   cards.forEach(c => { colorByCard[c.name] = c.color })
+  cards.forEach(c => { colorByCardId[c.id] = c.color })
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const weekStart = new Date(today)
-  weekStart.setDate(today.getDate() - today.getDay()) // 週日
+  weekStart.setDate(today.getDate() - today.getDay()) // ?望
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekStart.getDate() + 7)
 
@@ -110,33 +116,26 @@ function buildWeekDays(plans, cards) {
     days[idx].events.push({
       id: p.id,
       name: p.name,
-      card: p.card,
+      card: getCardName(p, cards),
       amount: p.amount,
-      color: colorByCard[p.card] ?? '#A98274',
+      color: colorByCardId[resolveCardId(p, cards)] ?? colorByCard[p.card] ?? '#A98274',
     })
   })
 
   return days
 }
 
-// 刷卡記錄的 date 是 "M/D" 顯示字串（沒有年份），跟現在比對月份即可判斷是不是本期
+// ?瑕閮???date ??"M/D" 憿舐內摮葡嚗??僑隞踝?嚗??曉瘥??遢?喳?斗?臭??舀??
 function isThisMonth(displayDate, from = new Date()) {
-  if (!displayDate) return false
-  const [m] = displayDate.split('/').map(Number)
-  return m === from.getMonth() + 1
+  return isSameMonth(displayDate, from)
 }
 
-// 把沒有年份的 "M/D" 還原成跟 near 最接近的完整日期，避免跨年誤判（例如 12 月帳單週期跨到 1 月）
+// ???僑隞賜? "M/D" ???? near ??亥????湔???踹?頝典僑隤文嚗?憒?12 ?董?桅望?頝典 1 ??
 function resolveNearDate(displayDate, near) {
-  const [m, d] = displayDate.split('/').map(Number)
-  let candidate = new Date(near.getFullYear(), m - 1, d)
-  const diffMonths = (candidate.getFullYear() - near.getFullYear()) * 12 + (candidate.getMonth() - near.getMonth())
-  if (diffMonths > 6) candidate = new Date(candidate.getFullYear() - 1, candidate.getMonth(), candidate.getDate())
-  else if (diffMonths < -6) candidate = new Date(candidate.getFullYear() + 1, candidate.getMonth(), candidate.getDate())
-  return candidate
+  return parseISODate(displayDate, near)
 }
 
-// 依「結帳日」算出目前所在帳單週期的邊界：上次結帳日（本期帳單截止點）、上上次結帳日（上期帳單起點）
+// 靘?撣單???箇???典董?桅望?????銝活蝯董?伐??祆?撣喳?芣迫暺???銝活蝯董?伐?銝?撣喳韏琿?嚗?
 function billingCycleBounds(billingDay, today) {
   if (!billingDay) return null
   const y = today.getFullYear(), m = today.getMonth(), d = today.getDate()
@@ -146,11 +145,11 @@ function billingCycleBounds(billingDay, today) {
 }
 
 function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = []) {
-  // 預算／應繳只看本月的刷卡記錄，跨月的舊記錄不會一路往上累加
+  // ??嚗?蝜喳????瑕閮?嚗楊????????頝臬?銝敞??
   const monthTx = transactions.filter(tx => isThisMonth(tx.date))
   const totalSpent = monthTx.reduce((s, tx) => s + tx.amount, 0)
   const totalBudget = cards.reduce((s, c) => s + c.budget, 0)
-  // 本月支出 = 已記錄刷卡 + 訂閱／分期（首頁＝刷卡狀態，不含必繳清單）
+  // ?祆??臬 = 撌脰????+ 閮嚗???擐?嚗?∠???銝敹像皜嚗?
   const monthlyOut = totalSpent + fixedMonthlyAmount
   const remaining = Math.max(0, totalBudget - monthlyOut)
   const pct = totalBudget > 0 ? monthlyOut / totalBudget : 0
@@ -159,40 +158,52 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
 
   const today = new Date()
   const enrichedCards = cards.map(card => {
-    const cardTx = transactions.filter(tx => tx.card === card.name)
+    const cardTx = transactions.filter(tx => matchesCard(tx, card))
     const bounds = billingCycleBounds(card.billingDay, today)
-    // 上期（已結帳，等待繳款）／本期累積（結帳日之後新刷的，還沒出帳）：依結帳日切，不是日曆月
+    // 銝?嚗歇蝯董嚗?敺像甈橘?嚗?敞蝛?蝯董?乩?敺?瑞?嚗?瘝撣喉?嚗?蝯董?亙?嚗??舀??
     let used, currentCycleAmount
     if (bounds) {
       used = cardTx
-        .filter(tx => { const dt = resolveNearDate(tx.date, today); return dt > bounds.prevBillingDate && dt <= bounds.lastBillingDate })
+        .filter(tx => { const dt = resolveNearDate(tx.date, today); return dt && dt > bounds.prevBillingDate && dt <= bounds.lastBillingDate })
         .reduce((s, tx) => s + tx.amount, 0)
       currentCycleAmount = cardTx
-        .filter(tx => { const dt = resolveNearDate(tx.date, today); return dt > bounds.lastBillingDate && dt <= today })
+        .filter(tx => { const dt = resolveNearDate(tx.date, today); return dt && dt > bounds.lastBillingDate && dt <= today })
         .reduce((s, tx) => s + tx.amount, 0)
     } else {
-      // 沒填結帳日，退回原本日曆月估算
+      // 瘝‵蝯董?伐?????祆??隡啁?
       used = cardTx.filter(tx => isThisMonth(tx.date)).reduce((s, tx) => s + tx.amount, 0)
       currentCycleAmount = 0
     }
-    // 這一期進行中的訂閱／分期，給「本期累積」明細參考用（跟帳單週期歷史記錄是兩件事）
+    // ???脰?銝剔?閮嚗???蝯艾?敞蝛?蝝啣??嚗?撣喳?望?甇瑕閮??臬隞嗡?嚗?
     const subsOnCard = plans
-      .filter(p => p.type === 'subscription' && (p.active ?? true) && p.card === card.name)
-      .reduce((s, p) => s + p.amount, 0)
+      .filter(p => p.type === 'subscription' && (p.active ?? true) && matchesCard(p, card))
+      .reduce((s, p) => s + planAmountNotRecorded({
+        plan: p,
+        transactions,
+        cards,
+        windowStart: bounds?.lastBillingDate ?? new Date(today.getFullYear(), today.getMonth(), 1),
+        windowEnd: today,
+      }), 0)
     const instOnCard = plans
-      .filter(p => p.type === 'installment' && p.card === card.name && unpaidInstallmentOccurrences(p).length > 0)
-      .reduce((s, p) => s + p.amount, 0)
+      .filter(p => p.type === 'installment' && matchesCard(p, card) && unpaidInstallmentOccurrences(p).length > 0)
+      .reduce((s, p) => s + planAmountNotRecorded({
+        plan: p,
+        transactions,
+        cards,
+        windowStart: bounds?.lastBillingDate ?? new Date(today.getFullYear(), today.getMonth(), 1),
+        windowEnd: today,
+      }), 0)
     const cardRemaining = card.budget - used
     const cp = card.budget > 0 ? used / card.budget : 0
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
 
-    // 帳單週期：每一期都是有真實日期的獨立紀錄，未繳的會一直累加，不會因為換月而消失或被誤判
+    // 撣喳?望?嚗?銝??舀??祕?交??蝡????芰像??銝?渡敞??銝??????憭望?鋡怨炊??
     const unpaid = unpaidCycles(card)
     const unpaidTotal = totalUnpaid(card)
     const unpaidWithDaysLeft = unpaid.map(c => ({ ...c, daysLeft: daysUntilDue(c) }))
 
-    // 固定顯示的下次結帳／繳款日：直接從卡片設定推算，不依賴有沒有未繳帳單，
-    // 就算這期金額是 0 也看得到「這張卡每月何時結帳、何時要繳」
+    // ?箏?憿舐內??甈∠?撣喉?蝜單狡?伐??湔敺?身摰蝞?銝?鞈湔?瘝??芰像撣喳嚗?
+    // 撠梁???????0 銋?敺?撐?⊥?????撣喋???蝜喋?
     const nextClose = nextOccurrence(Number(card.billingDay) || 1)
     const nextDue = new Date(nextClose)
     nextDue.setDate(nextDue.getDate() + (Number(card.dueDay) || 0))
@@ -205,9 +216,9 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
       nextDueLabel: formatMD(nextDue),
       status: cardStatus,
       statusText: cardStatus === 'safe'
-        ? `還有 NT$${cardRemaining.toLocaleString()} 可用`
-        : cardStatus === 'warning' ? '接近預算上限'
-        : '已超出預算',
+        ? `Remaining NT$${cardRemaining.toLocaleString()}`
+        : cardStatus === 'warning' ? 'Approaching budget'
+        : 'Over budget',
     }
   })
 
@@ -221,7 +232,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     }))
     .sort((a, b) => b.amount - a.amount)
 
-  // 分類信封預算：每個信封的本月已花（由刷卡分類加總）對比月額度
+  // ??靽∪???嚗??縑撠??祆?撌脰嚗?瑕???蜇嚗?瘥?憿漲
   const envelopeView = envelopes.map(e => {
     const used = catMap[e.name] ?? 0
     return {
@@ -241,7 +252,19 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     flexibleUsed: envelopeView.filter(e => e.necessity === 'flexible').reduce((s, e) => s + e.used, 0),
   }
 
-  const trends = [...TREND_BASE, { month: monthName, amount: totalSpent }]
+  const trendMap = monthTx.reduce((map, tx) => {
+    const date = parseISODate(tx.date, today)
+    if (!date) return map
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    map.set(key, (map.get(key) ?? 0) + Number(tx.amount || 0))
+    return map
+  }, new Map())
+  const trends = [...trendMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, amount]) => {
+      const [, month] = key.split('-')
+      return { month: `${Number(month)}/${today.getFullYear()}`, amount }
+    })
 
   const estimatedTotal = totalSpent + fixedMonthlyAmount
   const currentMonth = {
@@ -252,7 +275,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     fixedMonthlyAmount,
     estimatedTotal,
     status,
-    statusText: status === 'safe' ? `${monthName}目前很穩` : status === 'warning' ? `${monthName}需要留意` : `${monthName}已超支`,
+    statusText: status === 'safe' ? `${monthName} on track` : status === 'warning' ? `${monthName} near budget` : `${monthName} over budget`,
   }
 
   return { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary }
@@ -261,7 +284,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
 export default function App() {
   const stored = loadStorage()
 
-  // 必繳清單「月初自動重置」：跨月開啟時把所有項目恢復為未繳
+  // 敹像皜?????蝵柴?頝冽?????????格敺拍?芰像
   const currentMonthKey = `${new Date().getFullYear()}-${new Date().getMonth()}`
   const storedChecklist = stored?.checklist ?? []
   const initialChecklist = stored?.checklistMonth === currentMonthKey
@@ -289,8 +312,8 @@ export default function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync, cardImport }))
   }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync, cardImport])
 
-  // 補齊每張卡的帳單週期：新卡片、或距離上次開啟已經跨過新的結帳日，都會在這裡自動生成
-  // 新的一期紀錄並寫回 cards。已經存在的舊週期不會被動到，未繳的會一直留著不會消失。
+  // 鋆?瘥撐?∠?撣喳?望?嚗?∠???頝銝活??撌脩?頝券??啁?蝯董?伐??賣??券ㄐ?芸???
+  // ?啁?銝???蒂撖怠? cards?歇蝬??函??望?銝?鋡怠??堆??芰像??銝?渡?????憭晞?
   useEffect(() => {
     setCards((prev) => {
       let changed = false
@@ -306,9 +329,9 @@ export default function App() {
     })
   }, [cards, transactions, plans])
 
-  // 每月信用卡預估帳單：月初規劃時，每張卡給一個「這個月大概要繳多少」的數字，
-  // 整月穩定不變（不會因為有沒有封帳、標記已繳而忽高忽低）。跨月時預設帶入
-  // 上一期實際封帳的金額，當作起始估計，Chia 可以在必繳頁手動調整。
+  // 瘥?靽∠?⊿?隡啣董?殷???閬???瘥撐?∠策銝??憭扳?閬像憭????詨?嚗?
+  // ?湔?蝛拙?銝?嚗????箸?瘝?撠董??閮歇蝜唾蕭擃蕭雿??楊???身撣嗅
+  // 銝??祕??撣喟???嚗雿絲憪摯閮?Chia ?臭誑?典?蝜喲???隤踵??
   useEffect(() => {
     setCards((prev) => {
       let changed = false
@@ -323,8 +346,8 @@ export default function App() {
     })
   }, [cards, currentMonthKey])
 
-  // 補齊每筆分期的期數紀錄：邏輯跟卡片帳單週期一樣，依時間流逝自動累加未繳期數，
-  // 不再只靠手動點擊「標記已付款」推進，忘記點也不會跟時間脫節。
+  // 鋆?瘥??????貊????摩頝?董?桅望?銝璅??靘?????敞?蝜單??賂?
+  // 銝??芷???暺???閮歇隞狡??莎?敹?暺?銝?頝??蝭??
   useEffect(() => {
     setPlans((prev) => {
       let changed = false
@@ -354,14 +377,23 @@ export default function App() {
   }, [])
 
   // Plans handlers
-  const handleAddPlan = useCallback((plan) => setPlans(p => [plan, ...p]), [])
-  const handleUpdatePlan = useCallback((updated) => setPlans(p => p.map(pl => pl.id === updated.id ? updated : pl)), [])
+  const normalizePlan = useCallback((plan) => {
+    const cardId = resolveCardId(plan, cards)
+    const card = cards.find(c => c.id === cardId)
+    return {
+      ...plan,
+      ...(cardId && { cardId }),
+      card: plan.card ?? card?.name ?? '',
+    }
+  }, [cards])
+  const handleAddPlan = useCallback((plan) => setPlans(p => [normalizePlan(plan), ...p]), [normalizePlan])
+  const handleUpdatePlan = useCallback((updated) => setPlans(p => p.map(pl => pl.id === updated.id ? normalizePlan(updated) : pl)), [normalizePlan])
   const handleDeletePlan = useCallback((id) => {
     setPlans(prev => {
       const idx = prev.findIndex(x => x.id === id)
       const item = prev[idx]
       const next = prev.filter(x => x.id !== id)
-      showUndoToast(`已移除「${item.name}」`, () => {
+      showUndoToast(`Deleted ${item.name}`, () => {
         setPlans(p => {
           const r = [...p]
           r.splice(Math.min(idx, r.length), 0, item)
@@ -374,11 +406,11 @@ export default function App() {
   const handleMarkPaid = useCallback((id) => {
     setPlans(p => p.map(x => {
       if (x.id !== id) return x
-      // 訂閱沒有期數概念，只切換已付狀態
+      // 閮瘝??璁艙嚗??撌脖????
       if (x.type !== 'installment') return { ...x, paid: !x.paid }
 
-      // 分期：標記「最早未繳的一期」為已繳；若目前沒有未繳的（剛好都繳完了），
-      // 代表這次點擊是要取消最近一次標記，改回撤銷「到期日最晚的已繳那期」
+      // ??嚗?閮??拇蝜喟?銝?撌脩像嚗?桀?瘝??芰像???末?賜像摰?嚗?
+      // 隞?”?活暺??航????餈?甈⊥?閮??孵??日?????撌脩像?????
       const occurrences = x.occurrences ?? []
       const unpaid = [...occurrences].filter(o => !o.paid).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
       const today = new Date()
@@ -396,31 +428,41 @@ export default function App() {
   }, [])
 
   // Transactions handlers
-  const handleAddTransaction = useCallback((tx) => setTransactions(p => [tx, ...p]), [])
-  const handleUpdateTransaction = useCallback((updated) => setTransactions(p => p.map(t => t.id === updated.id ? updated : t)), [])
-  // 單筆刷卡轉分期：新增分期計畫並移除原本的單筆記錄，避免重複計入本月支出
+  const normalizeTransaction = useCallback((tx) => {
+    const cardId = resolveCardId(tx, cards)
+    const card = cards.find(c => c.id === cardId)
+    return {
+      ...tx,
+      ...(cardId && { cardId }),
+      card: tx.card ?? card?.name ?? '',
+      date: toISODate(tx.date),
+    }
+  }, [cards])
+  const handleAddTransaction = useCallback((tx) => setTransactions(p => [normalizeTransaction(tx), ...p]), [normalizeTransaction])
+  const handleUpdateTransaction = useCallback((updated) => setTransactions(p => p.map(t => t.id === updated.id ? normalizeTransaction(updated) : t)), [normalizeTransaction])
+  // ?桃??瑕頧????啣???閮銝衣宏?文??祉??桃?閮?嚗??銴??交???
   const handleConvertToInstallment = useCallback((txId, plan) => {
-    setPlans(p => [plan, ...p])
+    setPlans(p => [normalizePlan(plan), ...p])
     setTransactions(p => p.filter(t => t.id !== txId))
-  }, [])
+  }, [normalizePlan])
 
-  // 銀行自動收集的刷卡通知匯入：Settings 已用 permalink 去重複、篩掉沒對應卡片的銀行，
-  // 這裡只負責把過濾後的新交易加進來，並記錄這批 permalink 避免下次重複匯入
+  // ?銵????瑕??臬嚗ettings 撌脩 permalink ?駁?銴祟??撠??∠???銵?
+  // ?ㄐ?芾?鞎祆??蕪敺??唬漱???脖?嚗蒂閮?? permalink ?踹?銝活???臬
   const handleImportTransactions = useCallback((newTxs, newKeys) => {
-    setTransactions(p => [...newTxs, ...p])
+    setTransactions(p => [...newTxs.map(normalizeTransaction), ...p])
     setCardImport(prev => ({
       ...prev,
       importedKeys: [...prev.importedKeys, ...newKeys],
       lastImportAt: Date.now(),
       lastImportCount: newTxs.length,
     }))
-  }, [])
+  }, [normalizeTransaction])
   const handleDeleteTransaction = useCallback((id) => {
     setTransactions(prev => {
       const idx = prev.findIndex(x => x.id === id)
       const item = prev[idx]
       const next = prev.filter(x => x.id !== id)
-      showUndoToast(`已移除「${item.name}」`, () => {
+      showUndoToast(`Deleted ${item.name}`, () => {
         setTransactions(p => {
           const r = [...p]
           r.splice(Math.min(idx, r.length), 0, item)
@@ -431,12 +473,12 @@ export default function App() {
     })
   }, [showUndoToast])
 
-  // Checklist handlers（每月必繳清單）
+  // Checklist handlers嚗???蝜單??殷?
   const handleAddChecklistItem = useCallback((item) => setChecklist(p => [...p, item]), [])
   const handleUpdateChecklistItem = useCallback((updated) => setChecklist(p => p.map(i => i.id === updated.id ? updated : i)), [])
   const handleDeleteChecklistItem = useCallback((id) => setChecklist(p => p.filter(i => i.id !== id)), [])
 
-  // 勾選必繳項目：若有儲蓄帳戶連動此項目，當月勾選＝把「當下實際金額」存入帳戶，取消＝退回本月那筆
+  // ?暸敹像?嚗??董?園??甇日??殷??嗆??暸嚗??銝祕??憿??亙董?塚???嚗??蝑?
   const handleToggleChecklistItem = useCallback((id) => {
     const item = checklist.find(i => i.id === id)
     const nowDone = item ? !item.done : false
@@ -449,46 +491,46 @@ export default function App() {
       const entries = g.entries ?? []
       const monthEntry = entries.find(e => e.type === 'in' && e.month === checklistMonth && e.source === 'checklist')
       if (nowDone) {
-        if (monthEntry) return g // 同月已存入，不重複
-        const entry = { id: crypto.randomUUID(), type: 'in', amount: amt, date: dateStr, note: '本月撥入', month: checklistMonth, source: 'checklist' }
+        if (monthEntry) return g // ??撌脣??伐?銝?銴?
+        const entry = { id: crypto.randomUUID(), type: 'in', amount: amt, date: dateStr, note: '?祆??亙', month: checklistMonth, source: 'checklist' }
         return { ...g, saved: Number(g.saved) + amt, entries: [...entries, entry] }
       }
-      if (!monthEntry) return g // 取消本月撥入
+      if (!monthEntry) return g // ???祆??亙
       return { ...g, saved: Number(g.saved) - Number(monthEntry.amount), entries: entries.filter(e => e.id !== monthEntry.id) }
     }))
   }, [checklist, checklistMonth])
 
-  // 儲蓄帳戶
+  // ?脰?撣單
   const handleAddSaving = useCallback((goal) => setSavings(p => [...p, { entries: [], ...goal }]), [])
   const handleUpdateSaving = useCallback((updated) => setSavings(p => p.map(g => g.id === updated.id ? { ...g, ...updated } : g)), [])
   const handleDeleteSaving = useCallback((id) => setSavings(p => p.filter(g => g.id !== id)), [])
-  // 手動撥入（未連動的帳戶用）
+  // ???亙嚗????董?嗥嚗?
   const handleContributeSaving = useCallback((id) => setSavings(p => p.map(g => {
     if (g.id !== id) return g
     const amt = Number(g.monthly)
     const dateStr = `${new Date().getMonth() + 1}/${new Date().getDate()}`
-    const entry = { id: crypto.randomUUID(), type: 'in', amount: amt, date: dateStr, note: '手動撥入', source: 'manual' }
+    const entry = { id: crypto.randomUUID(), type: 'in', amount: amt, date: dateStr, note: '???亙', source: 'manual' }
     return { ...g, saved: Number(g.saved) + amt, entries: [...(g.entries ?? []), entry] }
   })), [])
-  // 帳戶支出（實際把錢花掉，例如繳學費）
+  // 撣單?臬嚗祕???Ｚ??靘?蝜喳飛鞎鳴?
   const handleSpendSaving = useCallback((id, amount, note) => setSavings(p => p.map(g => {
     if (g.id !== id) return g
     const amt = Number(amount)
     const dateStr = `${new Date().getMonth() + 1}/${new Date().getDate()}`
-    const entry = { id: crypto.randomUUID(), type: 'out', amount: amt, date: dateStr, note: note || '支出', source: 'manual' }
+    const entry = { id: crypto.randomUUID(), type: 'out', amount: amt, date: dateStr, note: note || '?臬', source: 'manual' }
     return { ...g, saved: Number(g.saved) - amt, entries: [...(g.entries ?? []), entry] }
   })), [])
-  // 領出全部（歸零，記成一筆支出）
+  // ??券嚗飛?塚?閮?銝蝑?綽?
   const handleResetSaving = useCallback((id) => setSavings(p => p.map(g => {
     if (g.id !== id) return g
     const amt = Number(g.saved)
     if (amt <= 0) return g
     const dateStr = `${new Date().getMonth() + 1}/${new Date().getDate()}`
-    const entry = { id: crypto.randomUUID(), type: 'out', amount: amt, date: dateStr, note: '領出全部', source: 'manual' }
+    const entry = { id: crypto.randomUUID(), type: 'out', amount: amt, date: dateStr, note: '??券', source: 'manual' }
     return { ...g, saved: 0, entries: [...(g.entries ?? []), entry] }
   })), [])
 
-  // Envelope handlers（分類信封預算）
+  // Envelope handlers嚗?憿縑撠?蝞?
   const handleAddEnvelope = useCallback((env) => setEnvelopes(p => [...p, env]), [])
   const handleUpdateEnvelope = useCallback((updated) => setEnvelopes(p => p.map(e => e.id === updated.id ? updated : e)), [])
   const handleDeleteEnvelope = useCallback((id) => setEnvelopes(p => p.filter(e => e.id !== id)), [])
@@ -497,8 +539,8 @@ export default function App() {
   const handleAddCard = useCallback((card) => setCards(p => [...p, card]), [])
   const handleSaveCard = useCallback((updated) => setCards(p => p.map(c => c.id === updated.id ? updated : c)), [])
   const handleDeleteCard = useCallback((id) => setCards(p => p.filter(c => c.id !== id)), [])
-  // 標記某一期帳單已繳：cycleId 全域唯一，直接找出對應的卡片跟那一期改掉；
-  // 可選擇從連動的儲蓄帳戶扣款
+  // 璅????董?桀歇蝜喉?cycleId ?典??臭?嚗?交?箏????∠?頝銝???
+  // ?舫???????董?嗆甈?
   const handleMarkCardPaid = useCallback((cycleId, opts = {}) => {
     const paidAt = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
     setCards(prev => prev.map(c => {
@@ -509,11 +551,11 @@ export default function App() {
       }
     }))
     if (opts.fromSavingId && Number(opts.amount) > 0) {
-      handleSpendSaving(opts.fromSavingId, Number(opts.amount), '繳卡費')
+      handleSpendSaving(opts.fromSavingId, Number(opts.amount), 'Card payment')
     }
   }, [handleSpendSaving])
 
-  // 一次把某張卡所有未繳的期數都標記已繳（例如補繳好幾期積欠的帳單）
+  // 銝甈⊥??撐?⊥??蝜喟???賣?閮歇蝜喉?靘?鋆像憟賢嗾??甈?撣喳嚗?
   const handleMarkAllCyclesPaid = useCallback((cardId) => {
     const paidAt = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
     setCards(prev => prev.map(c => {
@@ -525,7 +567,7 @@ export default function App() {
     }))
   }, [])
 
-  // 手動改某一期的到期日（延後繳款），或編輯金額（銀行實際帳單跟估算不同時）
+  // ???寞?銝???唳??伐?撱嗅?蝜單狡嚗??楊頛舫?憿??銵祕?董?株?隡啁?銝???
   const handleUpdateCycle = useCallback((cardId, cycleId, fields) => {
     setCards(prev => prev.map(c => {
       if (c.id !== cardId) return c
@@ -536,7 +578,7 @@ export default function App() {
     }))
   }, [])
 
-  // 手動調整這個月的信用卡預估帳單金額（月初規劃用，整月穩定，不受封帳/已繳狀態影響）
+  // ??隤踵???縑?典?摯撣喳??嚗????嚗?帘摰?銝?撠董/撌脩像??蔣?選?
   const handleUpdateEstimatedBill = useCallback((cardId, amount) => {
     setCards(prev => prev.map(c => c.id === cardId ? { ...c, estimatedBill: Number(amount) || 0 } : c))
   }, [])
@@ -555,31 +597,40 @@ export default function App() {
     setTab('dashboard')
   }, [])
 
-  // 還原備份：用匯入的資料整批覆蓋
+  // ???遢嚗?臬????寡???
   const handleImportData = useCallback((data) => {
     if (!data || typeof data !== 'object') return false
-    setCards(Array.isArray(data.cards) ? data.cards : [])
-    setPlans(Array.isArray(data.plans) ? data.plans : [])
-    setTransactions(Array.isArray(data.transactions) ? data.transactions : [])
+    const normalized = normalizeFinanceData(data)
+    setCards(normalized.cards)
+    setPlans(normalized.plans)
+    setTransactions(normalized.transactions)
     setChecklist(Array.isArray(data.checklist) ? data.checklist : [])
     setEnvelopes(Array.isArray(data.envelopes) ? data.envelopes : [])
     if (data.fxSettings && typeof data.fxSettings === 'object') setFxSettings(data.fxSettings)
     if (typeof data.income === 'number') setIncome(data.income)
     setSavings(Array.isArray(data.savings) ? data.savings : [])
+    setGoogleSync(data.googleSync ?? null)
+    setCardImport(data.cardImport ?? { sheetId: '', bankCardMap: {}, importedKeys: [] })
     return true
   }, [])
 
-  // 首頁＝刷卡狀態：本月支出的「固定部分」＝ 所有訂閱 + 未繳清分期（每期），不含必繳清單
+  // 擐?嚗?∠????祆??臬?摰?? ?????+ ?芰像皜???瘥?嚗?銝敹像皜
   const fixedMonthlyAmount = plans
     .filter(p => p.type === 'subscription' ? (p.active ?? true) : (paidCountOf(p) < p.totalCount))
-    .reduce((s, p) => s + p.amount, 0)
+    .reduce((s, p) => s + planAmountNotRecorded({
+      plan: p,
+      transactions,
+      cards,
+      windowStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+      windowEnd: new Date(),
+    }), 0)
 
-  // 必要支出 / 生活預算
-  // 只算「已勾選」的必繳項目：勾選代表這個月已經確定把這筆錢留下來，
-  // 未勾選的還在規劃階段，不該提前算進必要支出總額。
+  // 敹??臬 / ?暑??
+  // ?芰??歇?暸??敹像?嚗?訾誨銵券?撌脩?蝣箏????Ｙ?銝?嚗?
+  // ?芸?貊??閬??挾嚗?閰脫????脣?閬?箇蜇憿?
   const checklistTotal = checklist.filter(i => i.done).reduce((s, i) => s + Number(i.amount), 0)
-  // 連動必繳項目的儲蓄：金額已在必繳清單裡，不重複計入。
-  // 只有「未連動且勾選額外預留」的帳戶，才是收入之外另外存、會加進必要支出。
+  // ???敹像??????撌脣敹像皜鋆∴?銝?銴??乓?
+  // ?芣?????銝?賊?憭???撣單嚗??舀?乩?憭憭????脣?閬?箝?
   const savingsMonthly = savings.reduce((s, g) => s + Number(g.monthly || 0), 0)
   const essentialSavings = savings
     .filter(g => !g.linkedChecklistId && g.countInEssential)
@@ -588,8 +639,8 @@ export default function App() {
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
 
-  // 信用卡預估帳單：月初規劃時設定的數字，整月穩定不變，不受封帳／已繳狀態影響——
-  // 這個月的錢已經花掉就是花掉了，不會因為標記已繳就「還」回生活結餘。
+  // 靽∠?⊿?隡啣董?殷???閬??身摰??詨?嚗?帘摰?霈?銝?撠董嚗歇蝜喟??蔣?踱?
+  // ???撌脩??望?撠望?望?鈭?銝??璅?撌脩像撠晞????暑蝯???
   const cardEstimates = cards
     .filter(c => Number(c.estimatedBill) > 0)
     .map(c => ({ id: c.id, name: c.name, amount: Number(c.estimatedBill) }))
@@ -598,8 +649,8 @@ export default function App() {
   const weekDays = buildWeekDays(plans, enrichedCards)
   const enrichedPlans = enrichPlans(plans)
 
-  // 繳費提醒：把每張卡「所有」未繳的週期攤平成一筆一筆提醒（同一張卡可能同時有兩期沒繳），
-  // 天數用真正的日期相減，不再受換月影響。
+  // 蝜唾祥??嚗?瘥撐?～??蝜喟??望??文像??蝑?蝑?????撘萄?航?????蝜喉?嚗?
+  // 憭拇?函?甇???交??豢?嚗?????敶梢??
   const paymentReminders = enrichedCards
     .flatMap(c => {
       const reserve = savings.find(g => g.linkedCardId === c.id)
@@ -616,7 +667,7 @@ export default function App() {
     })
     .sort((a, b) => a.daysLeft - b.daysLeft)
 
-  // 各卡狀態用：補上連動的卡費預留帳戶
+  // ???嚗?銝???鞎駁??董??
   const dashboardCards = enrichedCards.map(c => {
     const reserve = savings.find(g => g.linkedCardId === c.id)
     return {
@@ -625,12 +676,12 @@ export default function App() {
     }
   })
 
-  // 開啟 App 時，若有快到期/逾期的卡費就跳一則瀏覽器通知（今天只跳一次）
+  // ?? App ???交?敹怠???暹??鞎餃停頝喃??汗?券嚗?憭拙頝喃?甈∴?
   useEffect(() => {
     maybeNotifyDueBills(paymentReminders)
   }, [paymentReminders])
 
-  // 未償負債（資產負債清晰）：只計分期未繳清的剩餘期數 × 每期金額
+  // ?芸?鞎嚗??Ｚ??菜??堆?嚗閮??蝜單??擗???? 瘥???
   const liabilityItems = plans
     .filter(p => p.type === 'installment' && p.totalCount - paidCountOf(p) > 0)
     .map(p => ({
@@ -645,7 +696,7 @@ export default function App() {
 
   const now = new Date()
   const greeting = getGreeting(now.getHours())
-  const dateLabel = `${now.getMonth() + 1}月${now.getDate()}日 星期${WEEKDAY_NAMES[now.getDay()]}`
+  const dateLabel = `${now.getMonth() + 1}??{now.getDate()}????${WEEKDAY_NAMES[now.getDay()]}`
 
   const pages = {
     dashboard: (
@@ -732,7 +783,7 @@ export default function App() {
         onAddEnvelope={handleAddEnvelope}
         onUpdateEnvelope={handleUpdateEnvelope}
         onDeleteEnvelope={handleDeleteEnvelope}
-        backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings, income }}
+        backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings, income, savings, googleSync, cardImport }}
         onImportData={handleImportData}
         onClearData={handleClearData}
         transactions={transactions}

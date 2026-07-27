@@ -4,17 +4,20 @@ const AUTH_KEY = 'cardnest_gauth'
 
 export function loadAuthState() {
   try {
-    const raw = localStorage.getItem(AUTH_KEY)
+    localStorage.removeItem(AUTH_KEY)
+    const raw = sessionStorage.getItem(AUTH_KEY)
     return raw ? JSON.parse(raw) : null
   } catch { return null }
 }
 
 export function saveAuthState(state) {
-  localStorage.setItem(AUTH_KEY, JSON.stringify(state))
+  localStorage.removeItem(AUTH_KEY)
+  sessionStorage.setItem(AUTH_KEY, JSON.stringify(state))
 }
 
 export function clearAuthState() {
   localStorage.removeItem(AUTH_KEY)
+  sessionStorage.removeItem(AUTH_KEY)
 }
 
 export function isTokenValid(auth) {

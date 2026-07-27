@@ -10,14 +10,13 @@ export default function TrendChartCard({ trends }) {
   const range = max - min || 1
 
   const points = trends.map((t, i) => ({
-    x: i * (280 / (n - 1)),
+    x: n === 1 ? 140 : i * (280 / (n - 1)),
     y: 72 - ((t.amount - min) / range) * 60,
     month: t.month,
     amount: t.amount,
   }))
 
   const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ')
-  const last = points[points.length - 1]
 
   return (
     <div className="card trend-chart-card">

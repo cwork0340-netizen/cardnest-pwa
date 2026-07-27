@@ -6,11 +6,7 @@ import BottomSheet from '../components/BottomSheet'
 import QuickTransactionForm from '../components/QuickTransactionForm'
 import ConvertToInstallmentForm from '../components/ConvertToInstallmentForm'
 import EmptyState from '../components/EmptyState'
-
-function formatDisplayDate(isoDate) {
-  const [, m, d] = isoDate.split('-')
-  return `${Number(m)}/${Number(d)}`
-}
+import { matchesCard, parseISODate, resolveCardId, toISODate } from '../utils/financeData'
 
 const PERIOD_TABS = [
   { key: 'all', label: '全部' },
@@ -22,27 +18,22 @@ const PERIOD_TABS = [
 // 用本地時區解析 "YYYY-MM-DD"（<input type="date"> 的格式），不能直接 new Date(字串)——
 // 那會被當成 UTC 午夜，跟其他本地時間日期比較時會因時區產生誤差。
 function parseYmd(s) {
-  const [y, m, d] = s.split('-').map(Number)
-  return new Date(y, m - 1, d)
+  return parseISODate(s)
 }
 
 // 把沒有年份的 "M/D" 還原成跟 near 最接近的完整日期，避免跨年誤判
 function resolveNearDate(displayDate, near) {
-  const [m, d] = displayDate.split('/').map(Number)
-  let candidate = new Date(near.getFullYear(), m - 1, d)
-  const diffMonths = (candidate.getFullYear() - near.getFullYear()) * 12 + (candidate.getMonth() - near.getMonth())
-  if (diffMonths > 6) candidate = new Date(candidate.getFullYear() - 1, candidate.getMonth(), candidate.getDate())
-  else if (diffMonths < -6) candidate = new Date(candidate.getFullYear() + 1, candidate.getMonth(), candidate.getDate())
-  return candidate
+  return parseISODate(displayDate, near)
 }
 
 // 刷卡記錄的 date 是 "M/D" 字串（沒有年份），跟現在的月份／週比對即可判斷區間
 function isInPeriod(displayDate, period, { from = new Date(), rangeStart, rangeEnd } = {}) {
   if (period === 'all' || !displayDate) return true
-  const [m, d] = displayDate.split('/').map(Number)
-  if (period === 'month') return m === from.getMonth() + 1
+  const parsed = parseISODate(displayDate, from)
+  if (!parsed) return true
+  if (period === 'month') return parsed.getFullYear() === from.getFullYear() && parsed.getMonth() === from.getMonth()
   if (period === 'week') {
-    const txDate = new Date(from.getFullYear(), m - 1, d)
+    const txDate = parsed
     const startOfWeek = new Date(from)
     startOfWeek.setDate(from.getDate() - from.getDay())
     startOfWeek.setHours(0, 0, 0, 0)
@@ -74,7 +65,10 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
   const sheetOpen = showSheet || !!editingTx
 
   const filteredTransactions = transactions.filter((tx) => {
-    if (cardFilter !== 'all' && tx.card !== cardFilter) return false
+    if (cardFilter !== 'all') {
+      const card = cards.find((c) => c.id === cardFilter || c.name === cardFilter)
+      if (!matchesCard(tx, card)) return false
+    }
     if (!isInPeriod(tx.date, periodFilter, { rangeStart, rangeEnd })) return false
     if (keyword.trim()) {
       const kw = keyword.trim().toLowerCase()
@@ -91,13 +85,15 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
     setEditingTx(null)
   }
 
-  function handleSubmit({ amount, category, card, date, note }) {
+  function handleSubmit({ amount, category, cardId, card, date, note }) {
+    const selectedCard = cards.find((c) => c.id === (cardId || resolveCardId({ card }, cards)))
     const fields = {
       name: note.trim() || category,
       category,
-      card,
+      cardId: selectedCard?.id,
+      card: selectedCard?.name ?? card,
       amount,
-      date: formatDisplayDate(date),
+      date: toISODate(date),
       note,
     }
     if (editingTx) {
@@ -177,7 +173,7 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
         <SectionHeader title="所有消費" />
         {filteredTransactions.length > 0 && (
           <div className="tx-total-bar">
-            <span className="tx-total-label">{cardFilter === 'all' ? '全部' : cardFilter} 合計（{filteredTransactions.length} 筆）</span>
+            <span className="tx-total-label">{cardFilter === 'all' ? '全部' : cards.find((c) => c.id === cardFilter || c.name === cardFilter)?.name} 合計（{filteredTransactions.length} 筆）</span>
             <span className="tx-total-amount">-NT${filteredTotal.toLocaleString()}</span>
           </div>
         )}

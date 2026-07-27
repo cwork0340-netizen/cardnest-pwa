@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './QuickTransactionForm.css'
+import { resolveCardId, toISODate } from '../utils/financeData'
 
 const CATEGORIES = ['餐飲', '購物', '訂閱', '日常', '交通', '娛樂', '其他']
 
@@ -13,17 +14,14 @@ function todayString() {
 
 // "6/7" → "2025-06-07"（補上當前年份，供 date input 預填）
 function mdToIso(md) {
-  if (!md) return todayString()
-  const [m, d] = md.split('/').map(Number)
-  const y = new Date().getFullYear()
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  return toISODate(md || todayString())
 }
 
 export default function QuickTransactionForm({ onSubmit, onClose, cards, initialValues = null }) {
   const isEditing = !!initialValues
   const [amount, setAmount] = useState(initialValues ? String(initialValues.amount) : '')
   const [category, setCategory] = useState(initialValues?.category ?? CATEGORIES[0])
-  const [card, setCard] = useState(initialValues?.card ?? cards[0]?.name ?? '')
+  const [cardId, setCardId] = useState(resolveCardId(initialValues, cards) ?? cards[0]?.id ?? '')
   const [date, setDate] = useState(initialValues ? mdToIso(initialValues.date) : todayString())
   const [note, setNote] = useState(initialValues?.note ?? '')
   const [error, setError] = useState('')
@@ -36,7 +34,8 @@ export default function QuickTransactionForm({ onSubmit, onClose, cards, initial
       return
     }
     setError('')
-    onSubmit({ amount: num, category, card, date, note })
+    const selectedCard = cards.find((c) => c.id === cardId)
+    onSubmit({ amount: num, category, cardId, card: selectedCard?.name ?? '', date, note })
   }
 
   return (
@@ -72,11 +71,11 @@ export default function QuickTransactionForm({ onSubmit, onClose, cards, initial
           <label className="qtf-label">信用卡</label>
           <select
             className="qtf-select"
-            value={card}
-            onChange={(e) => setCard(e.target.value)}
+            value={cardId}
+            onChange={(e) => setCardId(e.target.value)}
           >
             {cards.map((c) => (
-              <option key={c.id} value={c.name}>{c.name}</option>
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
         </div>

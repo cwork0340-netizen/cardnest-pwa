@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './AddPlanForm.css'
 import { dayFromMD } from '../utils/recurrence'
+import { resolveCardId } from '../utils/financeData'
 
 // 舊資料只有 nextDate（如 "6/15"）沒有 billingDay 時，從顯示字串推回每月幾號；
 // 新增時預設今天的號數，跟原本「下次扣款日」預填今天的行為一致
@@ -19,7 +20,7 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
   const [type, setType] = useState(initialValues?.type ?? 'subscription')
   const [currency, setCurrency] = useState(initialValues?.currency ?? 'TWD')
   const [name, setName] = useState(initialValues?.name ?? '')
-  const [card, setCard] = useState(initialValues?.card ?? cards[0]?.name ?? '')
+  const [cardId, setCardId] = useState(resolveCardId(initialValues, cards) ?? cards[0]?.id ?? '')
   const [amount, setAmount] = useState(
     initialValues
       ? String(initialValues.currency === 'USD' ? initialValues.amountOriginal : initialValues.amount)
@@ -66,7 +67,8 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
       id: initialValues?.id ?? crypto.randomUUID(),
       type,
       name: name.trim(),
-      card,
+      cardId,
+      card: cards.find((c) => c.id === cardId)?.name ?? '',
       currency,
       amount: amountTWD,
       period: type === 'subscription' ? '月' : '期',
@@ -117,11 +119,11 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
           <label className="apf-label">信用卡</label>
           <select
             className="apf-input"
-            value={card}
-            onChange={(e) => setCard(e.target.value)}
+            value={cardId}
+            onChange={(e) => setCardId(e.target.value)}
           >
             {cards.map((c) => (
-              <option key={c.id} value={c.name}>{c.name}</option>
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
         </div>

@@ -24,7 +24,8 @@ function loadGis() {
 
 function loadStoredToken() {
   try {
-    const raw = localStorage.getItem(TOKEN_STORAGE_KEY)
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    const raw = sessionStorage.getItem(TOKEN_STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
     if (!parsed?.token || !parsed?.expiresAt) return null
@@ -36,7 +37,8 @@ function loadStoredToken() {
 }
 
 function storeToken(token, expiresInSeconds) {
-  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
+  localStorage.removeItem(TOKEN_STORAGE_KEY)
+  sessionStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
     token,
     expiresAt: Date.now() + Number(expiresInSeconds || 3600) * 1000,
   }))
@@ -126,10 +128,10 @@ async function writeRows(sheetId, accessToken, title, rows) {
   return rows.length - 1
 }
 
-const HEADER = ['日期', '卡片', '金額', '類別', '備註']
+const HEADER = ['日期', '卡片ID', '卡片', '金額', '類別', '備註']
 
 function transactionToRow(tx) {
-  return [tx.date ?? '', tx.card ?? '', tx.amount ?? 0, tx.category ?? '', tx.note ?? '']
+  return [tx.date ?? '', tx.cardId ?? '', tx.card ?? '', tx.amount ?? 0, tx.category ?? '', tx.note ?? '']
 }
 
 export async function syncTransactionsToSheet({ accessToken, sheetId, transactions }) {
