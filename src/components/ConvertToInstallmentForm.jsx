@@ -31,6 +31,7 @@ export default function ConvertToInstallmentForm({ tx, onSubmit, onClose }) {
       id: crypto.randomUUID(),
       type: 'installment',
       name: tx.name,
+      cardId: tx.cardId,
       card: tx.card,
       currency: 'TWD',
       amount: perAmount,

@@ -1,4 +1,6 @@
-const SHEET_TITLE = 'CardNest 帳務'
+﻿import { normalizeFinanceData } from '../utils/financeData'
+const SHEET_TITLE = 'CardNest 撣喳?'
+
 const BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
 
 async function api(method, path, token, body) {
@@ -34,8 +36,8 @@ export async function findOrCreateSpreadsheet(token, existingId) {
 }
 
 const CARD_KEYS = ['id', 'name', 'color', 'billingDay', 'dueDay', 'budget']
-const PLAN_KEYS = ['id', 'type', 'name', 'card', 'amount', 'period', 'nextDate', 'daysLeft', 'paidCount', 'totalCount', 'paid', 'currency', 'amountOriginal', 'usdRate', 'feeRate']
-const TX_KEYS = ['id', 'date', 'category', 'name', 'amount', 'card', 'note']
+const PLAN_KEYS = ['id', 'type', 'name', 'cardId', 'card', 'amount', 'period', 'nextDate', 'daysLeft', 'paidCount', 'totalCount', 'paid', 'currency', 'amountOriginal', 'usdRate', 'feeRate']
+const TX_KEYS = ['id', 'date', 'category', 'name', 'amount', 'cardId', 'card', 'note']
 
 function toRows(keys, items) {
   return [keys, ...items.map(item => keys.map(k => item[k] ?? ''))]
@@ -90,7 +92,7 @@ export async function loadFromSheets(token, sheetId) {
     if (key === 'feeRate') fxSettings.feeRate = Number(value)
   })
 
-  return { cards, plans, transactions, fxSettings }
+  return normalizeFinanceData({ cards, plans, transactions, fxSettings })
 }
 
 export function hasSheetData(data) {

@@ -5,7 +5,7 @@ import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
 import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet, syncMonthlyPlanToSheet } from '../utils/googleSheetSync'
-import { fetchImportRows, toDisplayDate } from '../utils/importSheetSync'
+import { fetchImportRows, toISODate } from '../utils/importSheetSync'
 
 // card-import（projects/card-import/Code.gs）目前支援的銀行。之後那支腳本加新銀行，
 // 這裡也要跟著加一行，才有對應的卡片可以選。
@@ -60,8 +60,8 @@ export default function Settings({
     }
   }
 
-  function handleBankMapChange(bank, cardName) {
-    const next = { ...bankCardMap, [bank]: cardName }
+  function handleBankMapChange(bank, cardId) {
+    const next = { ...bankCardMap, [bank]: cardId }
     setBankCardMap(next)
     onCardImportChange({ ...cardImport, bankCardMap: next, sheetId: importSheetId })
   }
@@ -87,15 +87,16 @@ export default function Settings({
 
       rows.forEach((row) => {
         if (importedKeys.has(row.permalink)) return
-        const cardName = bankCardMap[row.bank]
-        if (!cardName) { skippedUnmapped++; return }
+        const mappedCard = cards.find((card) => card.id === bankCardMap[row.bank] || card.name === bankCardMap[row.bank])
+        if (!mappedCard) { skippedUnmapped++; return }
         newTxs.push({
           id: crypto.randomUUID(),
           name: row.merchant || row.bank,
           category: '其他',
-          card: cardName,
+          cardId: mappedCard.id,
+          card: mappedCard.name,
           amount: row.amount,
-          date: toDisplayDate(row.rawDate),
+          date: toISODate(row.rawDate),
           note: `自動匯入・${row.bank}`,
         })
         newKeys.push(row.permalink)
@@ -377,12 +378,12 @@ export default function Settings({
               <label>{bank} 對應卡片</label>
               <select
                 className="fx-input"
-                value={bankCardMap[bank] ?? ''}
+                value={cards.find((card) => card.id === bankCardMap[bank] || card.name === bankCardMap[bank])?.id ?? ''}
                 onChange={(e) => handleBankMapChange(bank, e.target.value)}
               >
                 <option value="">尚未設定</option>
                 {cards.map((c) => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>

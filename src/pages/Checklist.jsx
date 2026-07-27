@@ -10,6 +10,7 @@ import SavingsForm from '../components/SavingsForm'
 import SavingsSpendForm from '../components/SavingsSpendForm'
 import PlanCard from '../components/PlanCard'
 import AddPlanForm from '../components/AddPlanForm'
+import { matchesCard } from '../utils/financeData'
 
 export default function Checklist({
   showToast, items, monthName,
@@ -142,15 +143,15 @@ export default function Checklist({
 
   // 這張卡「已知一定會發生」的部分：啟用中的訂閱＋還沒繳完的分期（每期金額）。
   // 預估帳單低於這個底線代表估太低了——訂閱分期是確定會扣的錢。
-  function cardCommitted(cardName) {
+  function cardCommitted(card) {
     return plans
-      .filter((p) => p.card === cardName)
+      .filter((p) => matchesCard(p, card))
       .filter((p) => p.type === 'subscription' ? (p.active ?? true) : (p.unpaidOccurrences?.length ?? 0) > 0)
       .reduce((s, p) => s + p.amount, 0)
   }
 
-  function cardPlans(cardName) {
-    return plans.filter((p) => p.card === cardName)
+  function cardPlans(card) {
+    return plans.filter((p) => matchesCard(p, card))
   }
 
   function handlePlanSubmit(plan) {
@@ -273,8 +274,8 @@ export default function Checklist({
           </p>
           <div className="card checklist-estimate-card">
             {cardBills.map((c) => {
-              const committed = cardCommitted(c.name)
-              const plansOnCard = cardPlans(c.name)
+              const committed = cardCommitted(c)
+              const plansOnCard = cardPlans(c)
               const expanded = expandedCardId === c.id
               const tooLow = Number(estimateValue(c) || 0) < committed
               return (
