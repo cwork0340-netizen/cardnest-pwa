@@ -1,3 +1,5 @@
+import { ensureInstallmentOccurrences } from './installmentCycles'
+
 export function toISODate(value, near = new Date()) {
   if (!value) return ymd(near)
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
@@ -98,4 +100,18 @@ export function planAmountNotRecorded({ plan, transactions, cards, windowStart, 
     return date && date > windowStart && date <= windowEnd && transactionRepresentsPlan(tx, plan, cards)
   })
   return represented ? 0 : Number(plan.amount) || 0
+}
+
+export function hasUnpaidInstallmentDueInWindow(plan, windowStart, windowEnd) {
+  return ensureInstallmentOccurrences(plan, { today: windowStart }).some((occurrence) => {
+    if (occurrence.paid) return false
+    const dueDate = parseISODate(occurrence.dueDate, windowEnd)
+    return dueDate && dueDate > windowStart && dueDate <= windowEnd
+  })
+}
+
+export function installmentAmountNotRecordedInWindow(args) {
+  return hasUnpaidInstallmentDueInWindow(args.plan, args.windowStart, args.windowEnd)
+    ? planAmountNotRecorded(args)
+    : 0
 }

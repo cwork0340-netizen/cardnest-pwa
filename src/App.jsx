@@ -19,6 +19,7 @@ import {
   matchesCard,
   normalizeFinanceData,
   parseISODate,
+  installmentAmountNotRecordedInWindow,
   planAmountNotRecorded,
   resolveCardId,
   toISODate,
@@ -27,6 +28,10 @@ import {
 /* eslint-disable react-hooks/set-state-in-effect */
 
 const STORAGE_KEY = 'cardnest_v1'
+
+function endOfMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+}
 
 function loadStorage() {
   try {
@@ -184,14 +189,15 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
         windowStart: bounds?.lastBillingDate ?? new Date(today.getFullYear(), today.getMonth(), 1),
         windowEnd: today,
       }), 0)
+    const monthEnd = endOfMonth(today)
     const instOnCard = plans
-      .filter(p => p.type === 'installment' && matchesCard(p, card) && unpaidInstallmentOccurrences(p).length > 0)
-      .reduce((s, p) => s + planAmountNotRecorded({
+      .filter(p => p.type === 'installment' && matchesCard(p, card) && paidCountOf(p) < p.totalCount)
+      .reduce((s, p) => s + installmentAmountNotRecordedInWindow({
         plan: p,
         transactions,
         cards,
         windowStart: bounds?.lastBillingDate ?? new Date(today.getFullYear(), today.getMonth(), 1),
-        windowEnd: today,
+        windowEnd: monthEnd,
       }), 0)
     const cardRemaining = card.budget - used
     const cp = card.budget > 0 ? used / card.budget : 0
@@ -615,15 +621,14 @@ export default function App() {
   }, [])
 
   // 擐?嚗?∠????祆??臬?摰?? ?????+ ?芰像皜???瘥?嚗?銝敹像皜
+  const fixedMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  const fixedMonthEnd = endOfMonth(new Date())
   const fixedMonthlyAmount = plans
     .filter(p => p.type === 'subscription' ? (p.active ?? true) : (paidCountOf(p) < p.totalCount))
-    .reduce((s, p) => s + planAmountNotRecorded({
-      plan: p,
-      transactions,
-      cards,
-      windowStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-      windowEnd: new Date(),
-    }), 0)
+    .reduce((s, p) => {
+      const args = { plan: p, transactions, cards, windowStart: fixedMonthStart, windowEnd: fixedMonthEnd }
+      return s + (p.type === 'installment' ? installmentAmountNotRecordedInWindow(args) : planAmountNotRecorded(args))
+    }, 0)
 
   // 敹??臬 / ?暑??
   // ?芰??歇?暸??敹像?嚗?訾誨銵券?撌脩?蝣箏????Ｙ?銝?嚗?

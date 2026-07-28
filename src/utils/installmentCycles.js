@@ -26,6 +26,7 @@ function cycleKeyOf(date) {
 
 // 用本地時區解析 "YYYY-MM-DD"，避免 new Date(字串) 被當成 UTC 午夜造成時區誤差
 function parseYmd(s) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(s))) return null
   const [y, m, d] = s.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
@@ -48,6 +49,7 @@ export function ensureInstallmentOccurrences(plan, { today = new Date() } = {}) 
   const billingDay = billingDayOf(plan)
   const totalCount = Number(plan.totalCount) || 0
   let occurrences = [...(plan.occurrences ?? [])]
+  const firstDueDate = parseYmd(plan.firstDueDate)
 
   if (occurrences.length === 0) {
     const paidCount = Math.min(Number(plan.paidCount) || 0, totalCount)
@@ -82,7 +84,7 @@ export function ensureInstallmentOccurrences(plan, { today = new Date() } = {}) 
       if (lastDue >= anchor) break // 最後一筆未繳的還沒到期（或剛好是這期），先不疊加更多
     }
     const lastPaidDue = last ? parseYmd(last.dueDate) : null
-    const nextDate = lastPaidDue ? nextDueDate(lastPaidDue, billingDay) : nextOccurrence(billingDay, today)
+    const nextDate = lastPaidDue ? nextDueDate(lastPaidDue, billingDay) : (firstDueDate ?? nextOccurrence(billingDay, today))
     occurrences.push({
       id: crypto.randomUUID(),
       cycleKey: cycleKeyOf(nextDate),

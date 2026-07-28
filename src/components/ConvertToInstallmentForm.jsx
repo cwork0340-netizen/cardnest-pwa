@@ -1,12 +1,27 @@
 import { useState } from 'react'
 import './AddPlanForm.css'
-import { dayFromMD } from '../utils/recurrence'
+import { clampDayInMonth } from '../utils/recurrence'
+import { parseISODate, ymd } from '../utils/financeData'
+
+function defaultBillingDay(tx) {
+  const date = parseISODate(tx.date)
+  return date ? date.getDate() : new Date().getDate()
+}
+
+function defaultFirstDueDate(tx, billingDay) {
+  const date = parseISODate(tx.date) ?? new Date()
+  const nextMonth = date.getMonth() + 1
+  const year = date.getFullYear() + (nextMonth > 11 ? 1 : 0)
+  const month = nextMonth % 12
+  return ymd(new Date(year, month, clampDayInMonth(year, month, billingDay)))
+}
 
 export default function ConvertToInstallmentForm({ tx, onSubmit, onClose }) {
   const [totalCount, setTotalCount] = useState('3')
   const [amount, setAmount] = useState(String(Math.round(tx.amount / 3)))
   const [amountTouched, setAmountTouched] = useState(false)
-  const [billingDay, setBillingDay] = useState(String(dayFromMD(tx.date) || new Date().getDate()))
+  const [billingDay, setBillingDay] = useState(String(defaultBillingDay(tx)))
+  const [firstDueDate, setFirstDueDate] = useState(() => defaultFirstDueDate(tx, defaultBillingDay(tx)))
   const [error, setError] = useState('')
 
   function handleTotalCountChange(v) {
@@ -14,6 +29,14 @@ export default function ConvertToInstallmentForm({ tx, onSubmit, onClose }) {
     const n = Number(v)
     if (!amountTouched && n > 0) {
       setAmount(String(Math.round(tx.amount / n)))
+    }
+  }
+
+  function handleBillingDayChange(v) {
+    setBillingDay(v)
+    const day = Number(v)
+    if (Number.isInteger(day) && day >= 1 && day <= 31) {
+      setFirstDueDate(defaultFirstDueDate(tx, day))
     }
   }
 
@@ -25,6 +48,7 @@ export default function ConvertToInstallmentForm({ tx, onSubmit, onClose }) {
     if (!perAmount || perAmount <= 0) { setError('請輸入有效每期金額'); return }
     const day = Number(billingDay)
     if (!Number.isInteger(day) || day < 1 || day > 31) { setError('請輸入每月 1～31 號'); return }
+    if (!parseISODate(firstDueDate)) { setError('請選擇第一期開始日'); return }
     setError('')
 
     onSubmit({
@@ -37,6 +61,7 @@ export default function ConvertToInstallmentForm({ tx, onSubmit, onClose }) {
       amount: perAmount,
       period: '期',
       billingDay: day,
+      firstDueDate,
       paidCount: 0,
       totalCount: total,
       paid: false,
@@ -83,9 +108,20 @@ export default function ConvertToInstallmentForm({ tx, onSubmit, onClose }) {
             min="1"
             max="31"
             value={billingDay}
-            onChange={(e) => setBillingDay(e.target.value)}
+            onChange={(e) => handleBillingDayChange(e.target.value)}
           />
           <span className="apf-fx-hint">預設帶入原刷卡日，可依銀行實際扣款日調整</span>
+        </div>
+
+        <div className="apf-field">
+          <label className="apf-label">第一期開始日</label>
+          <input
+            className="apf-input"
+            type="date"
+            value={firstDueDate}
+            onChange={(e) => setFirstDueDate(e.target.value)}
+          />
+          <span className="apf-fx-hint">預設從下一期開始，避免本期刷卡金額和分期重複計算</span>
         </div>
       </div>
 
