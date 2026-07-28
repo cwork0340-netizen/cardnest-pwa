@@ -211,6 +211,49 @@
   padding: 4px 12px;
 }
 
+.settings-flow-steps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.settings-flow-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-flow-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--divider);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.settings-flow-step-done {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.settings-flow-step-done .settings-flow-step-index {
+  background: var(--color-success);
+  color: #fff;
+}
+
 /* Sheets section */
 .settings-desc {
   font-size: 14px;

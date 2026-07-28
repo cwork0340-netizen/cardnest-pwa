@@ -703,7 +703,7 @@ export default function App() {
 
   const now = new Date()
   const greeting = getGreeting(now.getHours())
-  const dateLabel = `${now.getMonth() + 1}??{now.getDate()}????${WEEKDAY_NAMES[now.getDay()]}`
+  const dateLabel = `${now.getMonth() + 1} 月 ${now.getDate()} 日・${WEEKDAY_NAMES[now.getDay()]}`
 
   const pages = {
     dashboard: (

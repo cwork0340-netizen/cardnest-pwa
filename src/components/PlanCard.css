@@ -32,6 +32,11 @@
   color: var(--color-installment);
 }
 
+.badge-primary {
+  background: #E7F0F7;
+  color: #35718F;
+}
+
 .plan-name {
   font-size: 16px;
   font-weight: 700;
@@ -115,6 +120,34 @@
 .plan-progress-text {
   font-size: 13px;
   color: var(--color-text-muted);
+}
+
+.plan-installment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.plan-installment-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--color-warning-soft);
+  color: var(--color-installment);
+  font-weight: 700;
+}
+
+.plan-installment-meta .plan-meta-muted {
+  background: var(--divider);
+  color: var(--color-text-secondary);
+}
+
+.plan-installment-meta .plan-meta-included {
+  background: var(--color-success-soft);
+  color: var(--color-success);
 }
 
 .plan-remaining-total {

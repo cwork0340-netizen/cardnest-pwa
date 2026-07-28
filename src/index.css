@@ -1,16 +1,16 @@
 :root {
-  /* Warm Latte palette */
-  --primary: #A98274;
-  --secondary: #D7C1AE;
-  --bg: #F8F5F1;
-  --card: #FFFCFA;
-  --divider: #E7DED5;
-  --text: #40342E;
-  --text-sub: #85756B;
-  --text-disabled: #B9ADA6;
-  --status-safe: #8DAA91;
-  --status-warn: #D6A04D;
-  --status-danger: #C86E62;
+  /* CardNest palette: calm statement desk */
+  --primary: #3D6A6A;
+  --secondary: #DDEBE6;
+  --bg: #F6F4EF;
+  --card: #FFFDFC;
+  --divider: #E4E0D8;
+  --text: #2F3437;
+  --text-sub: #697477;
+  --text-disabled: #A8B0AE;
+  --status-safe: #3F8F72;
+  --status-warn: #D28A28;
+  --status-danger: #C75C51;
   --radius-card: 22px;
   --radius-btn: 16px;
   --radius-input: 14px;
@@ -41,7 +41,7 @@
   --color-danger: var(--status-danger);
   --color-danger-soft: #F8E9E6;
 
-  --color-subscription: var(--primary);
+  --color-subscription: #35718F;
   --color-installment: var(--status-warn);
   --color-transaction: var(--status-safe);
 

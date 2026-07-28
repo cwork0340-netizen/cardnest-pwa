@@ -17,6 +17,9 @@ export default function Dashboard({
   paymentReminders = [], onMarkCardPaid, onMarkAllCyclesPaid, onUpdateCycle,
   income = 0, essentialTotal = 0, cardEstimateTotal = 0, lifeBalance = 0, onGoToChecklist,
 }) {
+  const pendingBillTotal = cards.reduce((sum, card) => sum + Number(card.unpaidTotal ?? 0), 0)
+  const currentCycleTotal = cards.reduce((sum, card) => sum + Number(card.currentCycleAmount ?? 0), 0)
+
   return (
     <div className="dashboard">
       <PageHeader
@@ -37,14 +40,11 @@ export default function Dashboard({
       <div className="section" style={{ marginTop: 'var(--section-gap)' }}>
         <SectionHeader title="本月刷卡狀況" />
         <HeroStatusCard
-          month={currentMonth.name}
-          total={currentMonth.total}
-          remaining={currentMonth.remaining}
           budget={currentMonth.budget}
-          fixedMonthlyAmount={currentMonth.fixedMonthlyAmount}
           estimatedTotal={currentMonth.estimatedTotal}
+          pendingBillTotal={pendingBillTotal}
+          currentCycleTotal={currentCycleTotal}
           status={currentMonth.status}
-          statusText={currentMonth.statusText}
         />
       </div>
 

@@ -29,6 +29,18 @@ function AmountDisplay({ plan }) {
   )
 }
 
+function formatYearMonth(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return null
+  const [year, month] = value.split('-')
+  return `${year}/${Number(month)}`
+}
+
+function isThisMonth(value, today = new Date()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return false
+  const [year, month] = value.split('-').map(Number)
+  return year === today.getFullYear() && month === today.getMonth() + 1
+}
+
 export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
   const isSubscription = plan.type === 'subscription'
 
@@ -74,6 +86,8 @@ export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
   const allPaid = unpaidOccurrences.length === 0
   const remaining = plan.totalCount - plan.paidCount
   const overdueCount = unpaidOccurrences.length
+  const firstDueMonth = formatYearMonth(plan.firstDueDate)
+  const currentMonthIncluded = unpaidOccurrences.some((occurrence) => isThisMonth(occurrence.dueDate))
 
   return (
     <div className="card plan-card plan-card-clickable" {...editProps}>
@@ -111,6 +125,14 @@ export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
       <div className="plan-progress-area">
         <SegmentedProgress paid={plan.paidCount} total={plan.totalCount} />
         <span className="plan-progress-text">已付 {plan.paidCount}/{plan.totalCount} 期，還剩 {remaining} 期</span>
+        <div className="plan-installment-meta">
+          {firstDueMonth && <span>第一期 {firstDueMonth}</span>}
+          {!allPaid && (
+            <span className={currentMonthIncluded ? 'plan-meta-included' : 'plan-meta-muted'}>
+              {currentMonthIncluded ? '本期計入' : '本期不計入'}
+            </span>
+          )}
+        </div>
         <span className="plan-remaining-total">
           剩餘總額 {'NT$' + (plan.amount * remaining).toLocaleString()}
         </span>
