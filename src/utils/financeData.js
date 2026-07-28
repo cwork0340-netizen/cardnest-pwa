@@ -76,9 +76,36 @@ export function normalizeFinanceData(data, near = new Date()) {
     cards,
     plans: Array.isArray(data?.plans) ? data.plans.map(withCard) : [],
     transactions: Array.isArray(data?.transactions)
-      ? data.transactions.map((tx) => ({ ...withCard(tx), date: toISODate(tx.date, near) }))
+      ? data.transactions.map((tx) => ({
+        ...withCard(tx),
+        amount: Number(tx.amount) || 0,
+        date: toISODate(tx.date, near),
+        ...(tx.postedDate && { postedDate: toISODate(tx.postedDate, near) }),
+      }))
       : [],
   }
+}
+
+export function transactionCycleDate(tx) {
+  return tx?.postedDate ?? tx?.date
+}
+
+export function isCreditCardPayment(tx) {
+  const amount = Number(tx?.amount) || 0
+  if (amount >= 0) return false
+  const text = `${tx?.name ?? ''} ${tx?.category ?? ''} ${tx?.note ?? ''}`.toLowerCase()
+  return /繳款|付款|條碼繳款|card payment|bill payment|payment/.test(text)
+}
+
+export function isInstallmentConversionCredit(tx) {
+  const amount = Number(tx?.amount) || 0
+  if (amount >= 0) return false
+  const text = `${tx?.name ?? ''} ${tx?.category ?? ''} ${tx?.note ?? ''}`.toLowerCase()
+  return /轉刷卡樂|分期|installment/.test(text)
+}
+
+export function isBillableTransaction(tx) {
+  return !isCreditCardPayment(tx) && !isInstallmentConversionCredit(tx)
 }
 
 export function transactionRepresentsPlan(tx, plan, cards) {

@@ -16,6 +16,7 @@ import {
 import {
   getCardName,
   isSameMonth,
+  isBillableTransaction,
   matchesCard,
   normalizeFinanceData,
   parseISODate,
@@ -23,6 +24,7 @@ import {
   planAmountNotRecorded,
   resolveCardId,
   toISODate,
+  transactionCycleDate,
 } from './utils/financeData'
 
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -151,7 +153,7 @@ function billingCycleBounds(billingDay, today) {
 
 function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = []) {
   // ??嚗?蝜喳????瑕閮?嚗楊????????頝臬?銝敞??
-  const monthTx = transactions.filter(tx => isThisMonth(tx.date))
+  const monthTx = transactions.filter(tx => Number(tx.amount) > 0 && isThisMonth(tx.date))
   const totalSpent = monthTx.reduce((s, tx) => s + tx.amount, 0)
   const totalBudget = cards.reduce((s, c) => s + c.budget, 0)
   // ?祆??臬 = 撌脰????+ 閮嚗???擐?嚗?∠???銝敹像皜嚗?
@@ -163,16 +165,16 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
 
   const today = new Date()
   const enrichedCards = cards.map(card => {
-    const cardTx = transactions.filter(tx => matchesCard(tx, card))
+    const cardTx = transactions.filter(tx => matchesCard(tx, card) && isBillableTransaction(tx))
     const bounds = billingCycleBounds(card.billingDay, today)
     // 銝?嚗歇蝯董嚗?敺像甈橘?嚗?敞蝛?蝯董?乩?敺?瑞?嚗?瘝撣喉?嚗?蝯董?亙?嚗??舀??
     let used, currentCycleAmount
     if (bounds) {
       used = cardTx
-        .filter(tx => { const dt = resolveNearDate(tx.date, today); return dt && dt > bounds.prevBillingDate && dt <= bounds.lastBillingDate })
+        .filter(tx => { const dt = resolveNearDate(transactionCycleDate(tx), today); return dt && dt > bounds.prevBillingDate && dt <= bounds.lastBillingDate })
         .reduce((s, tx) => s + tx.amount, 0)
       currentCycleAmount = cardTx
-        .filter(tx => { const dt = resolveNearDate(tx.date, today); return dt && dt > bounds.lastBillingDate && dt <= today })
+        .filter(tx => { const dt = resolveNearDate(transactionCycleDate(tx), today); return dt && dt > bounds.lastBillingDate && dt <= today })
         .reduce((s, tx) => s + tx.amount, 0)
     } else {
       // 瘝‵蝯董?伐?????祆??隡啁?
