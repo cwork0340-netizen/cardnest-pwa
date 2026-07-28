@@ -378,6 +378,10 @@ export default function Settings({
             讀取 card-import 腳本自動收集到「CardNest 消費記錄」Sheet 裡的刷卡通知，轉成刷卡記錄。
             用的是上面同一組 Google OAuth Client ID。授權時請選擇有權限讀取那份 Sheet 的 Google 帳號。
           </p>
+          <div className="settings-import-format-note">
+            <strong>對帳更準的 Sheet 欄位</strong>
+            <span>H 欄：入帳日，I 欄：交易類型。舊 Sheet 沒這兩欄也能匯入，但會用消費日估算帳單期別。</span>
+          </div>
           <div className="fx-field">
             <label>消費記錄 Sheet ID</label>
             <input
