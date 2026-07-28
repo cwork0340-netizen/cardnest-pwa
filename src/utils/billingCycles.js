@@ -99,9 +99,10 @@ export function ensureBillingCycles(card, { transactions, plans, today = new Dat
     const dueDate = new Date(lastClose)
     dueDate.setDate(dueDate.getDate() + graceDays)
 
+    const estimatedAmount = snapshotAmount({ card, cardName: card.name, windowStart: prevClose, windowEnd: lastClose, transactions, plans })
     const amount = Number(card.actualBill) > 0
       ? Number(card.actualBill)
-      : snapshotAmount({ card, cardName: card.name, windowStart: prevClose, windowEnd: lastClose, transactions, plans })
+      : estimatedAmount
 
     cycles.push({
       id: crypto.randomUUID(),
@@ -109,6 +110,7 @@ export function ensureBillingCycles(card, { transactions, plans, today = new Dat
       closeDate: ymd(lastClose),
       dueDate: ymd(dueDate),
       amount,
+      estimatedAmount,
       amountIsActual: Number(card.actualBill) > 0,
       paid: card.billPaidMonth === `${today.getFullYear()}-${today.getMonth()}`,
       paidAt: null,
@@ -129,12 +131,14 @@ export function ensureBillingCycles(card, { transactions, plans, today = new Dat
     const dueDate = new Date(windowEnd)
     dueDate.setDate(dueDate.getDate() + graceDays)
 
+    const estimatedAmount = snapshotAmount({ card, cardName: card.name, windowStart, windowEnd, transactions, plans })
     cycles.push({
       id: crypto.randomUUID(),
       cycleKey: cycleKeyOf(windowEnd),
       closeDate: ymd(windowEnd),
       dueDate: ymd(dueDate),
-      amount: snapshotAmount({ card, cardName: card.name, windowStart, windowEnd, transactions, plans }),
+      amount: estimatedAmount,
+      estimatedAmount,
       amountIsActual: false,
       paid: false,
       paidAt: null,

@@ -688,4 +688,28 @@ describe('各卡狀態：上期與本期累積', () => {
     expect(breakdown.textContent).toContain('1 筆繳款未列入消費')
     expect(breakdown.textContent).toContain('1 筆分期沖帳未列入消費')
   })
+
+  it('可用銀行帳單校準金額、結帳日與繳款日', () => {
+    vi.setSystemTime(new Date(2026, 5, 27))
+    seed({
+      cards: [{ id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDay: 15, budget: 50000 }],
+      transactions: [
+        { id: 't1', card: '台新卡', amount: 500, date: '2026-06-01', category: '餐飲', name: '帳單內消費' },
+      ],
+    })
+    render(<App />)
+    const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('台新卡'))
+
+    fireEvent.click(summary.querySelector('.credit-card-summary-row'))
+    fireEvent.click(within(summary).getByText('校準'))
+    fireEvent.change(within(summary).getByLabelText('銀行帳單金額'), { target: { value: '888' } })
+    fireEvent.change(within(summary).getByLabelText('實際結帳日'), { target: { value: '2026-06-03' } })
+    fireEvent.change(within(summary).getByLabelText('實際繳款日'), { target: { value: '2026-06-18' } })
+    fireEvent.click(within(summary).getByText('儲存校準'))
+
+    expect(summary.textContent).toContain('NT$888')
+    expect(summary.textContent).toContain('已用銀行帳單校準')
+    expect(summary.textContent).toContain('到期 6/18')
+  })
 })

@@ -16,6 +16,8 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
   const [expanded, setExpanded] = useState(false)
   const [editingCycleId, setEditingCycleId] = useState(null)
   const [editDate, setEditDate] = useState('')
+  const [calibratingCycleId, setCalibratingCycleId] = useState(null)
+  const [calibration, setCalibration] = useState({ amount: '', closeDate: '', dueDate: '' })
 
   const unpaid = card.unpaidCycles ?? []
   const reconciliationHints = card.reconciliationHints ?? []
@@ -30,6 +32,37 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
     e.stopPropagation()
     onUpdateCycle(card.id, cycle.id, { dueDate: editDate })
     setEditingCycleId(null)
+  }
+
+  function startCalibration(e, cycle) {
+    e.stopPropagation()
+    setCalibratingCycleId(cycle.id)
+    setCalibration({
+      amount: String(cycle.amount ?? ''),
+      closeDate: cycle.closeDate ?? '',
+      dueDate: cycle.dueDate ?? '',
+    })
+  }
+
+  function saveCalibration(e, cycle) {
+    e.stopPropagation()
+    const rawAmount = calibration.amount.trim()
+    const amount = Number(rawAmount)
+    onUpdateCycle(card.id, cycle.id, {
+      amount: rawAmount !== '' && Number.isFinite(amount) ? amount : cycle.amount,
+      closeDate: calibration.closeDate || cycle.closeDate,
+      dueDate: calibration.dueDate || cycle.dueDate,
+      amountIsActual: true,
+      manuallyCalibrated: true,
+    })
+    setCalibratingCycleId(null)
+  }
+
+  function calibrationDiff(cycle) {
+    const rawAmount = calibration.amount.trim()
+    const amount = Number(rawAmount)
+    const displayAmount = rawAmount !== '' && Number.isFinite(amount) ? amount : Number(cycle.amount || 0)
+    return displayAmount - Number(cycle.estimatedAmount || 0)
   }
 
   return (
@@ -91,13 +124,59 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                         {dueLabel(cycle)}
                       </button>
                     )}
+                    {cycle.manuallyCalibrated && (
+                      <span className="credit-card-cycle-calibrated">已用銀行帳單校準</span>
+                    )}
                   </div>
-                  <button
-                    className="credit-card-cycle-pay"
-                    onClick={(e) => { e.stopPropagation(); onMarkPaid(cycle.id) }}
-                  >
-                    已繳
-                  </button>
+                  <div className="credit-card-cycle-actions">
+                    <button className="credit-card-cycle-calibrate" onClick={(e) => startCalibration(e, cycle)}>
+                      校準
+                    </button>
+                    <button
+                      className="credit-card-cycle-pay"
+                      onClick={(e) => { e.stopPropagation(); onMarkPaid(cycle.id) }}
+                    >
+                      已繳
+                    </button>
+                  </div>
+                  {calibratingCycleId === cycle.id && (
+                    <div className="credit-card-cycle-calibration" onClick={(e) => e.stopPropagation()}>
+                      <label>
+                        銀行帳單金額
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={calibration.amount}
+                          onChange={(e) => setCalibration((prev) => ({ ...prev, amount: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        實際結帳日
+                        <input
+                          type="date"
+                          value={calibration.closeDate}
+                          onChange={(e) => setCalibration((prev) => ({ ...prev, closeDate: e.target.value }))}
+                        />
+                      </label>
+                      <label>
+                        實際繳款日
+                        <input
+                          type="date"
+                          value={calibration.dueDate}
+                          onChange={(e) => setCalibration((prev) => ({ ...prev, dueDate: e.target.value }))}
+                        />
+                      </label>
+                      {cycle.estimatedAmount != null && (
+                        <span className="credit-card-cycle-diff">
+                          和 App 原估算差 {fmt(calibrationDiff(cycle))}
+                        </span>
+                      )}
+                      <div className="credit-card-cycle-calibration-actions">
+                        <button onClick={(e) => saveCalibration(e, cycle)}>儲存校準</button>
+                        <button onClick={(e) => { e.stopPropagation(); setCalibratingCycleId(null) }}>取消</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               {unpaid.length > 1 && (
