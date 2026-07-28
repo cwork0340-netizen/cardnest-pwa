@@ -18,6 +18,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
   const [editDate, setEditDate] = useState('')
 
   const unpaid = card.unpaidCycles ?? []
+  const reconciliationHints = card.reconciliationHints ?? []
 
   function startEdit(e, cycle) {
     e.stopPropagation()
@@ -111,6 +112,14 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
           )}
 
           <p className="credit-card-summary-breakdown-note">App 估算帳單組成：</p>
+          {reconciliationHints.length > 0 && (
+            <div className="credit-card-reconcile-box">
+              <span className="credit-card-reconcile-title">對帳提示</span>
+              {reconciliationHints.map((hint) => (
+                <span className="credit-card-reconcile-hint" key={hint}>{hint}</span>
+              ))}
+            </div>
+          )}
           <div className="credit-card-summary-breakdown-row">
             <span>已入帳刷卡</span>
             <span>{fmt(card.used ?? 0)}</span>
