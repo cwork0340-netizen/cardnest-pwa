@@ -17,6 +17,8 @@ import {
   getCardName,
   isSameMonth,
   isBillableTransaction,
+  isCreditCardPayment,
+  isInstallmentConversionCredit,
   matchesCard,
   normalizeFinanceData,
   parseISODate,
@@ -165,7 +167,8 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
 
   const today = new Date()
   const enrichedCards = cards.map(card => {
-    const cardTx = transactions.filter(tx => matchesCard(tx, card) && isBillableTransaction(tx))
+    const allCardTx = transactions.filter(tx => matchesCard(tx, card))
+    const cardTx = allCardTx.filter(isBillableTransaction)
     const bounds = billingCycleBounds(card.billingDay, today)
     // 銝?嚗歇蝯董嚗?敺像甈橘?嚗?敞蝛?蝯董?乩?敺?瑞?嚗?瘝撣喉?嚗?蝯董?亙?嚗??舀??
     let used, currentCycleAmount
@@ -209,6 +212,14 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     const unpaid = unpaidCycles(card)
     const unpaidTotal = totalUnpaid(card)
     const unpaidWithDaysLeft = unpaid.map(c => ({ ...c, daysLeft: daysUntilDue(c) }))
+    const postedDateCount = allCardTx.filter(tx => tx.postedDate && tx.postedDate !== tx.date).length
+    const paymentCount = allCardTx.filter(isCreditCardPayment).length
+    const installmentCreditCount = allCardTx.filter(isInstallmentConversionCredit).length
+    const reconciliationHints = [
+      postedDateCount > 0 && `${postedDateCount} 筆使用入帳日歸帳`,
+      paymentCount > 0 && `${paymentCount} 筆繳款未列入消費`,
+      installmentCreditCount > 0 && `${installmentCreditCount} 筆分期沖帳未列入消費`,
+    ].filter(Boolean)
 
     // ?箏?憿舐內??甈∠?撣喉?蝜單狡?伐??湔敺?身摰蝞?銝?鞈湔?瘝??芰像撣喳嚗?
     // 撠梁???????0 銋?敺?撐?⊥?????撣喋???蝜喋?
@@ -220,6 +231,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
       ...card, used, currentCycleAmount,
       subsOnCard, instOnCard,
       unpaidCycles: unpaidWithDaysLeft, unpaidTotal,
+      reconciliationHints,
       nextCloseLabel: formatMD(nextClose),
       nextDueLabel: formatMD(nextDue),
       status: cardStatus,

@@ -665,4 +665,27 @@ describe('各卡狀態：上期與本期累積', () => {
     expect(breakdown.textContent).toContain('App 估算合計')
     expect(breakdown.textContent).toContain('NT$1,990')
   })
+
+  it('展開卡片會提示入帳日、繳款與分期沖帳處理', () => {
+    vi.setSystemTime(new Date(2026, 6, 28))
+    seed({
+      cards: [{ id: 'c1', name: '國泰卡', color: '#5E7CE2', billingDay: 23, dueDay: 15, budget: 50000 }],
+      transactions: [
+        { id: 't1', card: '國泰卡', amount: 385, date: '2026-06-26', postedDate: '2026-07-23', category: '日常', name: '全家便利商店 APP 線上' },
+        { id: 't2', card: '國泰卡', amount: -14275, date: '2026-07-07', category: '繳款', name: '全家行動條碼繳款 25101' },
+        { id: 't3', card: '國泰卡', amount: -9009, date: '2026-07-22', category: '分期', name: '一般消費轉刷卡樂分期' },
+      ],
+    })
+    render(<App />)
+    const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('國泰卡'))
+
+    fireEvent.click(summary.querySelector('.credit-card-summary-row'))
+
+    const breakdown = summary.querySelector('.credit-card-summary-breakdown')
+    expect(breakdown.textContent).toContain('對帳提示')
+    expect(breakdown.textContent).toContain('1 筆使用入帳日歸帳')
+    expect(breakdown.textContent).toContain('1 筆繳款未列入消費')
+    expect(breakdown.textContent).toContain('1 筆分期沖帳未列入消費')
+  })
 })
