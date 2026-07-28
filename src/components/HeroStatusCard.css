@@ -1,8 +1,24 @@
 .hero-card {
-  background: linear-gradient(180deg, var(--card) 0%, var(--secondary) 160%);
+  background: linear-gradient(160deg, var(--card) 0%, #EAF3F0 110%);
   border-radius: var(--radius-hero);
   padding: 20px;
   box-shadow: var(--shadow-card);
+  border: 1px solid rgba(61, 106, 106, 0.1);
+}
+
+.hero-card-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary);
+  letter-spacing: 0;
+  margin-bottom: 10px;
+}
+
+.hero-card-main-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .hero-card-amount-label {
@@ -16,6 +32,54 @@
   font-weight: 700;
   color: var(--color-primary);
   line-height: 1;
+}
+
+.hero-card-status {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.hero-card-status--warning {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.hero-card-status--danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.hero-card-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.hero-card-metric {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(61, 106, 106, 0.08);
+}
+
+.hero-card-metric span {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.hero-card-metric strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 16px;
+  color: var(--color-text-main);
 }
 
 .hero-card-budget-row {

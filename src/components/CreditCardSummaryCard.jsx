@@ -32,7 +32,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
   }
 
   return (
-    <div className="card credit-card-summary">
+    <div className="card credit-card-summary" style={{ borderLeftColor: card.color }}>
       <button
         type="button"
         className="credit-card-summary-row"
@@ -54,12 +54,12 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
         <div className="credit-card-summary-amounts">
           <div className="credit-card-summary-amount-col">
             <span className="credit-card-summary-amount-label">
-              未繳合計{unpaid.length > 1 ? `（${unpaid.length} 期）` : ''}
+              待繳帳單{unpaid.length > 1 ? `（${unpaid.length} 期）` : ''}
             </span>
             <span className="credit-card-summary-amount-value">{fmt(card.unpaidTotal ?? 0)}</span>
           </div>
           <div className="credit-card-summary-amount-col">
-            <span className="credit-card-summary-amount-label">本期累積</span>
+            <span className="credit-card-summary-amount-label">本期已入帳</span>
             <span className="credit-card-summary-amount-value">{fmt(card.currentCycleAmount ?? 0)}</span>
           </div>
         </div>
@@ -110,9 +110,9 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
             </>
           )}
 
-          <p className="credit-card-summary-breakdown-note">最新一期未繳金額的組成：</p>
+          <p className="credit-card-summary-breakdown-note">App 估算帳單組成：</p>
           <div className="credit-card-summary-breakdown-row">
-            <span>刷卡小計</span>
+            <span>已入帳刷卡</span>
             <span>{fmt(card.used ?? 0)}</span>
           </div>
           <div className="credit-card-summary-breakdown-row">

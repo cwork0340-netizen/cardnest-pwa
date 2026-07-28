@@ -206,6 +206,13 @@ export default function Settings({
     tabIndex: 0,
     onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit() } },
   })
+  const mappedBankCount = SUPPORTED_BANKS.filter((bank) => bankCardMap[bank]).length
+  const importSteps = [
+    { label: '連接 Google', done: !!clientId.trim() },
+    { label: '填交易 Sheet', done: !!importSheetId.trim() },
+    { label: '對應信用卡', done: mappedBankCount > 0 },
+    { label: '開始匯入', done: !!cardImport?.lastImportAt },
+  ]
 
   return (
     <div className="settings-page">
@@ -354,6 +361,14 @@ export default function Settings({
       <div className="section">
         <SectionHeader title="自動匯入信用卡消費" />
         <div className="card settings-cloud-sync">
+          <div className="settings-flow-steps">
+            {importSteps.map((step, index) => (
+              <div className={`settings-flow-step${step.done ? ' settings-flow-step-done' : ''}`} key={step.label}>
+                <span className="settings-flow-step-index">{step.done ? '✓' : index + 1}</span>
+                <span>{step.label}</span>
+              </div>
+            ))}
+          </div>
           <span className="settings-cloud-sync-status">
             {cardImport?.lastImportAt
               ? `上次匯入：${new Date(cardImport.lastImportAt).toLocaleString('zh-TW')}・${cardImport.lastImportCount} 筆`
