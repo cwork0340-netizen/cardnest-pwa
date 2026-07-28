@@ -92,11 +92,12 @@ export default function Settings({
         newTxs.push({
           id: crypto.randomUUID(),
           name: row.merchant || row.bank,
-          category: '其他',
+          category: row.transactionType || '其他',
           cardId: mappedCard.id,
           card: mappedCard.name,
           amount: row.amount,
           date: toISODate(row.rawDate),
+          ...(row.rawPostedDate && { postedDate: toISODate(row.rawPostedDate) }),
           note: `自動匯入・${row.bank}`,
         })
         newKeys.push(row.permalink)

@@ -11,7 +11,14 @@
 
 import { clampDayInMonth } from './recurrence'
 import { ensureInstallmentOccurrences } from './installmentCycles'
-import { matchesCard, parseISODate, planAmountNotRecorded } from './financeData'
+import {
+  installmentAmountNotRecordedInWindow,
+  isBillableTransaction,
+  matchesCard,
+  parseISODate,
+  planAmountNotRecorded,
+  transactionCycleDate,
+} from './financeData'
 
 function ymd(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -48,8 +55,9 @@ function snapshotAmount({ card, cardName, windowStart, windowEnd, transactions, 
   const cards = card?.id ? [card] : []
   const txAmount = transactions
     .filter((tx) => matchesCard(tx, cardRef))
+    .filter(isBillableTransaction)
     .filter((tx) => {
-      const dt = resolveNearDate(tx.date, windowEnd)
+      const dt = resolveNearDate(transactionCycleDate(tx), windowEnd)
       return dt && dt > windowStart && dt <= windowEnd
     })
     .reduce((s, tx) => s + tx.amount, 0)
@@ -70,7 +78,7 @@ function snapshotAmount({ card, cardName, windowStart, windowEnd, transactions, 
   const instAmount = plans
     .filter((p) => p.type === 'installment' && matchesCard(p, cardRef))
     .filter((p) => ensureInstallmentOccurrences(p).some((o) => !o.paid))
-    .reduce((s, p) => s + planAmountNotRecorded({ plan: p, transactions, cards, windowStart, windowEnd }), 0)
+    .reduce((s, p) => s + installmentAmountNotRecordedInWindow({ plan: p, transactions, cards, windowStart, windowEnd }), 0)
 
   return txAmount + subsAmount + instAmount
 }

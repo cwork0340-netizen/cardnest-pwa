@@ -1,3 +1,5 @@
+import { ensureInstallmentOccurrences } from './installmentCycles'
+
 export function toISODate(value, near = new Date()) {
   if (!value) return ymd(near)
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
@@ -74,9 +76,36 @@ export function normalizeFinanceData(data, near = new Date()) {
     cards,
     plans: Array.isArray(data?.plans) ? data.plans.map(withCard) : [],
     transactions: Array.isArray(data?.transactions)
-      ? data.transactions.map((tx) => ({ ...withCard(tx), date: toISODate(tx.date, near) }))
+      ? data.transactions.map((tx) => ({
+        ...withCard(tx),
+        amount: Number(tx.amount) || 0,
+        date: toISODate(tx.date, near),
+        ...(tx.postedDate && { postedDate: toISODate(tx.postedDate, near) }),
+      }))
       : [],
   }
+}
+
+export function transactionCycleDate(tx) {
+  return tx?.postedDate ?? tx?.date
+}
+
+export function isCreditCardPayment(tx) {
+  const amount = Number(tx?.amount) || 0
+  if (amount >= 0) return false
+  const text = `${tx?.name ?? ''} ${tx?.category ?? ''} ${tx?.note ?? ''}`.toLowerCase()
+  return /繳款|付款|條碼繳款|card payment|bill payment|payment/.test(text)
+}
+
+export function isInstallmentConversionCredit(tx) {
+  const amount = Number(tx?.amount) || 0
+  if (amount >= 0) return false
+  const text = `${tx?.name ?? ''} ${tx?.category ?? ''} ${tx?.note ?? ''}`.toLowerCase()
+  return /轉刷卡樂|分期|installment/.test(text)
+}
+
+export function isBillableTransaction(tx) {
+  return !isCreditCardPayment(tx) && !isInstallmentConversionCredit(tx)
 }
 
 export function transactionRepresentsPlan(tx, plan, cards) {
@@ -98,4 +127,18 @@ export function planAmountNotRecorded({ plan, transactions, cards, windowStart, 
     return date && date > windowStart && date <= windowEnd && transactionRepresentsPlan(tx, plan, cards)
   })
   return represented ? 0 : Number(plan.amount) || 0
+}
+
+export function hasUnpaidInstallmentDueInWindow(plan, windowStart, windowEnd) {
+  return ensureInstallmentOccurrences(plan, { today: windowStart }).some((occurrence) => {
+    if (occurrence.paid) return false
+    const dueDate = parseISODate(occurrence.dueDate, windowEnd)
+    return dueDate && dueDate > windowStart && dueDate <= windowEnd
+  })
+}
+
+export function installmentAmountNotRecordedInWindow(args) {
+  return hasUnpaidInstallmentDueInWindow(args.plan, args.windowStart, args.windowEnd)
+    ? planAmountNotRecorded(args)
+    : 0
 }

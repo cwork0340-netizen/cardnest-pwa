@@ -2,10 +2,12 @@
 // 把銀行自動收集的刷卡通知轉成 CardNest 的刷卡記錄。跟 googleSheetSync.js 共用同一組
 // OAuth（scope 都是 spreadsheets），差別只在這支是讀取，不是寫入。
 const SHEET_TAB = '消費紀錄'
-// Sheet 欄位順序：匯入時間、銀行、卡末四碼、消費日期、金額、商店/交易內容、原始信件連結
+// Sheet 欄位順序：
+// 匯入時間、銀行、卡末四碼、消費日期、金額、商店/交易內容、原始信件連結、
+// 入帳日（選填）、交易類型（選填）
 
 export async function fetchImportRows({ accessToken, sheetId }) {
-  const range = `${encodeURIComponent(SHEET_TAB)}!A2:G2000`
+  const range = `${encodeURIComponent(SHEET_TAB)}!A2:I2000`
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -25,6 +27,8 @@ export async function fetchImportRows({ accessToken, sheetId }) {
       amount: Number(String(r[4] ?? '0').replace(/,/g, '')),
       merchant: r[5] ?? '',
       permalink: r[6],
+      rawPostedDate: r[7] ?? '',
+      transactionType: r[8] ?? '',
     }))
 }
 
