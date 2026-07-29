@@ -52,7 +52,10 @@ function isInPeriod(displayDate, period, { from = new Date(), rangeStart, rangeE
   return true
 }
 
-export default function Transactions({ showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction, onConvertToInstallment }) {
+export default function Transactions({
+  showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction,
+  onConvertToInstallment, cardImport, importingCardNotifications, onImportCardNotifications,
+}) {
   const [showSheet, setShowSheet] = useState(false)
   const [editingTx, setEditingTx] = useState(null)
   const [convertingTx, setConvertingTx] = useState(null)
@@ -120,7 +123,21 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
   return (
     <div className="tx-page">
       <div className="tx-page-header">
-        <h1 className="tx-page-title">刷卡記錄</h1>
+        <div>
+          <h1 className="tx-page-title">刷卡記錄</h1>
+          {cardImport?.lastImportAt && (
+            <span className="tx-import-status">
+              上次更新：{new Date(cardImport.lastImportAt).toLocaleString('zh-TW')}・{cardImport.lastImportCount} 筆
+            </span>
+          )}
+        </div>
+        <button
+          className="tx-import-btn"
+          onClick={onImportCardNotifications}
+          disabled={importingCardNotifications}
+        >
+          {importingCardNotifications ? '更新中…' : '更新信件刷卡'}
+        </button>
       </div>
 
       {transactions.length > 0 && (

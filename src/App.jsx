@@ -7,6 +7,8 @@ import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
+import { getAccessToken } from './utils/googleSheetSync'
+import { fetchImportRows, toISODate as toImportISODate } from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
 import {
@@ -327,6 +329,7 @@ export default function App() {
   const [cardImport, setCardImport] = useState(
     stored?.cardImport ?? { sheetId: '', bankCardMap: {}, importedKeys: [] }
   )
+  const [importingCardNotifications, setImportingCardNotifications] = useState(false)
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync, cardImport }))
@@ -477,6 +480,56 @@ export default function App() {
       lastImportCount: newTxs.length,
     }))
   }, [normalizeTransaction])
+
+  const handleImportCardNotifications = useCallback(async () => {
+    const clientId = googleSync?.clientId?.trim()
+    const importSheetId = cardImport?.sheetId?.trim()
+    if (!clientId || !importSheetId) {
+      showToast('請先到設定填 Google Client ID 和消費記錄 Sheet ID')
+      return
+    }
+    setImportingCardNotifications(true)
+    try {
+      const token = await getAccessToken(clientId)
+      const rows = await fetchImportRows({ accessToken: token, sheetId: importSheetId })
+      const importedKeys = new Set(cardImport?.importedKeys ?? [])
+
+      const newTxs = []
+      const newKeys = []
+      let skippedUnmapped = 0
+
+      rows.forEach((row) => {
+        if (importedKeys.has(row.permalink)) return
+        const mappedCard = cards.find((card) => card.id === cardImport?.bankCardMap?.[row.bank] || card.name === cardImport?.bankCardMap?.[row.bank])
+        if (!mappedCard) { skippedUnmapped++; return }
+        newTxs.push({
+          id: crypto.randomUUID(),
+          name: row.merchant || row.bank,
+          category: row.transactionType || '其他',
+          cardId: mappedCard.id,
+          card: mappedCard.name,
+          amount: row.amount,
+          date: toImportISODate(row.rawDate),
+          ...(row.rawPostedDate && { postedDate: toImportISODate(row.rawPostedDate) }),
+          note: `自動匯入・${row.bank}`,
+        })
+        newKeys.push(row.permalink)
+      })
+
+      handleImportTransactions(newTxs, newKeys)
+
+      if (skippedUnmapped > 0) {
+        showToast(`已更新 ${newTxs.length} 筆，${skippedUnmapped} 筆銀行尚未設定對應卡片`)
+      } else {
+        showToast(`已更新 ${newTxs.length} 筆刷卡記錄`)
+      }
+    } catch (e) {
+      showToast(e.message || '更新失敗，請稍後再試')
+    } finally {
+      setImportingCardNotifications(false)
+    }
+  }, [cardImport, cards, googleSync, handleImportTransactions, showToast])
+
   const handleDeleteTransaction = useCallback((id) => {
     setTransactions(prev => {
       const idx = prev.findIndex(x => x.id === id)
@@ -751,6 +804,9 @@ export default function App() {
         onUpdateTransaction={handleUpdateTransaction}
         onDeleteTransaction={handleDeleteTransaction}
         onConvertToInstallment={handleConvertToInstallment}
+        cardImport={cardImport}
+        importingCardNotifications={importingCardNotifications}
+        onImportCardNotifications={handleImportCardNotifications}
       />
     ),
     checklist: (
@@ -810,7 +866,6 @@ export default function App() {
         onGoogleSyncChange={setGoogleSync}
         cardImport={cardImport}
         onCardImportChange={setCardImport}
-        onImportTransactions={handleImportTransactions}
         planSummary={{
           monthKey: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
           income,

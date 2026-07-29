@@ -4,6 +4,10 @@
 }
 
 .tx-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
@@ -11,6 +15,31 @@
   font-size: 22px;
   font-weight: 700;
   color: var(--color-text-main);
+}
+
+.tx-import-status {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.tx-import-btn {
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface));
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tx-import-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .tx-filters {
@@ -61,4 +90,15 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--color-text-main);
+}
+
+@media (max-width: 420px) {
+  .tx-page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tx-import-btn {
+    width: 100%;
+  }
 }
