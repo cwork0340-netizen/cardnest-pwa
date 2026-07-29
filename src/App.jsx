@@ -8,7 +8,7 @@ import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
-import { ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
+import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
 import {
   ensureInstallmentOccurrences, unpaidInstallmentOccurrences, paidCountOf,
   daysUntilDue as daysUntilInstallmentDue,
@@ -593,7 +593,7 @@ export default function App() {
       if (c.id !== cardId) return c
       return {
         ...c,
-        billingCycles: (c.billingCycles ?? []).map(cy => cy.id === cycleId ? { ...cy, ...fields } : cy),
+        billingCycles: applyCycleUpdate(c.billingCycles ?? [], cycleId, fields),
       }
     }))
   }, [])
