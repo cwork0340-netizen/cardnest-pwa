@@ -96,4 +96,46 @@ describe('Transactions import entry', () => {
     expect(onUpdateTransaction).toHaveBeenCalledWith(expect.objectContaining({ id: 'tx2', postedDate: '2026-07-23' }))
     expect(showToast).toHaveBeenCalledWith('已標記對帳')
   })
+
+  it('filters the list to pending reconciliation transactions', () => {
+    render(
+      <Transactions
+        showToast={vi.fn()}
+        transactions={[
+          {
+            id: 'tx1',
+            name: '待入帳消費',
+            card: '永豐卡',
+            category: '日常',
+            amount: 500,
+            date: '2026-07-23',
+            note: '自動匯入・永豐',
+          },
+          {
+            id: 'tx2',
+            name: '已入帳消費',
+            card: '永豐卡',
+            category: '日常',
+            amount: 600,
+            date: '2026-07-22',
+            postedDate: '2026-07-24',
+            note: '自動匯入・永豐',
+          },
+        ]}
+        cards={[{ id: 'c1', name: '永豐卡' }]}
+        onAddTransaction={vi.fn()}
+        onUpdateTransaction={vi.fn()}
+        onDeleteTransaction={vi.fn()}
+        onConvertToInstallment={vi.fn()}
+        cardImport={null}
+        importingCardNotifications={false}
+        onImportCardNotifications={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '只看待對帳（1）' }))
+
+    expect(screen.getByText('待入帳消費')).toBeInTheDocument()
+    expect(screen.queryByText('已入帳消費')).not.toBeInTheDocument()
+  })
 })

@@ -303,6 +303,49 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   return { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary }
 }
 
+function isImportedTransaction(tx) {
+  return String(tx?.note ?? '').includes('自動匯入')
+}
+
+function isPendingReconciliation(tx) {
+  return isImportedTransaction(tx) && !tx.postedDate
+}
+
+function buildReconciliationSummary({ transactions, cards, cardImport }) {
+  const pendingTransactions = transactions.filter(isPendingReconciliation)
+  const postedImportedCount = transactions.filter(tx => isImportedTransaction(tx) && tx.postedDate).length
+  const adjustmentCount = transactions.filter(tx => isCreditCardPayment(tx) || isInstallmentConversionCredit(tx)).length
+  const unmappedCount = Number(cardImport?.lastImportSkippedUnmapped ?? 0)
+
+  const cardAlerts = cards.map((card) => {
+    const pendingCount = pendingTransactions.filter(tx => matchesCard(tx, card)).length
+    const hintCount = card.reconciliationHints?.length ?? 0
+    const calibratedDiffs = (card.unpaidCycles ?? [])
+      .filter(cycle => cycle.manuallyCalibrated && cycle.estimatedAmount != null)
+      .map(cycle => Number(cycle.amount || 0) - Number(cycle.estimatedAmount || 0))
+      .filter(diff => Math.abs(diff) >= 100)
+
+    return {
+      id: card.id,
+      name: card.name,
+      color: card.color,
+      pendingCount,
+      hintCount,
+      diffCount: calibratedDiffs.length,
+      largestDiff: calibratedDiffs.reduce((max, diff) => Math.abs(diff) > Math.abs(max) ? diff : max, 0),
+    }
+  }).filter(item => item.pendingCount > 0 || item.hintCount > 0 || item.diffCount > 0)
+
+  return {
+    pendingCount: pendingTransactions.length,
+    postedImportedCount,
+    adjustmentCount,
+    unmappedCount,
+    cardAlerts,
+    totalIssueCount: pendingTransactions.length + unmappedCount + cardAlerts.reduce((sum, item) => sum + item.diffCount, 0),
+  }
+}
+
 export default function App() {
   const stored = loadStorage()
 
@@ -716,6 +759,7 @@ export default function App() {
   const essentialTotal = checklistTotal + essentialSavings
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
+  const reconciliationSummary = buildReconciliationSummary({ transactions, cards: enrichedCards, cardImport })
 
   // 靽∠?⊿?隡啣董?殷???閬??身摰??詨?嚗?帘摰?霈?銝?撠董嚗歇蝜喟??蔣?踱?
   // ???撌脩??望?撠望?望?鈭?銝??璅?撌脩像撠晞????暑蝯???
@@ -799,6 +843,8 @@ export default function App() {
         cardEstimateTotal={cardEstimateTotal}
         lifeBalance={lifeBalance}
         onGoToChecklist={() => setTab('checklist')}
+        onGoToTransactions={() => setTab('transactions')}
+        reconciliationSummary={reconciliationSummary}
       />
     ),
     transactions: (

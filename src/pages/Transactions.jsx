@@ -61,6 +61,14 @@ function importStatusText(cardImport) {
   return `上次更新：${updatedAt}・新增 ${count} 筆・重複 ${duplicates} 筆・未對應 ${unmapped} 筆`
 }
 
+function isImportedTransaction(tx) {
+  return String(tx?.note ?? '').includes('自動匯入')
+}
+
+function isPendingReconciliation(tx) {
+  return isImportedTransaction(tx) && !tx.postedDate
+}
+
 export default function Transactions({
   showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction,
   onConvertToInstallment, cardImport, importingCardNotifications, onImportCardNotifications,
@@ -71,6 +79,7 @@ export default function Transactions({
   const [keyword, setKeyword] = useState('')
   const [cardFilter, setCardFilter] = useState('all')
   const [periodFilter, setPeriodFilter] = useState('all')
+  const [auditFilter, setAuditFilter] = useState('all')
   const [rangeStart, setRangeStart] = useState('')
   const [rangeEnd, setRangeEnd] = useState('')
 
@@ -82,6 +91,7 @@ export default function Transactions({
       if (!matchesCard(tx, card)) return false
     }
     if (!isInPeriod(tx.date, periodFilter, { rangeStart, rangeEnd })) return false
+    if (auditFilter === 'pending' && !isPendingReconciliation(tx)) return false
     if (keyword.trim()) {
       const kw = keyword.trim().toLowerCase()
       const haystack = `${tx.name ?? ''} ${tx.note ?? ''} ${tx.category ?? ''} ${tx.card ?? ''}`.toLowerCase()
@@ -91,6 +101,7 @@ export default function Transactions({
   })
 
   const filteredTotal = filteredTransactions.reduce((s, tx) => s + tx.amount, 0)
+  const pendingReconciliationCount = transactions.filter(isPendingReconciliation).length
 
   function closeSheet() {
     setShowSheet(false)
@@ -180,6 +191,12 @@ export default function Transactions({
               <option key={c.id} value={c.name}>{c.name}</option>
             ))}
           </select>
+          <button
+            className={`tx-audit-filter${auditFilter === 'pending' ? ' tx-audit-filter-active' : ''}`}
+            onClick={() => setAuditFilter((value) => value === 'pending' ? 'all' : 'pending')}
+          >
+            只看待對帳{pendingReconciliationCount > 0 ? `（${pendingReconciliationCount}）` : ''}
+          </button>
           {periodFilter === 'range' && (
             <div className="tx-range-row">
               <input

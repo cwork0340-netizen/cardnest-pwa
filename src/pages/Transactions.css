@@ -57,6 +57,24 @@
   appearance: none;
 }
 
+.tx-audit-filter {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.tx-audit-filter-active {
+  border-color: color-mix(in srgb, var(--color-warning) 32%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning-soft) 70%, var(--color-surface));
+  color: var(--color-warning);
+}
+
 .tx-range-row {
   display: flex;
   align-items: center;
