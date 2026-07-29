@@ -471,13 +471,15 @@ export default function App() {
 
   // ?銵????瑕??臬嚗ettings 撌脩 permalink ?駁?銴祟??撠??∠???銵?
   // ?ㄐ?芾?鞎祆??蕪敺??唬漱???脖?嚗蒂閮?? permalink ?踹?銝活???臬
-  const handleImportTransactions = useCallback((newTxs, newKeys) => {
+  const handleImportTransactions = useCallback((newTxs, newKeys, summary = {}) => {
     setTransactions(p => [...newTxs.map(normalizeTransaction), ...p])
     setCardImport(prev => ({
       ...prev,
       importedKeys: [...prev.importedKeys, ...newKeys],
       lastImportAt: Date.now(),
       lastImportCount: newTxs.length,
+      lastImportDuplicateCount: summary.duplicateCount ?? 0,
+      lastImportSkippedUnmapped: summary.skippedUnmapped ?? 0,
     }))
   }, [normalizeTransaction])
 
@@ -497,9 +499,13 @@ export default function App() {
       const newTxs = []
       const newKeys = []
       let skippedUnmapped = 0
+      let duplicateCount = 0
 
       rows.forEach((row) => {
-        if (importedKeys.has(row.permalink)) return
+        if (importedKeys.has(row.permalink)) {
+          duplicateCount++
+          return
+        }
         const mappedCard = cards.find((card) => card.id === cardImport?.bankCardMap?.[row.bank] || card.name === cardImport?.bankCardMap?.[row.bank])
         if (!mappedCard) { skippedUnmapped++; return }
         newTxs.push({
@@ -516,12 +522,12 @@ export default function App() {
         newKeys.push(row.permalink)
       })
 
-      handleImportTransactions(newTxs, newKeys)
+      handleImportTransactions(newTxs, newKeys, { duplicateCount, skippedUnmapped })
 
       if (skippedUnmapped > 0) {
-        showToast(`已更新 ${newTxs.length} 筆，${skippedUnmapped} 筆銀行尚未設定對應卡片`)
+        showToast(`新增 ${newTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedUnmapped} 筆未對應卡片`)
       } else {
-        showToast(`已更新 ${newTxs.length} 筆刷卡記錄`)
+        showToast(`新增 ${newTxs.length} 筆，重複略過 ${duplicateCount} 筆`)
       }
     } catch (e) {
       showToast(e.message || '更新失敗，請稍後再試')

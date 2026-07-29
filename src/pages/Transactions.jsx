@@ -52,6 +52,15 @@ function isInPeriod(displayDate, period, { from = new Date(), rangeStart, rangeE
   return true
 }
 
+function importStatusText(cardImport) {
+  if (!cardImport?.lastImportAt) return ''
+  const updatedAt = new Date(cardImport.lastImportAt).toLocaleString('zh-TW')
+  const count = cardImport.lastImportCount ?? 0
+  const duplicates = cardImport.lastImportDuplicateCount ?? 0
+  const unmapped = cardImport.lastImportSkippedUnmapped ?? 0
+  return `上次更新：${updatedAt}・新增 ${count} 筆・重複 ${duplicates} 筆・未對應 ${unmapped} 筆`
+}
+
 export default function Transactions({
   showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction,
   onConvertToInstallment, cardImport, importingCardNotifications, onImportCardNotifications,
@@ -127,7 +136,7 @@ export default function Transactions({
           <h1 className="tx-page-title">刷卡記錄</h1>
           {cardImport?.lastImportAt && (
             <span className="tx-import-status">
-              上次更新：{new Date(cardImport.lastImportAt).toLocaleString('zh-TW')}・{cardImport.lastImportCount} 筆
+              {importStatusText(cardImport)}
             </span>
           )}
         </div>
