@@ -48,10 +48,12 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
     e.stopPropagation()
     const rawAmount = calibration.amount.trim()
     const amount = Number(rawAmount)
+    const closeDate = calibration.closeDate || cycle.closeDate
     onUpdateCycle(card.id, cycle.id, {
       amount: rawAmount !== '' && Number.isFinite(amount) ? amount : cycle.amount,
-      closeDate: calibration.closeDate || cycle.closeDate,
+      closeDate,
       dueDate: calibration.dueDate || cycle.dueDate,
+      cycleKey: closeDate?.slice(0, 7) ?? cycle.cycleKey,
       amountIsActual: true,
       manuallyCalibrated: true,
     })

@@ -168,3 +168,15 @@ export function daysUntilDue(cycle, today = new Date()) {
   due.setHours(0, 0, 0, 0)
   return Math.round((due - ref) / 86400000)
 }
+
+export function applyCycleUpdate(cycles = [], cycleId, fields = {}) {
+  const updated = cycles.map(cycle => cycle.id === cycleId ? { ...cycle, ...fields } : cycle)
+  if (!fields.manuallyCalibrated || !fields.closeDate) return updated
+
+  const calibratedClose = parseYmd(fields.closeDate)
+  return updated.filter((cycle) => {
+    if (cycle.id === cycleId) return true
+    const closeDate = parseYmd(cycle.closeDate)
+    return closeDate <= calibratedClose || cycle.paid || cycle.manuallyCalibrated || cycle.amountIsActual
+  })
+}
