@@ -5,6 +5,20 @@ const CATEGORY_COLORS = {
   日常: '#B98D6F', 交通: '#C86E62', 娛樂: '#D6A04D', 其他: '#B9ADA6',
 }
 
+function isImported(tx) {
+  return String(tx.note ?? '').includes('自動匯入')
+}
+
+function sourceLabel(tx) {
+  return isImported(tx) ? '信件匯入' : '手動'
+}
+
+function auditLabel(tx) {
+  if (!isImported(tx)) return '自行確認'
+  if (tx.postedDate) return '有入帳日'
+  return '待對帳'
+}
+
 export default function TransactionItem({ tx, onDelete, onEdit, onConvert }) {
   const dotColor = CATEGORY_COLORS[tx.category] ?? '#B9ADA6'
 
@@ -21,6 +35,10 @@ export default function TransactionItem({ tx, onDelete, onEdit, onConvert }) {
         <div className="tx-info">
           <span className="tx-name">{tx.name}</span>
           <span className="tx-meta">{tx.date} · {tx.card}</span>
+          <span className="tx-badges">
+            <span className={`tx-badge${isImported(tx) ? ' tx-badge-imported' : ''}`}>{sourceLabel(tx)}</span>
+            <span className={`tx-badge${tx.postedDate ? ' tx-badge-posted' : ''}`}>{auditLabel(tx)}</span>
+          </span>
         </div>
       </div>
       <div className="tx-right">

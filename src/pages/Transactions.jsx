@@ -52,7 +52,19 @@ function isInPeriod(displayDate, period, { from = new Date(), rangeStart, rangeE
   return true
 }
 
-export default function Transactions({ showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction, onConvertToInstallment }) {
+function importStatusText(cardImport) {
+  if (!cardImport?.lastImportAt) return ''
+  const updatedAt = new Date(cardImport.lastImportAt).toLocaleString('zh-TW')
+  const count = cardImport.lastImportCount ?? 0
+  const duplicates = cardImport.lastImportDuplicateCount ?? 0
+  const unmapped = cardImport.lastImportSkippedUnmapped ?? 0
+  return `上次更新：${updatedAt}・新增 ${count} 筆・重複 ${duplicates} 筆・未對應 ${unmapped} 筆`
+}
+
+export default function Transactions({
+  showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction,
+  onConvertToInstallment, cardImport, importingCardNotifications, onImportCardNotifications,
+}) {
   const [showSheet, setShowSheet] = useState(false)
   const [editingTx, setEditingTx] = useState(null)
   const [convertingTx, setConvertingTx] = useState(null)
@@ -120,7 +132,21 @@ export default function Transactions({ showToast, transactions, cards, onAddTran
   return (
     <div className="tx-page">
       <div className="tx-page-header">
-        <h1 className="tx-page-title">刷卡記錄</h1>
+        <div>
+          <h1 className="tx-page-title">刷卡記錄</h1>
+          {cardImport?.lastImportAt && (
+            <span className="tx-import-status">
+              {importStatusText(cardImport)}
+            </span>
+          )}
+        </div>
+        <button
+          className="tx-import-btn"
+          onClick={onImportCardNotifications}
+          disabled={importingCardNotifications}
+        >
+          {importingCardNotifications ? '更新中…' : '更新信件刷卡'}
+        </button>
       </div>
 
       {transactions.length > 0 && (
