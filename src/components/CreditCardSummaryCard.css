@@ -143,6 +143,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
   padding: 8px 0;
   border-bottom: 1px dashed var(--color-border, rgba(0, 0, 0, 0.08));
 }
@@ -151,6 +152,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .credit-card-cycle-amount {
@@ -203,6 +205,84 @@
   color: var(--color-primary);
   cursor: pointer;
   flex-shrink: 0;
+}
+
+.credit-card-cycle-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.credit-card-cycle-calibrate {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.credit-card-cycle-calibrated {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-success);
+}
+
+.credit-card-cycle-calibration {
+  flex: 1 0 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.credit-card-cycle-calibration label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.credit-card-cycle-calibration input {
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-main);
+}
+
+.credit-card-cycle-diff {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.credit-card-cycle-calibration-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.credit-card-cycle-calibration-actions button {
+  flex: 1;
+  min-height: 38px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.credit-card-cycle-calibration-actions button:last-child {
+  background: var(--divider);
+  color: var(--color-text-secondary);
 }
 
 .credit-card-cycle-pay-all {
