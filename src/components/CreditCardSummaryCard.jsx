@@ -12,6 +12,44 @@ function dueLabel(cycle) {
   return `到期 ${md}・還有 ${cycle.daysLeft} 天`
 }
 
+function actualDiff(cycle) {
+  if (cycle.estimatedAmount == null) return null
+  return Number(cycle.amount || 0) - Number(cycle.estimatedAmount || 0)
+}
+
+function diffLabel(diff) {
+  if (diff === 0) return '和 App 預估一致'
+  return `和 App 預估差 ${fmt(diff)}`
+}
+
+function cycleAuditHints(cycle, cardHints) {
+  const diff = actualDiff(cycle)
+  if (diff == null || Math.abs(diff) < 1) {
+    return ['本期銀行帳單和 App 預估一致，日常信件監控可繼續使用。']
+  }
+
+  const hints = [
+    '信件只代表刷卡通知，銀行帳單才知道實際入帳、轉分期與繳款結果。',
+  ]
+
+  const joinedHints = cardHints.join(' ')
+  if (/分期|沖銷|轉分期/.test(joinedHints)) {
+    hints.push('這期可能有原刷卡轉分期、分期沖銷或第幾期入帳。')
+  }
+  if (/繳款|付款/.test(joinedHints)) {
+    hints.push('繳款入帳會影響剩餘未繳，但不應該被當成消費。')
+  }
+  if (/入帳日|請款|未入帳/.test(joinedHints)) {
+    hints.push('部分消費可能刷卡日和入帳日不同，會落到不同帳期。')
+  }
+
+  hints.push(diff > 0
+    ? '銀行帳單比 App 預估高，請優先檢查未匯入信件、手續費或分期本期款。'
+    : '銀行帳單比 App 預估低，請優先檢查未入帳、退款、繳款或轉分期沖銷。')
+
+  return hints
+}
+
 export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid, onUpdateCycle }) {
   const [expanded, setExpanded] = useState(false)
   const [editingCycleId, setEditingCycleId] = useState(null)
@@ -176,6 +214,25 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                       <div className="credit-card-cycle-calibration-actions">
                         <button onClick={(e) => saveCalibration(e, cycle)}>儲存校準</button>
                         <button onClick={(e) => { e.stopPropagation(); setCalibratingCycleId(null) }}>取消</button>
+                      </div>
+                    </div>
+                  )}
+                  {cycle.manuallyCalibrated && cycle.estimatedAmount != null && (
+                    <div className="credit-card-cycle-audit">
+                      <div className="credit-card-cycle-audit-grid">
+                        <span>銀行實際</span>
+                        <strong>{fmt(cycle.amount)}</strong>
+                        <span>App 原估</span>
+                        <strong>{fmt(cycle.estimatedAmount)}</strong>
+                        <span>差異</span>
+                        <strong className={actualDiff(cycle) === 0 ? '' : 'credit-card-cycle-audit-diff'}>
+                          {diffLabel(actualDiff(cycle))}
+                        </strong>
+                      </div>
+                      <div className="credit-card-cycle-audit-hints">
+                        {cycleAuditHints(cycle, reconciliationHints).map((hint) => (
+                          <span key={hint}>{hint}</span>
+                        ))}
                       </div>
                     </div>
                   )}
