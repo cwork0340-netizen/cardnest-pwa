@@ -123,6 +123,11 @@ export default function Transactions({
     showToast('已從清單移除')
   }
 
+  function handleReconcile(tx) {
+    onUpdateTransaction({ ...tx, postedDate: tx.date })
+    showToast('已標記對帳')
+  }
+
   function handleConvertSubmit(plan) {
     onConvertToInstallment(convertingTx.id, plan)
     showToast(`已轉為分期，「${plan.name}」改由分期計畫追蹤`)
@@ -220,7 +225,7 @@ export default function Transactions({
         ) : (
           filteredTransactions.map((tx) => (
             <div className="card" key={tx.id}>
-              <TransactionItem tx={tx} onDelete={handleDelete} onEdit={setEditingTx} onConvert={setConvertingTx} />
+              <TransactionItem tx={tx} onDelete={handleDelete} onEdit={setEditingTx} onConvert={setConvertingTx} onReconcile={handleReconcile} />
             </div>
           ))
         )}

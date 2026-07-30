@@ -62,4 +62,38 @@ describe('Transactions import entry', () => {
     expect(screen.getByText('信件匯入')).toBeInTheDocument()
     expect(screen.getByText('有入帳日')).toBeInTheDocument()
   })
+
+  it('lets the user reconcile an imported transaction with no posted date', () => {
+    const onUpdateTransaction = vi.fn()
+    const showToast = vi.fn()
+
+    render(
+      <Transactions
+        showToast={showToast}
+        transactions={[{
+          id: 'tx2',
+          name: '南山保費',
+          card: '永豐卡',
+          category: '保險',
+          amount: 1458,
+          date: '2026-07-23',
+          note: '自動匯入・永豐',
+        }]}
+        cards={[{ id: 'c1', name: '永豐卡' }]}
+        onAddTransaction={vi.fn()}
+        onUpdateTransaction={onUpdateTransaction}
+        onDeleteTransaction={vi.fn()}
+        onConvertToInstallment={vi.fn()}
+        cardImport={null}
+        importingCardNotifications={false}
+        onImportCardNotifications={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('待對帳')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '對帳' }))
+
+    expect(onUpdateTransaction).toHaveBeenCalledWith(expect.objectContaining({ id: 'tx2', postedDate: '2026-07-23' }))
+    expect(showToast).toHaveBeenCalledWith('已標記對帳')
+  })
 })

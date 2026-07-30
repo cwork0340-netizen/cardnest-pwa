@@ -19,8 +19,9 @@ function auditLabel(tx) {
   return '待對帳'
 }
 
-export default function TransactionItem({ tx, onDelete, onEdit, onConvert }) {
+export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onReconcile }) {
   const dotColor = CATEGORY_COLORS[tx.category] ?? '#B9ADA6'
+  const needsReconcile = onReconcile && auditLabel(tx) === '待對帳'
 
   return (
     <div
@@ -48,6 +49,9 @@ export default function TransactionItem({ tx, onDelete, onEdit, onConvert }) {
         {tx.note ? <span className="tx-note">{tx.note}</span> : null}
       </div>
       <div className="tx-action-btns">
+        {needsReconcile && (
+          <button className="tx-reconcile-btn" onClick={(e) => { e.stopPropagation(); onReconcile(tx) }} aria-label="對帳">對帳</button>
+        )}
         {onConvert && (
           <button className="tx-convert-btn" onClick={(e) => { e.stopPropagation(); onConvert(tx) }} aria-label="轉為分期">轉分期</button>
         )}
