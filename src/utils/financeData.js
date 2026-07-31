@@ -123,7 +123,7 @@ export function transactionRepresentsPlan(tx, plan, cards) {
 
 export function planAmountNotRecorded({ plan, transactions, cards, windowStart, windowEnd }) {
   const represented = transactions.some((tx) => {
-    const date = parseISODate(tx.date, windowEnd)
+    const date = parseISODate(transactionCycleDate(tx), windowEnd)
     return date && date > windowStart && date <= windowEnd && transactionRepresentsPlan(tx, plan, cards)
   })
   return represented ? 0 : Number(plan.amount) || 0

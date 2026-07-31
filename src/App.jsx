@@ -414,6 +414,23 @@ export default function App() {
   }, [cards])
   const handleAddPlan = useCallback((plan) => setPlans(p => [normalizePlan(plan), ...p]), [normalizePlan])
   const handleUpdatePlan = useCallback((updated) => setPlans(p => p.map(pl => pl.id === updated.id ? normalizePlan(updated) : pl)), [normalizePlan])
+  // 從刷卡記錄「設為訂閱」：跟轉分期不同，這筆刷卡記錄要保留（本期已扣款的真實紀錄），
+  // 只新增一個訂閱計畫追蹤之後的扣款。同卡同名的訂閱已經存在就不重複建立，
+  // 避免每次匯入格式對不上、使用者又手動點一次時越疊越多筆
+  const handleMarkAsSubscription = useCallback((plan) => {
+    const isDuplicate = plans.some((p) => (
+      p.type === 'subscription'
+      && (p.active ?? true)
+      && matchesCard(p, { id: plan.cardId, name: plan.card })
+      && String(p.name).trim().toLowerCase() === String(plan.name).trim().toLowerCase()
+    ))
+    if (isDuplicate) {
+      showToast(`已經有「${plan.name}」的訂閱計畫了，不重複建立`)
+      return
+    }
+    handleAddPlan(plan)
+    showToast(`已設為訂閱，「${plan.name}」之後的扣款會自動對應`)
+  }, [plans, handleAddPlan, showToast])
   const handleDeletePlan = useCallback((id) => {
     setPlans(prev => {
       const idx = prev.findIndex(x => x.id === id)
@@ -851,6 +868,7 @@ export default function App() {
         onUpdateTransaction={handleUpdateTransaction}
         onDeleteTransaction={handleDeleteTransaction}
         onConvertToInstallment={handleConvertToInstallment}
+        onMarkAsSubscription={handleMarkAsSubscription}
         cardImport={cardImport}
         importingCardNotifications={importingCardNotifications}
         onImportCardNotifications={handleImportCardNotifications}

@@ -53,7 +53,7 @@ export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onRec
           <button className="tx-reconcile-btn" onClick={(e) => { e.stopPropagation(); onReconcile(tx) }} aria-label="對帳">對帳</button>
         )}
         {onConvert && (
-          <button className="tx-convert-btn" onClick={(e) => { e.stopPropagation(); onConvert(tx) }} aria-label="轉為分期">轉分期</button>
+          <button className="tx-convert-btn" onClick={(e) => { e.stopPropagation(); onConvert(tx) }} aria-label="設為訂閱或分期">設為定期</button>
         )}
         <button className="tx-edit-btn" onClick={(e) => { e.stopPropagation(); onEdit(tx) }} aria-label="編輯">✎</button>
         <button className="tx-delete-btn" onClick={(e) => { e.stopPropagation(); onDelete(tx.id) }} aria-label="刪除">✕</button>

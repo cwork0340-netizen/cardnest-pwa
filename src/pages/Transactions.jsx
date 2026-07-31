@@ -4,7 +4,7 @@ import SectionHeader from '../components/SectionHeader'
 import TransactionItem from '../components/TransactionItem'
 import BottomSheet from '../components/BottomSheet'
 import QuickTransactionForm from '../components/QuickTransactionForm'
-import ConvertToInstallmentForm from '../components/ConvertToInstallmentForm'
+import ConvertToPlanForm from '../components/ConvertToPlanForm'
 import EmptyState from '../components/EmptyState'
 import { matchesCard, parseISODate, resolveCardId, toISODate } from '../utils/financeData'
 
@@ -63,7 +63,7 @@ function importStatusText(cardImport) {
 
 export default function Transactions({
   showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction,
-  onConvertToInstallment, cardImport, importingCardNotifications, onImportCardNotifications,
+  onConvertToInstallment, onMarkAsSubscription, cardImport, importingCardNotifications, onImportCardNotifications,
 }) {
   const [showSheet, setShowSheet] = useState(false)
   const [editingTx, setEditingTx] = useState(null)
@@ -129,8 +129,12 @@ export default function Transactions({
   }
 
   function handleConvertSubmit(plan) {
-    onConvertToInstallment(convertingTx.id, plan)
-    showToast(`已轉為分期，「${plan.name}」改由分期計畫追蹤`)
+    if (plan.type === 'installment') {
+      onConvertToInstallment(convertingTx.id, plan)
+      showToast(`已轉為分期，「${plan.name}」改由分期計畫追蹤`)
+    } else {
+      onMarkAsSubscription(plan)
+    }
     setConvertingTx(null)
   }
 
@@ -256,10 +260,10 @@ export default function Transactions({
       <BottomSheet
         open={!!convertingTx}
         onClose={() => setConvertingTx(null)}
-        title="轉為分期"
+        title="設為訂閱或分期"
       >
         {convertingTx && (
-          <ConvertToInstallmentForm
+          <ConvertToPlanForm
             tx={convertingTx}
             onSubmit={handleConvertSubmit}
             onClose={() => setConvertingTx(null)}
