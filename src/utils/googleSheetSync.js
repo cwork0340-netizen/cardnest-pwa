@@ -91,6 +91,23 @@ export async function getAccessToken(clientId) {
   }
 }
 
+// 給背景自動同步用：只嘗試沿用快取或靜默換新，換新失敗（需要使用者同意）就回傳
+// null 放棄，絕不彈出同意畫面——沒有使用者手勢時瀏覽器多半會擋下彈窗，硬跳只會卡住。
+export async function getAccessTokenSilent(clientId) {
+  const cached = loadStoredToken()
+  if (cached) return cached
+
+  try {
+    await loadGis()
+    const client = getTokenClient(clientId)
+    const resp = await requestToken(client, '')
+    storeToken(resp.access_token, resp.expires_in)
+    return resp.access_token
+  } catch {
+    return null
+  }
+}
+
 async function ensureSheetExists(sheetId, accessToken, title = SHEET_TITLE) {
   const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`, {
     headers: { Authorization: `Bearer ${accessToken}` },

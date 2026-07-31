@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useEffect, useRef } from 'react'
+﻿import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import Dashboard from './pages/Dashboard'
@@ -7,7 +7,9 @@ import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
-import { getAccessToken } from './utils/googleSheetSync'
+import {
+  getAccessToken, getAccessTokenSilent, syncTransactionsToSheet, syncBillingCyclesToSheet, syncMonthlyPlanToSheet,
+} from './utils/googleSheetSync'
 import { fetchImportRows, toISODate as toImportISODate } from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
@@ -316,6 +318,7 @@ export default function App() {
   const [tab, setTab] = useState('dashboard')
   const [toast, setToast] = useState(null) // { message, onUndo? }
   const toastTimer = useRef(null)
+  const autoSyncAttempted = useRef(false)
   const [cards, setCards] = useState(stored?.cards ?? [])
   const [plans, setPlans] = useState(stored?.plans ?? [])
   const [transactions, setTransactions] = useState(stored?.transactions ?? [])
@@ -724,6 +727,44 @@ export default function App() {
     .map(c => ({ id: c.id, name: c.name, amount: Number(c.estimatedBill) }))
   const cardEstimateTotal = cardEstimates.reduce((s, c) => s + c.amount, 0)
   const lifeBalance = income - essentialTotal - cardEstimateTotal
+  const planSummary = useMemo(() => ({
+    monthKey: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+    income,
+    essentialTotal,
+    essentialSavings,
+    cardEstimateTotal,
+    lifeBalance,
+  }), [income, essentialTotal, essentialSavings, cardEstimateTotal, lifeBalance])
+
+  // 每次開 App 檢查一次：如果有設定雲端同步、且距上次同步超過一週，就在背景默默
+  // 補一次同步。只用靜默換 token（不彈同意畫面），換不到就放棄，等下次開 App 或
+  // 使用者自己手動同步；每個 session 只嘗試一次，避免每次資料變動就重打 API。
+  useEffect(() => {
+    if (autoSyncAttempted.current) return
+    const clientId = googleSync?.clientId?.trim()
+    const sheetId = googleSync?.sheetId?.trim()
+    if (!clientId || !sheetId) return
+    const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+    if (googleSync?.lastSyncAt && Date.now() - googleSync.lastSyncAt < WEEK_MS) return
+
+    autoSyncAttempted.current = true
+    ;(async () => {
+      const token = await getAccessTokenSilent(clientId)
+      if (!token) return
+      try {
+        const count = await syncTransactionsToSheet({ accessToken: token, sheetId, transactions })
+        await syncBillingCyclesToSheet({ accessToken: token, sheetId, cards })
+        if (planSummary.income > 0) {
+          await syncMonthlyPlanToSheet({ accessToken: token, sheetId, summary: planSummary })
+        }
+        setGoogleSync(prev => ({ ...prev, lastSyncAt: Date.now(), lastSyncCount: count }))
+        showToast(`已自動同步 ${count} 筆刷卡紀錄`)
+      } catch {
+        // 靜默失敗（例如網路問題），不打擾使用者，等下次開 App 再試
+      }
+    })()
+  }, [googleSync, cards, transactions, planSummary, showToast])
+
   const weekDays = buildWeekDays(plans, enrichedCards)
   const enrichedPlans = enrichPlans(plans)
 
@@ -872,14 +913,7 @@ export default function App() {
         onGoogleSyncChange={setGoogleSync}
         cardImport={cardImport}
         onCardImportChange={setCardImport}
-        planSummary={{
-          monthKey: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
-          income,
-          essentialTotal,
-          essentialSavings,
-          cardEstimateTotal,
-          lifeBalance,
-        }}
+        planSummary={planSummary}
       />
     ),
   }

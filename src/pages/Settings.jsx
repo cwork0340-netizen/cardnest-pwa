@@ -290,7 +290,7 @@ export default function Settings({
               : '尚未同步'}
           </span>
           <p className="settings-backup-hint">
-            把刷卡紀錄跟每張卡的帳單週期歷史（哪個月繳了多少、有沒有遲繳）都寫進你自己的 Google Sheet 兩個分頁，方便額外做分析或留底查閱。第一次使用前要先在 Google Cloud Console 申請 OAuth Client ID，並把 Client ID 跟你建立的 Sheet ID 填在下面。
+            把刷卡紀錄跟每張卡的帳單週期歷史（哪個月繳了多少、有沒有遲繳）都寫進你自己的 Google Sheet 兩個分頁，方便額外做分析或留底查閱。第一次使用前要先在 Google Cloud Console 申請 OAuth Client ID，並把 Client ID 跟你建立的 Sheet ID 填在下面。連上後，每次開啟 App 若距上次同步已超過一週，會在背景自動補同步一次；也可以隨時按下面的按鈕手動立即同步。
           </p>
           <div className="fx-field">
             <label>Google OAuth Client ID</label>
