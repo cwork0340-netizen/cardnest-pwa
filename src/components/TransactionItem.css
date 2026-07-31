@@ -121,7 +121,8 @@
   transition: color 160ms ease, background 160ms ease;
 }
 
-.tx-convert-btn {
+.tx-convert-btn,
+.tx-reconcile-btn {
   height: 28px;
   padding: 0 8px;
   border-radius: 999px;
@@ -139,6 +140,16 @@
   color: var(--color-primary);
   background: var(--color-primary-soft);
   border-color: var(--color-primary);
+}
+
+.tx-reconcile-btn {
+  color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 40%, var(--divider));
+}
+
+.tx-reconcile-btn:hover {
+  background: var(--color-success-soft);
+  border-color: var(--color-success);
 }
 
 .tx-edit-btn:hover {
