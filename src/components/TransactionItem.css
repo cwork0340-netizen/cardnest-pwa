@@ -1,8 +1,9 @@
 .tx-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 6px 12px;
   padding: 2px 0;
 }
 
@@ -43,6 +44,7 @@
 .tx-meta {
   font-size: 13px;
   color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .tx-badges {
@@ -102,6 +104,7 @@
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .tx-edit-btn,
