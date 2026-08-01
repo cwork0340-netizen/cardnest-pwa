@@ -16,6 +16,13 @@ function defaultFirstDueDate(tx, billingDay) {
   return ymd(new Date(year, month, clampDayInMonth(year, month, billingDay)))
 }
 
+// 這筆刷卡記錄本身就是這期的扣款，所以訂閱計畫要從「這筆之後」才開始材料化，
+// 不然下次算週期時會把同一筆錢又算成一次到期的訂閱
+function dayAfter(isoDate) {
+  const date = parseISODate(isoDate) ?? new Date()
+  return ymd(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1))
+}
+
 export default function ConvertToPlanForm({ tx, onSubmit, onClose }) {
   const [type, setType] = useState('subscription')
   const [totalCount, setTotalCount] = useState('3')
@@ -68,9 +75,9 @@ export default function ConvertToPlanForm({ tx, onSubmit, onClose }) {
         period: '期',
         billingDay: day,
         firstDueDate,
-        paidCount: 0,
+        legacyPaidCount: 0,
+        materializeFrom: firstDueDate,
         totalCount: total,
-        paid: false,
       })
       return
     }
@@ -87,6 +94,7 @@ export default function ConvertToPlanForm({ tx, onSubmit, onClose }) {
       period: '月',
       billingDay: day,
       active: true,
+      materializeFrom: dayAfter(tx.date),
     })
   }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './AddPlanForm.css'
-import { dayFromMD } from '../utils/recurrence'
-import { resolveCardId } from '../utils/financeData'
+import { clampDayInMonth, dayFromMD, nextOccurrence } from '../utils/recurrence'
+import { resolveCardId, ymd } from '../utils/financeData'
 
 // 舊資料只有 nextDate（如 "6/15"）沒有 billingDay 時，從顯示字串推回每月幾號；
 // 新增時預設今天的號數，跟原本「下次扣款日」預填今天的行為一致
@@ -10,6 +10,28 @@ function initialBillingDay(initialValues) {
   if (initialValues.billingDay) return String(initialValues.billingDay)
   const day = dayFromMD(initialValues.nextDate)
   return day ? String(day) : String(new Date().getDate())
+}
+
+// 「已繳幾期」是中途加入時回填的歷史資訊，不是真的有交易——回推出對應的
+// 第一期到期日，讓材料化機制知道從哪一期開始才是這個功能該負責的範圍。
+// legacyPaidCount 為 0（全新分期）時，第一期就是下一個扣款日。
+function currentAnchor(billingDay, today) {
+  const y = today.getFullYear(), m = today.getMonth(), d = today.getDate()
+  return d >= billingDay ? new Date(y, m, billingDay) : new Date(y, m - 1, billingDay)
+}
+
+function computeFirstDueDate(legacyPaidCount, billingDay, today = new Date()) {
+  if (legacyPaidCount <= 0) {
+    // 全新分期：第一期一定要在「今天之後」，不然萬一今天剛好就是扣款日，
+    // 材料化機制會把它當成已經到期，剛新增就自動算成已繳一期
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+    return ymd(nextOccurrence(billingDay, tomorrow))
+  }
+  let cursor = currentAnchor(billingDay, today)
+  for (let i = 0; i < legacyPaidCount - 1; i++) {
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, clampDayInMonth(cursor.getFullYear(), cursor.getMonth() - 1, billingDay))
+  }
+  return ymd(cursor)
 }
 
 export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, initialValues = null }) {
@@ -29,7 +51,8 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
   const [billingDay, setBillingDay] = useState(initialBillingDay(initialValues))
   const [totalCount, setTotalCount] = useState(initialValues?.totalCount ? String(initialValues.totalCount) : '')
   const [paidCountInput, setPaidCountInput] = useState(
-    initialValues?.paidCount != null ? String(initialValues.paidCount) : ''
+    initialValues?.legacyPaidCount != null ? String(initialValues.legacyPaidCount)
+      : initialValues?.paidCount != null ? String(initialValues.paidCount) : ''
   )
   const [error, setError] = useState('')
 
@@ -77,8 +100,18 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
     }
 
     const newPlan = type === 'subscription'
-      ? { ...base, active: initialValues?.active ?? true }
-      : { ...base, paidCount, totalCount: total, paid: initialValues?.paid ?? false }
+      ? {
+          ...base,
+          active: initialValues?.active ?? true,
+          materializeFrom: initialValues?.materializeFrom ?? ymd(new Date()),
+        }
+      : {
+          ...base,
+          legacyPaidCount: paidCount,
+          totalCount: total,
+          firstDueDate: initialValues?.firstDueDate ?? computeFirstDueDate(paidCount, day),
+          materializeFrom: initialValues?.materializeFrom ?? ymd(new Date()),
+        }
 
     onSubmit(newPlan)
   }

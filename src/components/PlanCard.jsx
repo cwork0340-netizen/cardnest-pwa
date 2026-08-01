@@ -52,6 +52,8 @@ export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
   }
   const stop = (fn) => (e) => { e.stopPropagation(); fn() }
 
+  const pendingConfirmCount = plan.pendingConfirmCount ?? 0
+
   if (isSubscription) {
     return (
       <div className="card plan-card plan-card-clickable" {...editProps}>
@@ -60,6 +62,7 @@ export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
             <span className="badge badge-primary plan-badge">訂閱</span>
             <span className="plan-name">{plan.name}</span>
             <span className="plan-card-name">{plan.card}</span>
+            {pendingConfirmCount > 0 && <span className="plan-pending-badge">已入帳，待對帳</span>}
           </div>
           <div className="plan-right">
             <AmountDisplay plan={plan} />
@@ -96,6 +99,7 @@ export default function PlanCard({ plan, onMarkPaid, onDelete, onEdit }) {
           <span className="badge badge-installment plan-badge">分期</span>
           <span className="plan-name">{plan.name}</span>
           <span className="plan-card-name">{plan.card}</span>
+          {pendingConfirmCount > 0 && <span className="plan-pending-badge">已入帳，待對帳{pendingConfirmCount > 1 ? `（${pendingConfirmCount}）` : ''}</span>}
         </div>
         <div className="plan-right plan-right-installment">
           <span className="plan-amount">
