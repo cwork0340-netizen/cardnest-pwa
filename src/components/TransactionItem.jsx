@@ -19,7 +19,7 @@ function auditLabel(tx) {
   return '待對帳'
 }
 
-export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onReconcile }) {
+export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onReconcile, linkedPlanName }) {
   const dotColor = CATEGORY_COLORS[tx.category] ?? '#B9ADA6'
   const needsReconcile = onReconcile && auditLabel(tx) === '待對帳'
 
@@ -39,6 +39,7 @@ export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onRec
           <span className="tx-badges">
             <span className={`tx-badge${isImported(tx) ? ' tx-badge-imported' : ''}`}>{sourceLabel(tx)}</span>
             <span className={`tx-badge${tx.postedDate ? ' tx-badge-posted' : ''}`}>{auditLabel(tx)}</span>
+            {linkedPlanName && <span className="tx-badge tx-badge-subscription">訂閱：{linkedPlanName}</span>}
           </span>
         </div>
       </div>

@@ -425,7 +425,7 @@ export default function App() {
       && String(p.name).trim().toLowerCase() === String(plan.name).trim().toLowerCase()
     ))
     if (isDuplicate) {
-      showToast(`已經有「${plan.name}」的訂閱計畫了，不重複建立`)
+      showToast(`已經有「${plan.name}」的訂閱計畫了，這筆記錄視為本期扣款，不重複建立`)
       return
     }
     handleAddPlan(plan)
@@ -864,6 +864,7 @@ export default function App() {
         showToast={showToast}
         transactions={transactions}
         cards={cards}
+        plans={plans}
         onAddTransaction={handleAddTransaction}
         onUpdateTransaction={handleUpdateTransaction}
         onDeleteTransaction={handleDeleteTransaction}

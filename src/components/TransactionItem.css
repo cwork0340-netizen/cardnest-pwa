@@ -80,6 +80,12 @@
   color: var(--color-success);
 }
 
+.tx-badge-subscription {
+  background: color-mix(in srgb, #8DAA91 14%, var(--color-surface));
+  border-color: color-mix(in srgb, #8DAA91 35%, var(--color-border));
+  color: #5C7A60;
+}
+
 .tx-right {
   display: flex;
   flex-direction: column;

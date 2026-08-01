@@ -6,7 +6,7 @@ import BottomSheet from '../components/BottomSheet'
 import QuickTransactionForm from '../components/QuickTransactionForm'
 import ConvertToPlanForm from '../components/ConvertToPlanForm'
 import EmptyState from '../components/EmptyState'
-import { matchesCard, parseISODate, resolveCardId, toISODate } from '../utils/financeData'
+import { matchesCard, parseISODate, resolveCardId, toISODate, transactionRepresentsPlan } from '../utils/financeData'
 
 const PERIOD_TABS = [
   { key: 'all', label: '全部' },
@@ -62,7 +62,7 @@ function importStatusText(cardImport) {
 }
 
 export default function Transactions({
-  showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction,
+  showToast, transactions, cards, plans = [], onAddTransaction, onUpdateTransaction, onDeleteTransaction,
   onConvertToInstallment, onMarkAsSubscription, cardImport, importingCardNotifications, onImportCardNotifications,
 }) {
   const [showSheet, setShowSheet] = useState(false)
@@ -126,6 +126,13 @@ export default function Transactions({
   function handleReconcile(tx) {
     onUpdateTransaction({ ...tx, postedDate: tx.date })
     showToast('已標記對帳')
+  }
+
+  // 這筆刷卡記錄符合哪個訂閱，就在列表上標出來，讓使用者知道「設為訂閱」之後
+  // 這筆和之後的扣款都會自動對應到同一個計畫，不用自己記
+  function linkedSubscriptionName(tx) {
+    const plan = plans.find((p) => p.type === 'subscription' && (p.active ?? true) && transactionRepresentsPlan(tx, p, cards))
+    return plan?.name
   }
 
   function handleConvertSubmit(plan) {
@@ -229,7 +236,14 @@ export default function Transactions({
         ) : (
           filteredTransactions.map((tx) => (
             <div className="card" key={tx.id}>
-              <TransactionItem tx={tx} onDelete={handleDelete} onEdit={setEditingTx} onConvert={setConvertingTx} onReconcile={handleReconcile} />
+              <TransactionItem
+                tx={tx}
+                onDelete={handleDelete}
+                onEdit={setEditingTx}
+                onConvert={setConvertingTx}
+                onReconcile={handleReconcile}
+                linkedPlanName={linkedSubscriptionName(tx)}
+              />
             </div>
           ))
         )}
