@@ -7,6 +7,7 @@ import QuickTransactionForm from '../components/QuickTransactionForm'
 import ConvertToInstallmentForm from '../components/ConvertToInstallmentForm'
 import EmptyState from '../components/EmptyState'
 import { matchesCard, parseISODate, resolveCardId, toISODate } from '../utils/financeData'
+import { buildStatementCalibration } from '../utils/statementCalibration'
 
 const PERIOD_TABS = [
   { key: 'all', label: '全部' },
@@ -72,6 +73,7 @@ function isPendingReconciliation(tx) {
 export default function Transactions({
   showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction,
   onConvertToInstallment, cardImport, importingCardNotifications, onImportCardNotifications,
+  plans = [], onUpdateCycle,
 }) {
   const [showSheet, setShowSheet] = useState(false)
   const [editingTx, setEditingTx] = useState(null)
@@ -82,6 +84,25 @@ export default function Transactions({
   const [auditFilter, setAuditFilter] = useState('all')
   const [rangeStart, setRangeStart] = useState('')
   const [rangeEnd, setRangeEnd] = useState('')
+  const [calibrationCardId, setCalibrationCardId] = useState(cards[0]?.id ?? '')
+  const selectedCalibrationCard = cards.find((card) => card.id === calibrationCardId) ?? cards[0]
+  const calibrationCycles = [...(selectedCalibrationCard?.billingCycles ?? [])]
+    .filter((cycle) => !cycle.paid)
+    .sort((a, b) => b.closeDate.localeCompare(a.closeDate))
+  const [calibrationCycleId, setCalibrationCycleId] = useState('')
+  const selectedCalibrationCycle = calibrationCycles.find((cycle) => cycle.id === calibrationCycleId) ?? calibrationCycles[0]
+  const [calibrationForm, setCalibrationForm] = useState({ amount: '', closeDate: '', dueDate: '' })
+  const effectiveCloseDate = calibrationForm.closeDate || selectedCalibrationCycle?.closeDate || ''
+  const effectiveDueDate = calibrationForm.dueDate || selectedCalibrationCycle?.dueDate || ''
+  const calibrationResult = buildStatementCalibration({
+    card: selectedCalibrationCard,
+    cards,
+    transactions,
+    plans,
+    cycle: selectedCalibrationCycle,
+    closeDate: effectiveCloseDate,
+    statementAmount: calibrationForm.amount,
+  })
 
   const sheetOpen = showSheet || !!editingTx
 
@@ -143,6 +164,20 @@ export default function Transactions({
     onConvertToInstallment(convertingTx.id, plan)
     showToast(`已轉為分期，「${plan.name}」改由分期計畫追蹤`)
     setConvertingTx(null)
+  }
+
+  function handleSaveCalibration() {
+    if (!selectedCalibrationCard || !selectedCalibrationCycle || !calibrationResult || !onUpdateCycle) return
+    onUpdateCycle(selectedCalibrationCard.id, selectedCalibrationCycle.id, {
+      amount: calibrationResult.statementAmount,
+      closeDate: effectiveCloseDate,
+      dueDate: effectiveDueDate,
+      cycleKey: effectiveCloseDate.slice(0, 7),
+      estimatedAmount: calibrationResult.estimatedAmount,
+      amountIsActual: true,
+      manuallyCalibrated: true,
+    })
+    showToast('已用銀行帳單校準')
   }
 
   return (
@@ -213,6 +248,115 @@ export default function Transactions({
                 onChange={(e) => setRangeEnd(e.target.value)}
               />
             </div>
+          )}
+        </div>
+      )}
+
+      {cards.length > 0 && (
+        <div className="tx-statement-card">
+          <div className="tx-statement-header">
+            <div>
+              <h2>本期帳單校準</h2>
+              <p>照銀行帳單輸入金額，系統會找出和 App 預估差在哪裡。</p>
+            </div>
+          </div>
+          <div className="tx-statement-grid">
+            <label>
+              信用卡
+              <select
+                className="fx-input"
+                value={selectedCalibrationCard?.id ?? ''}
+                onChange={(e) => {
+                  setCalibrationCardId(e.target.value)
+                  setCalibrationCycleId('')
+                  setCalibrationForm({ amount: '', closeDate: '', dueDate: '' })
+                }}
+              >
+                {cards.map((card) => (
+                  <option key={card.id} value={card.id}>{card.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              帳期
+              <select
+                className="fx-input"
+                value={selectedCalibrationCycle?.id ?? ''}
+                onChange={(e) => {
+                  setCalibrationCycleId(e.target.value)
+                  setCalibrationForm({ amount: '', closeDate: '', dueDate: '' })
+                }}
+                disabled={calibrationCycles.length === 0}
+              >
+                {calibrationCycles.length === 0 ? (
+                  <option value="">沒有待繳帳期</option>
+                ) : calibrationCycles.map((cycle) => (
+                  <option key={cycle.id} value={cycle.id}>
+                    {cycle.closeDate}・NT${Number(cycle.amount || 0).toLocaleString()}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              銀行帳單金額
+              <input
+                className="fx-input"
+                type="number"
+                inputMode="numeric"
+                placeholder="例如 4607"
+                value={calibrationForm.amount}
+                onChange={(e) => setCalibrationForm((prev) => ({ ...prev, amount: e.target.value }))}
+              />
+            </label>
+            <label>
+              實際結帳日
+              <input
+                className="fx-input"
+                type="date"
+                value={effectiveCloseDate}
+                onChange={(e) => setCalibrationForm((prev) => ({ ...prev, closeDate: e.target.value }))}
+                disabled={!selectedCalibrationCycle}
+              />
+            </label>
+            <label>
+              實際繳款日
+              <input
+                className="fx-input"
+                type="date"
+                value={effectiveDueDate}
+                onChange={(e) => setCalibrationForm((prev) => ({ ...prev, dueDate: e.target.value }))}
+                disabled={!selectedCalibrationCycle}
+              />
+            </label>
+          </div>
+          {calibrationResult ? (
+            <div className="tx-statement-result">
+              <div className="tx-statement-result-grid">
+                <span>銀行帳單</span>
+                <strong>NT${calibrationResult.statementAmount.toLocaleString()}</strong>
+                <span>App 預估</span>
+                <strong>NT${calibrationResult.estimatedAmount.toLocaleString()}</strong>
+                <span>差異</span>
+                <strong className={Math.abs(calibrationResult.diff) < 1 ? '' : 'tx-statement-diff'}>
+                  NT${calibrationResult.diff.toLocaleString()}
+                </strong>
+              </div>
+              <div className="tx-statement-parts">
+                <span>刷卡 NT${calibrationResult.transactionAmount.toLocaleString()}</span>
+                <span>訂閱 NT${calibrationResult.subscriptionAmount.toLocaleString()}</span>
+                <span>分期 NT${calibrationResult.installmentAmount.toLocaleString()}</span>
+              </div>
+              <div className="tx-statement-hints">
+                {calibrationResult.hints.map((hint) => (
+                  <span key={hint}>{hint}</span>
+                ))}
+              </div>
+              <button className="tx-statement-save" onClick={handleSaveCalibration}>
+                儲存校準
+              </button>
+            </div>
+          ) : (
+            <p className="tx-statement-empty">選擇帳期並輸入銀行帳單金額後，就會看到差異說明。</p>
           )}
         </div>
       )}
