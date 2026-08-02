@@ -226,8 +226,27 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
 
     // 撣喳?望?嚗?銝??舀??祕?交??蝡????芰像??銝?渡敞??銝??????憭望?鋡怨炊??
-    const unpaid = unpaidCycles(card)
-    const unpaidTotal = totalUnpaid(card)
+    // 待對帳金額跟「App 估算合計」（used+subsOnCard+instOnCard）本來就該是同一件事：
+    // billingCycles 的 amount 只在週期第一次生成時凍結一次，之後對帳信件重新匹配、
+    // 使用者編輯交易，都不會回頭更新它——凍結的舊金額就跟即時算出來的估算兜不起來，
+    // 變成同一張卡兩個號稱同一件事的數字互相矛盾。這裡只處理「當期」（bounds.lastBillingDate
+    // 對應的那一期）：還沒被銀行帳單校準過（!amountIsActual）的話，一律用即時加總覆蓋掉
+    // 顯示用的金額；已校準代表使用者親自對過銀行帳單，那才是事實，不能被之後的刷卡記錄
+    // 變動覆蓋回去。更早、已經逾期累積的舊期別維持原樣，交給校準流程處理。
+    const currentCloseKey = bounds ? ymd(bounds.lastBillingDate) : null
+    const liveCurrentCycleEstimate = used + subsOnCard + instOnCard
+    const cardForUnpaid = currentCloseKey
+      ? {
+        ...card,
+        billingCycles: (card.billingCycles ?? []).map((cycle) => (
+          cycle.closeDate === currentCloseKey && !cycle.paid && !cycle.amountIsActual
+            ? { ...cycle, amount: liveCurrentCycleEstimate }
+            : cycle
+        )),
+      }
+      : card
+    const unpaid = unpaidCycles(cardForUnpaid)
+    const unpaidTotal = totalUnpaid(cardForUnpaid)
     const unpaidWithDaysLeft = unpaid.map(c => ({ ...c, daysLeft: daysUntilDue(c) }))
     const postedDateCount = allCardTx.filter(tx => tx.postedDate && tx.postedDate !== tx.date).length
     const paymentCount = allCardTx.filter(isCreditCardPayment).length

@@ -638,6 +638,52 @@ describe('各卡狀態：上期與本期累積', () => {
     expect(summary.textContent).toContain('NT$500')
   })
 
+  it('待對帳金額不會卡在舊快照：對帳更正交易後，待繳帳單即時跟著更新', () => {
+    // 固定測試日為 6/27，結帳日 2 號：這一期已經生成過一筆「凍結金額」的待繳帳單，
+    // 之後對帳信件更正了同一期的交易金額——待繳帳單不該還停在生成當下的舊數字。
+    vi.setSystemTime(new Date(2026, 5, 27))
+    seed({
+      cards: [{
+        id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDay: 15, budget: 50000,
+        billingCycles: [{
+          id: 'stale', cycleKey: '2026-06', closeDate: '2026-06-02', dueDate: '2026-06-17',
+          amount: 999, estimatedAmount: 999, amountIsActual: false, paid: false, paidAt: null,
+        }],
+      }],
+      transactions: [
+        { id: 't1', card: '台新卡', amount: 1500, date: '2026-05-20', category: '餐飲', name: '對帳後更正金額' },
+      ],
+    })
+    render(<App />)
+    const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('台新卡'))
+    expect(summary.textContent).toContain('待繳帳單')
+    expect(summary.textContent).toContain('NT$1,500')
+    expect(summary.textContent).not.toContain('NT$999')
+  })
+
+  it('已用銀行帳單校準過的期別不受即時對帳覆蓋，維持使用者確認的金額', () => {
+    vi.setSystemTime(new Date(2026, 5, 27))
+    seed({
+      cards: [{
+        id: 'c1', name: '台新卡', color: '#5E7CE2', billingDay: 2, dueDay: 15, budget: 50000,
+        billingCycles: [{
+          id: 'confirmed', cycleKey: '2026-06', closeDate: '2026-06-02', dueDate: '2026-06-17',
+          amount: 3022, estimatedAmount: 2900, amountIsActual: true, manuallyCalibrated: true, paid: false, paidAt: null,
+        }],
+      }],
+      transactions: [
+        { id: 't1', card: '台新卡', amount: 1500, date: '2026-05-20', category: '餐飲', name: '晚於校準的新交易' },
+      ],
+    })
+    render(<App />)
+    const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('台新卡'))
+    expect(summary.textContent).toContain('待繳帳單')
+    expect(summary.textContent).toContain('NT$3,022')
+    expect(summary.textContent).not.toContain('NT$1,500')
+  })
+
   it('點卡片可展開看刷卡／訂閱／分期小計', () => {
     vi.setSystemTime(new Date(2026, 5, 12))
     seed({
