@@ -16,9 +16,11 @@ export default function Dashboard({
   liabilityItems = [], totalDebt = 0, envelopeView = [], envelopeSummary = null,
   paymentReminders = [], onMarkCardPaid, onMarkAllCyclesPaid, onUpdateCycle,
   income = 0, essentialTotal = 0, cardEstimateTotal = 0, lifeBalance = 0, onGoToChecklist,
+  onGoToTransactions, reconciliationSummary = null,
 }) {
   const pendingBillTotal = cards.reduce((sum, card) => sum + Number(card.unpaidTotal ?? 0), 0)
   const currentCycleTotal = cards.reduce((sum, card) => sum + Number(card.currentCycleAmount ?? 0), 0)
+  const needsReconciliation = Number(reconciliationSummary?.totalIssueCount ?? 0) > 0
 
   return (
     <div className="dashboard">
@@ -36,6 +38,37 @@ export default function Dashboard({
       />
 
       <PaymentReminderCard reminders={paymentReminders} onMarkPaid={onMarkCardPaid} />
+
+      {needsReconciliation && (
+        <div className="section dashboard-reconcile-section">
+          <div className="dashboard-reconcile-card">
+            <div className="dashboard-reconcile-head">
+              <div>
+                <span className="dashboard-reconcile-kicker">對帳提醒</span>
+                <h2>有資料需要確認</h2>
+              </div>
+              <button onClick={onGoToTransactions}>去刷卡紀錄</button>
+            </div>
+            <div className="dashboard-reconcile-stats">
+              <span>待對帳 {reconciliationSummary.pendingCount} 筆</span>
+              <span>未對應 {reconciliationSummary.unmappedCount} 筆</span>
+              <span>調整項 {reconciliationSummary.adjustmentCount} 筆</span>
+            </div>
+            {reconciliationSummary.cardAlerts.length > 0 && (
+              <div className="dashboard-reconcile-list">
+                {reconciliationSummary.cardAlerts.slice(0, 3).map((item) => (
+                  <span key={item.id}>
+                    <i style={{ background: item.color }} />
+                    {item.name}
+                    {item.pendingCount > 0 ? `・待對帳 ${item.pendingCount} 筆` : ''}
+                    {item.diffCount > 0 ? `・帳單有差異` : ''}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="section" style={{ marginTop: 'var(--section-gap)' }}>
         <SectionHeader title="本月刷卡狀況" />
