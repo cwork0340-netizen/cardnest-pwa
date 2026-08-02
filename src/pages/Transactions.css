@@ -92,6 +92,116 @@
   flex-shrink: 0;
 }
 
+.tx-statement-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface));
+}
+
+.tx-statement-header h2 {
+  margin: 0;
+  color: var(--color-text-main);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.tx-statement-header p,
+.tx-statement-empty {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.tx-statement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.tx-statement-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tx-statement-grid label:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.tx-statement-result {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.tx-statement-result-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 5px 12px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.tx-statement-result-grid strong {
+  justify-self: end;
+  color: var(--color-text-main);
+}
+
+.tx-statement-diff {
+  color: var(--color-warning) !important;
+}
+
+.tx-statement-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tx-statement-parts span {
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--color-surface-alt, var(--color-surface));
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 24px;
+}
+
+.tx-statement-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.tx-statement-save {
+  min-height: 38px;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .tx-total-bar {
   display: flex;
   align-items: baseline;
@@ -118,5 +228,13 @@
 
   .tx-import-btn {
     width: 100%;
+  }
+
+  .tx-statement-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tx-statement-grid label:nth-child(3) {
+    grid-column: auto;
   }
 }

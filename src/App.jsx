@@ -859,6 +859,8 @@ export default function App() {
         cardImport={cardImport}
         importingCardNotifications={importingCardNotifications}
         onImportCardNotifications={handleImportCardNotifications}
+        plans={plans}
+        onUpdateCycle={handleUpdateCycle}
       />
     ),
     checklist: (

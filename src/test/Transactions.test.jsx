@@ -138,4 +138,73 @@ describe('Transactions import entry', () => {
     expect(screen.getByText('待入帳消費')).toBeInTheDocument()
     expect(screen.queryByText('已入帳消費')).not.toBeInTheDocument()
   })
+
+  it('calibrates a statement cycle from the transactions page', () => {
+    const onUpdateCycle = vi.fn()
+    const showToast = vi.fn()
+
+    render(
+      <Transactions
+        showToast={showToast}
+        transactions={[
+          {
+            id: 'tx1',
+            name: '本期消費',
+            cardId: 'c1',
+            card: '永豐卡',
+            category: '日常',
+            amount: 1000,
+            date: '2026-07-02',
+          },
+          {
+            id: 'tx2',
+            name: '下期才入帳',
+            cardId: 'c1',
+            card: '永豐卡',
+            category: '日常',
+            amount: 500,
+            date: '2026-07-03',
+            postedDate: '2026-07-08',
+          },
+        ]}
+        cards={[{
+          id: 'c1',
+          name: '永豐卡',
+          billingDay: 6,
+          dueDay: 15,
+          billingCycles: [{
+            id: 'cycle1',
+            closeDate: '2026-07-06',
+            dueDate: '2026-07-21',
+            amount: 1000,
+            estimatedAmount: 1000,
+            paid: false,
+          }],
+        }]}
+        onAddTransaction={vi.fn()}
+        onUpdateTransaction={vi.fn()}
+        onDeleteTransaction={vi.fn()}
+        onConvertToInstallment={vi.fn()}
+        cardImport={null}
+        importingCardNotifications={false}
+        onImportCardNotifications={vi.fn()}
+        plans={[]}
+        onUpdateCycle={onUpdateCycle}
+      />,
+    )
+
+    fireEvent.change(screen.getByPlaceholderText('例如 4607'), { target: { value: '1000' } })
+
+    expect(screen.getByText('銀行帳單和 App 估算一致。')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '儲存校準' }))
+
+    expect(onUpdateCycle).toHaveBeenCalledWith('c1', 'cycle1', expect.objectContaining({
+      amount: 1000,
+      closeDate: '2026-07-06',
+      dueDate: '2026-07-21',
+      amountIsActual: true,
+      manuallyCalibrated: true,
+    }))
+    expect(showToast).toHaveBeenCalledWith('已用銀行帳單校準')
+  })
 })
