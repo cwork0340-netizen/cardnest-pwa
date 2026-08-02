@@ -193,6 +193,7 @@ describe('Transactions import entry', () => {
       />,
     )
 
+    fireEvent.click(screen.getByRole('button', { name: '打開校準' }))
     fireEvent.change(screen.getByPlaceholderText('例如 4607'), { target: { value: '1000' } })
 
     expect(screen.getByText('銀行帳單和 App 估算一致。')).toBeInTheDocument()
