@@ -8,9 +8,10 @@ import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken } from './utils/googleSheetSync'
-import { fetchImportRows, toISODate as toImportISODate } from './utils/importSheetSync'
+import { fetchImportRows, toISODate as toImportISODate, isUsableImportRow, resolveImportedCard } from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
+import { buildCardForecast } from './utils/cardForecast'
 import {
   ensureInstallmentOccurrences, unpaidInstallmentOccurrences, paidCountOf,
   daysUntilDue as daysUntilInstallmentDue,
@@ -523,6 +524,7 @@ export default function App() {
       lastImportCount: newTxs.length,
       lastImportDuplicateCount: summary.duplicateCount ?? 0,
       lastImportSkippedUnmapped: summary.skippedUnmapped ?? 0,
+      lastImportInvalidCount: summary.invalidCount ?? 0,
     }))
   }, [normalizeTransaction])
 
@@ -537,19 +539,27 @@ export default function App() {
     try {
       const token = await getAccessToken(clientId)
       const rows = await fetchImportRows({ accessToken: token, sheetId: importSheetId })
-      const importedKeys = new Set(cardImport?.importedKeys ?? [])
+      const importedKeys = new Set([
+        ...(cardImport?.importedKeys ?? []),
+        ...transactions.map((tx) => tx.source?.permalink).filter(Boolean),
+      ])
 
       const newTxs = []
       const newKeys = []
       let skippedUnmapped = 0
       let duplicateCount = 0
+      let invalidCount = 0
 
       rows.forEach((row) => {
+        if (!isUsableImportRow(row)) {
+          invalidCount++
+          return
+        }
         if (importedKeys.has(row.permalink)) {
           duplicateCount++
           return
         }
-        const mappedCard = cards.find((card) => card.id === cardImport?.bankCardMap?.[row.bank] || card.name === cardImport?.bankCardMap?.[row.bank])
+        const mappedCard = resolveImportedCard({ row, cards, bankCardMap: cardImport?.bankCardMap })
         if (!mappedCard) { skippedUnmapped++; return }
         newTxs.push({
           id: crypto.randomUUID(),
@@ -561,13 +571,19 @@ export default function App() {
           date: toImportISODate(row.rawDate),
           ...(row.rawPostedDate && { postedDate: toImportISODate(row.rawPostedDate) }),
           note: `自動匯入・${row.bank}`,
+          source: {
+            provider: 'card-import',
+            permalink: row.permalink,
+            bank: row.bank,
+            cardLast4: row.cardLast4,
+          },
         })
         newKeys.push(row.permalink)
       })
 
-      handleImportTransactions(newTxs, newKeys, { duplicateCount, skippedUnmapped })
+      handleImportTransactions(newTxs, newKeys, { duplicateCount, skippedUnmapped, invalidCount })
 
-      if (skippedUnmapped > 0) {
+      if (skippedUnmapped > 0 || invalidCount > 0) {
         showToast(`新增 ${newTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedUnmapped} 筆未對應卡片`)
       } else {
         showToast(`新增 ${newTxs.length} 筆，重複略過 ${duplicateCount} 筆`)
@@ -577,7 +593,7 @@ export default function App() {
     } finally {
       setImportingCardNotifications(false)
     }
-  }, [cardImport, cards, googleSync, handleImportTransactions, showToast])
+  }, [cardImport, cards, googleSync, handleImportTransactions, showToast, transactions])
 
   const handleDeleteTransaction = useCallback((id) => {
     setTransactions(prev => {
@@ -760,6 +776,7 @@ export default function App() {
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
   const reconciliationSummary = buildReconciliationSummary({ transactions, cards: enrichedCards, cardImport })
+  const forecastSummary = buildCardForecast(enrichedCards, plans, { income, essentialTotal })
 
   // 靽∠?⊿?隡啣董?殷???閬??身摰??詨?嚗?帘摰?霈?銝?撠董嚗歇蝜喟??蔣?踱?
   // ???撌脩??望?撠望?望?鈭?銝??璅?撌脩像撠晞????暑蝯???
@@ -845,6 +862,7 @@ export default function App() {
         onGoToChecklist={() => setTab('checklist')}
         onGoToTransactions={() => setTab('transactions')}
         reconciliationSummary={reconciliationSummary}
+        forecastSummary={forecastSummary}
       />
     ),
     transactions: (
