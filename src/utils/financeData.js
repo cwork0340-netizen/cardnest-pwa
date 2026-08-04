@@ -105,7 +105,9 @@ export function isInstallmentConversionCredit(tx) {
 }
 
 export function isBillableTransaction(tx) {
-  return !isCreditCardPayment(tx) && !isInstallmentConversionCredit(tx)
+  // Original swipes remain as audit records after conversion. The installment
+  // plan, rather than the original one-off swipe, is what belongs in budget totals.
+  return !tx?.installmentPlanId && !isCreditCardPayment(tx) && !isInstallmentConversionCredit(tx)
 }
 
 export function transactionRepresentsPlan(tx, plan, cards) {
@@ -138,7 +140,17 @@ export function hasUnpaidInstallmentDueInWindow(plan, windowStart, windowEnd) {
 }
 
 export function installmentAmountNotRecordedInWindow(args) {
-  return hasUnpaidInstallmentDueInWindow(args.plan, args.windowStart, args.windowEnd)
-    ? planAmountNotRecorded(args)
-    : 0
+  const occurrence = ensureInstallmentOccurrences(args.plan, { today: args.windowStart }).find((item) => {
+    if (item.paid) return false
+    const dueDate = parseISODate(item.dueDate, args.windowEnd)
+    return dueDate && dueDate > args.windowStart && dueDate <= args.windowEnd
+  })
+  if (!occurrence) return 0
+  const represented = args.transactions.some((tx) => {
+    const date = parseISODate(tx.date, args.windowEnd)
+    return date && date > args.windowStart && date <= args.windowEnd
+      && Number(tx.amount) === Number(occurrence.amount)
+      && transactionRepresentsPlan(tx, { ...args.plan, amount: occurrence.amount }, args.cards)
+  })
+  return represented ? 0 : Number(occurrence.amount) || 0
 }

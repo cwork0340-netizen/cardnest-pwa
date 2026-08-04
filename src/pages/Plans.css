@@ -13,6 +13,13 @@
   color: var(--color-text-main);
 }
 
+.plans-purpose {
+  margin: 6px 0 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+
 /* Segmented tabs */
 .segmented-tabs {
   background: var(--divider);

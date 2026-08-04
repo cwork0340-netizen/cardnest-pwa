@@ -512,7 +512,12 @@ export default function App() {
   // ?桃??瑕頧????啣???閮銝衣宏?文??祉??桃?閮?嚗??銴??交???
   const handleConvertToInstallment = useCallback((txId, plan) => {
     setPlans(p => [normalizePlan(plan), ...p])
-    setTransactions(p => p.filter(t => t.id !== txId))
+    setTransactions(p => p.map(t => t.id === txId ? {
+      ...t,
+      installmentPlanId: plan.id,
+      installmentStatus: 'converted',
+      convertedAt: plan.conversionDate,
+    } : t))
   }, [normalizePlan])
 
   // ?銵????瑕??臬嚗ettings 撌脩 permalink ?駁?銴祟??撠??∠???銵?
