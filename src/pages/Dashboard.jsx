@@ -19,6 +19,7 @@ export default function Dashboard({
   income = 0, essentialTotal = 0, cardEstimateTotal = 0, lifeBalance = 0, onGoToChecklist,
   onGoToTransactions, reconciliationSummary = null,
   forecastSummary = null,
+  salarySchedule = null, monthlyIncome = 0,
 }) {
   const pendingBillTotal = cards.reduce((sum, card) => sum + Number(card.unpaidTotal ?? 0), 0)
   const currentCycleTotal = cards.reduce((sum, card) => sum + Number(card.currentCycleAmount ?? 0), 0)
@@ -40,7 +41,7 @@ export default function Dashboard({
       />
 
       <div className="section">
-        <CardForecastCard forecast={forecastSummary} />
+        <CardForecastCard forecast={forecastSummary} salarySchedule={salarySchedule} monthlyIncome={monthlyIncome} />
       </div>
 
       <PaymentReminderCard reminders={paymentReminders} onMarkPaid={onMarkCardPaid} />

@@ -12,6 +12,7 @@ import { fetchImportRows, toISODate as toImportISODate, isUsableImportRow, resol
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
 import { buildCardForecast } from './utils/cardForecast'
+import { getSalarySchedule, normalizeSalarySettings } from './utils/salarySchedule'
 import {
   ensureInstallmentOccurrences, unpaidInstallmentOccurrences, paidCountOf,
   daysUntilDue as daysUntilInstallmentDue,
@@ -368,6 +369,7 @@ export default function App() {
   const [checklistMonth] = useState(currentMonthKey)
   const [envelopes, setEnvelopes] = useState(stored?.envelopes ?? [])
   const [income, setIncome] = useState(stored?.income ?? 0)
+  const [salarySettings, setSalarySettings] = useState(() => normalizeSalarySettings(stored?.salarySettings))
   const [savings, setSavings] = useState(stored?.savings ?? [])
   const [googleSync, setGoogleSync] = useState(stored?.googleSync ?? null)
   const [cardImport, setCardImport] = useState(
@@ -376,8 +378,8 @@ export default function App() {
   const [importingCardNotifications, setImportingCardNotifications] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync, cardImport }))
-  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync, cardImport])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, salarySettings, savings, googleSync, cardImport }))
+  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, salarySettings, savings, googleSync, cardImport])
 
   // 鋆?瘥撐?∠?撣喳?望?嚗?∠???頝銝活??撌脩?頝券??啁?蝯董?伐??賣??券ㄐ?芸???
   // ?啁?銝???蒂撖怠? cards?歇蝬??函??望?銝?鋡怠??堆??芰像??銝?渡?????憭晞?
@@ -729,6 +731,7 @@ export default function App() {
     setChecklist([])
     setEnvelopes([])
     setIncome(0)
+    setSalarySettings(normalizeSalarySettings())
     setSavings([])
     setFxSettings({ usdRate: 32.5, feeRate: 1.5 })
     setGoogleSync(null)
@@ -746,6 +749,7 @@ export default function App() {
     setEnvelopes(Array.isArray(data.envelopes) ? data.envelopes : [])
     if (data.fxSettings && typeof data.fxSettings === 'object') setFxSettings(data.fxSettings)
     if (typeof data.income === 'number') setIncome(data.income)
+    setSalarySettings(normalizeSalarySettings(data.salarySettings))
     setSavings(Array.isArray(data.savings) ? data.savings : [])
     setGoogleSync(data.googleSync ?? null)
     setCardImport(data.cardImport ?? { sheetId: '', bankCardMap: {}, importedKeys: [] })
@@ -776,7 +780,9 @@ export default function App() {
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
   const reconciliationSummary = buildReconciliationSummary({ transactions, cards: enrichedCards, cardImport })
-  const forecastSummary = buildCardForecast(enrichedCards, plans, { income, essentialTotal })
+  const salarySchedule = getSalarySchedule(salarySettings)
+  const availableIncome = salarySchedule.receivedThisMonth ? income : 0
+  const forecastSummary = buildCardForecast(enrichedCards, plans, { income: availableIncome, essentialTotal })
 
   // 靽∠?⊿?隡啣董?殷???閬??身摰??詨?嚗?帘摰?霈?銝?撠董嚗歇蝜喟??蔣?踱?
   // ???撌脩??望?撠望?望?鈭?銝??璅?撌脩像撠晞????暑蝯???
@@ -863,6 +869,8 @@ export default function App() {
         onGoToTransactions={() => setTab('transactions')}
         reconciliationSummary={reconciliationSummary}
         forecastSummary={forecastSummary}
+        salarySchedule={salarySchedule}
+        monthlyIncome={income}
       />
     ),
     transactions: (
@@ -898,6 +906,9 @@ export default function App() {
         savings={savings}
         cardBills={cards.map(c => ({ id: c.id, name: c.name, bill: Number(c.estimatedBill) || 0 }))}
         onIncomeChange={setIncome}
+        salarySettings={salarySettings}
+        salarySchedule={salarySchedule}
+        onSalarySettingsChange={setSalarySettings}
         onAdd={handleAddChecklistItem}
         onToggle={handleToggleChecklistItem}
         onUpdate={handleUpdateChecklistItem}
@@ -930,7 +941,7 @@ export default function App() {
         onAddEnvelope={handleAddEnvelope}
         onUpdateEnvelope={handleUpdateEnvelope}
         onDeleteEnvelope={handleDeleteEnvelope}
-        backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings, income, savings, googleSync, cardImport }}
+        backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings, income, salarySettings, savings, googleSync, cardImport }}
         onImportData={handleImportData}
         onClearData={handleClearData}
         transactions={transactions}

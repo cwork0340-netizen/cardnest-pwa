@@ -4,7 +4,7 @@ function fmt(amount) {
   return `NT$${Number(amount || 0).toLocaleString()}`
 }
 
-export default function CardForecastCard({ forecast }) {
+export default function CardForecastCard({ forecast, salarySchedule, monthlyIncome = 0 }) {
   if (!forecast) return null
 
   return (
@@ -40,6 +40,12 @@ export default function CardForecastCard({ forecast }) {
           <small>{forecast.overCommitted > 0
             ? '先調整固定支出、繳款安排或本期消費，再新增刷卡。'
             : '已扣必要支出、本期應繳、目前帳期消費與每月承諾支出。'}</small>
+        </div>
+      ) : Number(monthlyIncome) > 0 && salarySchedule ? (
+        <div className="card-forecast-safe card-forecast-safe--pending">
+          <span>薪水尚未入帳，暫不計入可刷額</span>
+          <strong>{salarySchedule.payday.getMonth() + 1}/{salarySchedule.payday.getDate()}</strong>
+          <small>{salarySchedule.hasOverride ? '依本月實際入帳日計算。' : '依薪資日規則預估；國定假日可在每月規劃填入實際入帳日。'}</small>
         </div>
       ) : (
         <p className="card-forecast-income-hint">填寫月收入後，這裡會替你算出保守的建議可刷額。</p>

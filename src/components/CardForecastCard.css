@@ -18,6 +18,7 @@
 .card-forecast-cards { margin-top: 12px; border-top: 1px solid var(--color-border, rgba(47, 42, 37, .08)); padding-top: 8px; }
 .card-forecast-safe { margin-top: 12px; padding: 12px; border-radius: 14px; background: var(--color-success-soft, #eaf5ee); }
 .card-forecast-safe--warning { background: var(--color-warning-soft, #fff4de); }
+.card-forecast-safe--pending { background: var(--color-primary-soft, #eef2ff); }
 .card-forecast-safe span, .card-forecast-safe small { display: block; color: var(--color-text-secondary); font-size: 12px; }
 .card-forecast-safe strong { display: block; margin: 3px 0; color: var(--color-text-main); font-size: 22px; }
 .card-forecast-income-hint { margin: 12px 0 0; color: var(--color-text-muted); font-size: 12px; }

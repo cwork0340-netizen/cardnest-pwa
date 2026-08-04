@@ -17,6 +17,7 @@ export default function Checklist({
   income = 0, essentialTotal = 0, checklistTotal = 0, essentialSavings = 0, lifeBalance = 0,
   cardEstimates = [], cardEstimateTotal = 0, onUpdateEstimatedBill,
   savings = [], cardBills = [], onIncomeChange,
+  salarySettings = { day: 5, nonWorkingDayPolicy: 'previous', overrides: {} }, salarySchedule = null, onSalarySettingsChange,
   onAdd, onToggle, onUpdate, onDelete,
   onAddSaving, onUpdateSaving, onDeleteSaving, onContributeSaving, onSpendSaving, onResetSaving,
   plans = [], cards = [], fxSettings,
@@ -45,6 +46,19 @@ export default function Checklist({
       onIncomeChange(n)
       showToast('月收入已更新')
     }
+  }
+
+  function updateSalarySettings(patch) {
+    onSalarySettingsChange?.({ ...salarySettings, ...patch })
+  }
+
+  function updateActualPayday(value) {
+    const monthKey = salarySchedule?.monthKey
+    if (!monthKey) return
+    const overrides = { ...(salarySettings.overrides || {}) }
+    if (value) overrides[monthKey] = value
+    else delete overrides[monthKey]
+    updateSalarySettings({ overrides })
   }
 
   function closeSheet() {
@@ -203,6 +217,40 @@ export default function Checklist({
               onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }}
             />
           </div>
+        </div>
+        <div className="checklist-salary-settings">
+          <div className="checklist-salary-row">
+            <label htmlFor="salary-day">薪資入帳日</label>
+            <input
+              id="salary-day"
+              type="number"
+              min="1"
+              max="31"
+              inputMode="numeric"
+              value={salarySettings.day || 5}
+              onChange={(e) => updateSalarySettings({ day: e.target.value })}
+              onBlur={(e) => updateSalarySettings({ day: Math.min(31, Math.max(1, Number(e.target.value) || 5)) })}
+            />
+            <span>號</span>
+            <select
+              aria-label="遇非工作日的薪資處理方式"
+              value={salarySettings.nonWorkingDayPolicy || 'previous'}
+              onChange={(e) => updateSalarySettings({ nonWorkingDayPolicy: e.target.value })}
+            >
+              <option value="previous">遇週末提前</option>
+              <option value="next">遇週末延後</option>
+            </select>
+          </div>
+          <div className="checklist-salary-row checklist-salary-row--actual">
+            <label htmlFor="actual-payday">本月實際入帳日</label>
+            <input
+              id="actual-payday"
+              type="date"
+              value={salarySettings.overrides?.[salarySchedule?.monthKey] || ''}
+              onChange={(e) => updateActualPayday(e.target.value)}
+            />
+          </div>
+          <p>預設只會避開週末；國定假日或公司例外，請填本月實際入帳日，儀表板才會精準判斷可動用預算。</p>
         </div>
         <div className="checklist-budget-row">
           <span className="checklist-budget-label">必要支出</span>
