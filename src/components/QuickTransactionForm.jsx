@@ -23,6 +23,7 @@ export default function QuickTransactionForm({ onSubmit, onClose, cards, initial
   const [category, setCategory] = useState(initialValues?.category ?? CATEGORIES[0])
   const [cardId, setCardId] = useState(resolveCardId(initialValues, cards) ?? cards[0]?.id ?? '')
   const [date, setDate] = useState(initialValues ? mdToIso(initialValues.date) : todayString())
+  const [postedDate, setPostedDate] = useState(initialValues?.postedDate ? mdToIso(initialValues.postedDate) : '')
   const [note, setNote] = useState(initialValues?.note ?? '')
   const [error, setError] = useState('')
 
@@ -35,7 +36,7 @@ export default function QuickTransactionForm({ onSubmit, onClose, cards, initial
     }
     setError('')
     const selectedCard = cards.find((c) => c.id === cardId)
-    onSubmit({ amount: num, category, cardId, card: selectedCard?.name ?? '', date, note })
+    onSubmit({ amount: num, category, cardId, card: selectedCard?.name ?? '', date, postedDate, note })
   }
 
   return (
@@ -87,6 +88,16 @@ export default function QuickTransactionForm({ onSubmit, onClose, cards, initial
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+
+        <div className="qtf-field">
+          <label className="qtf-label">入帳日（可留空）</label>
+          <input
+            className="qtf-select"
+            type="date"
+            value={postedDate}
+            onChange={(e) => setPostedDate(e.target.value)}
           />
         </div>
 

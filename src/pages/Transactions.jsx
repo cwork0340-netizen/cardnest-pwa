@@ -130,7 +130,7 @@ export default function Transactions({
     setEditingTx(null)
   }
 
-  function handleSubmit({ amount, category, cardId, card, date, note }) {
+  function handleSubmit({ amount, category, cardId, card, date, postedDate, note }) {
     const selectedCard = cards.find((c) => c.id === (cardId || resolveCardId({ card }, cards)))
     const fields = {
       name: note.trim() || category,
@@ -139,6 +139,7 @@ export default function Transactions({
       card: selectedCard?.name ?? card,
       amount,
       date: toISODate(date),
+      ...(postedDate ? { postedDate: toISODate(postedDate) } : { postedDate: undefined }),
       note,
     }
     if (editingTx) {
