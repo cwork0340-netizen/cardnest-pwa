@@ -8,7 +8,7 @@ import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken } from './utils/googleSheetSync'
-import { fetchImportRows, toISODate as toImportISODate, isUsableImportRow, resolveImportedCard } from './utils/importSheetSync'
+import { fetchImportRows, findImportedTransaction, importedPostedDate, toISODate as toImportISODate, isUsableImportRow, resolveImportedCard } from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
 import { buildCardForecast } from './utils/cardForecast'
@@ -517,13 +517,15 @@ export default function App() {
 
   // ?銵????瑕??臬嚗ettings 撌脩 permalink ?駁?銴祟??撠??∠???銵?
   // ?ㄐ?芾?鞎祆??蕪敺??唬漱???脖?嚗蒂閮?? permalink ?踹?銝活???臬
-  const handleImportTransactions = useCallback((newTxs, newKeys, summary = {}) => {
-    setTransactions(p => [...newTxs.map(normalizeTransaction), ...p])
+  const handleImportTransactions = useCallback((newTxs, updatedTxs, newKeys, summary = {}) => {
+    const updates = new Map(updatedTxs.map((tx) => [tx.id, normalizeTransaction(tx)]))
+    setTransactions(p => [...newTxs.map(normalizeTransaction), ...p.map((tx) => updates.get(tx.id) ?? tx)])
     setCardImport(prev => ({
       ...prev,
       importedKeys: [...prev.importedKeys, ...newKeys],
       lastImportAt: Date.now(),
       lastImportCount: newTxs.length,
+      lastImportUpdatedCount: updatedTxs.length,
       lastImportDuplicateCount: summary.duplicateCount ?? 0,
       lastImportSkippedUnmapped: summary.skippedUnmapped ?? 0,
       lastImportInvalidCount: summary.invalidCount ?? 0,
@@ -547,6 +549,7 @@ export default function App() {
       ])
 
       const newTxs = []
+      const updatedTxs = []
       const newKeys = []
       let skippedUnmapped = 0
       let duplicateCount = 0
@@ -557,12 +560,28 @@ export default function App() {
           invalidCount++
           return
         }
+        const mappedCard = resolveImportedCard({ row, cards, bankCardMap: cardImport?.bankCardMap })
+        if (!mappedCard) { skippedUnmapped++; return }
+        const existingTx = findImportedTransaction({ row, card: mappedCard, transactions })
+        const postedDate = importedPostedDate(row)
+        if (existingTx) {
+          if (postedDate && existingTx.postedDate !== postedDate) {
+            updatedTxs.push({
+              ...existingTx,
+              postedDate,
+              source: existingTx.source ?? {
+                provider: 'card-import', permalink: row.permalink, bank: row.bank, cardLast4: row.cardLast4,
+              },
+            })
+          } else {
+            duplicateCount++
+          }
+          return
+        }
         if (importedKeys.has(row.permalink)) {
           duplicateCount++
           return
         }
-        const mappedCard = resolveImportedCard({ row, cards, bankCardMap: cardImport?.bankCardMap })
-        if (!mappedCard) { skippedUnmapped++; return }
         newTxs.push({
           id: crypto.randomUUID(),
           name: row.merchant || row.bank,
@@ -571,7 +590,7 @@ export default function App() {
           card: mappedCard.name,
           amount: row.amount,
           date: toImportISODate(row.rawDate),
-          ...(row.rawPostedDate && { postedDate: toImportISODate(row.rawPostedDate) }),
+          ...(postedDate && { postedDate }),
           note: `自動匯入・${row.bank}`,
           source: {
             provider: 'card-import',
@@ -583,12 +602,12 @@ export default function App() {
         newKeys.push(row.permalink)
       })
 
-      handleImportTransactions(newTxs, newKeys, { duplicateCount, skippedUnmapped, invalidCount })
+      handleImportTransactions(newTxs, updatedTxs, newKeys, { duplicateCount, skippedUnmapped, invalidCount })
 
       if (skippedUnmapped > 0 || invalidCount > 0) {
-        showToast(`新增 ${newTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedUnmapped} 筆未對應卡片`)
+        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedUnmapped} 筆未對應卡片`)
       } else {
-        showToast(`新增 ${newTxs.length} 筆，重複略過 ${duplicateCount} 筆`)
+        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複略過 ${duplicateCount} 筆`)
       }
     } catch (e) {
       showToast(e.message || '更新失敗，請稍後再試')

@@ -46,6 +46,27 @@ export function isUsableImportRow(row) {
   )
 }
 
+export function importedPostedDate(row) {
+  const date = toISODate(row?.rawPostedDate)
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : ''
+}
+
+export function findImportedTransaction({ row, card, transactions = [] }) {
+  const byPermalink = transactions.filter((tx) => tx?.source?.permalink === row?.permalink)
+  if (byPermalink.length === 1) return byPermalink[0]
+
+  const consumedOn = toISODate(row?.rawDate)
+  const candidates = transactions.filter((tx) => {
+    const cameFromImport = tx?.source?.provider === 'card-import' || String(tx?.note ?? '').includes('自動匯入')
+    const onSameCard = tx?.cardId === card?.id || tx?.card === card?.name
+    return cameFromImport
+      && onSameCard
+      && Number(tx?.amount) === Number(row?.amount)
+      && tx?.date === consumedOn
+  })
+  return candidates.length === 1 ? candidates[0] : null
+}
+
 // Prefer a card's last four digits. Bank-only mapping is retained for existing
 // users, but only as a fallback when no last-four value is available.
 export function resolveImportedCard({ row, cards, bankCardMap = {} }) {
