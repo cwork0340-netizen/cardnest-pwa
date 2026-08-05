@@ -388,7 +388,17 @@ export default function App() {
       let changed = false
       const next = prev.map((card) => {
         const cycles = ensureBillingCycles(card, { transactions, plans })
-        if (cycles.length !== (card.billingCycles?.length ?? 0)) {
+        const previousCycles = card.billingCycles ?? []
+        const hasCycleChanges = cycles.length !== previousCycles.length || cycles.some((cycle, index) => {
+          const previous = previousCycles[index]
+          return !previous
+            || cycle.amount !== previous.amount
+            || cycle.estimatedAmount !== previous.estimatedAmount
+            || cycle.closeDate !== previous.closeDate
+            || cycle.dueDate !== previous.dueDate
+            || cycle.refreshNeeded !== previous.refreshNeeded
+        })
+        if (hasCycleChanges) {
           changed = true
           return { ...card, billingCycles: cycles }
         }
@@ -508,7 +518,21 @@ export default function App() {
     }
   }, [cards])
   const handleAddTransaction = useCallback((tx) => setTransactions(p => [normalizeTransaction(tx), ...p]), [normalizeTransaction])
-  const handleUpdateTransaction = useCallback((updated) => setTransactions(p => p.map(t => t.id === updated.id ? normalizeTransaction(updated) : t)), [normalizeTransaction])
+  const handleUpdateTransaction = useCallback((updated) => {
+    const normalized = normalizeTransaction(updated)
+    const previous = transactions.find((transaction) => transaction.id === normalized.id)
+    if (previous && previous.postedDate !== normalized.postedDate) {
+      setCards((items) => items.map((card) => matchesCard(normalized, card)
+        ? {
+          ...card,
+          billingCycles: (card.billingCycles ?? []).map((cycle) => (
+            cycle.paid || cycle.amountIsActual || cycle.manuallyCalibrated ? cycle : { ...cycle, refreshNeeded: true }
+          )),
+        }
+        : card))
+    }
+    setTransactions((items) => items.map((transaction) => transaction.id === normalized.id ? normalized : transaction))
+  }, [normalizeTransaction, transactions])
   // ?桃??瑕頧????啣???閮銝衣宏?文??祉??桃?閮?嚗??銴??交???
   const handleConvertToInstallment = useCallback((txId, plan) => {
     setPlans(p => [normalizePlan(plan), ...p])

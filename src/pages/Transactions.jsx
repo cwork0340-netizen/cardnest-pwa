@@ -158,7 +158,7 @@ export default function Transactions({
   }
 
   function handleReconcile(tx) {
-    onUpdateTransaction({ ...tx, postedDate: tx.date })
+    setEditingTx(tx)
     showToast('已標記對帳')
   }
 

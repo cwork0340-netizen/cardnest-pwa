@@ -93,7 +93,7 @@ describe('Transactions import entry', () => {
     expect(screen.getByText('待對帳')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '對帳' }))
 
-    expect(onUpdateTransaction).toHaveBeenCalledWith(expect.objectContaining({ id: 'tx2', postedDate: '2026-07-23' }))
+    expect(onUpdateTransaction).not.toHaveBeenCalled()
     expect(showToast).toHaveBeenCalledWith('已標記對帳')
   })
 
