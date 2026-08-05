@@ -10,6 +10,7 @@ import CategoryBreakdownCard from '../components/CategoryBreakdownCard'
 import TrendChartCard from '../components/TrendChartCard'
 import DebtOverviewCard from '../components/DebtOverviewCard'
 import EnvelopeBudgetCard from '../components/EnvelopeBudgetCard'
+import CardForecastCard from '../components/CardForecastCard'
 
 export default function Dashboard({
   greeting, dateLabel, currentMonth, weekDays, cards, categories, trends,
@@ -17,6 +18,8 @@ export default function Dashboard({
   paymentReminders = [], onMarkCardPaid, onMarkAllCyclesPaid, onUpdateCycle,
   income = 0, essentialTotal = 0, cardEstimateTotal = 0, lifeBalance = 0, onGoToChecklist,
   onGoToTransactions, reconciliationSummary = null,
+  forecastSummary = null,
+  salarySchedule = null, monthlyIncome = 0,
 }) {
   const pendingBillTotal = cards.reduce((sum, card) => sum + Number(card.unpaidTotal ?? 0), 0)
   const currentCycleTotal = cards.reduce((sum, card) => sum + Number(card.currentCycleAmount ?? 0), 0)
@@ -36,6 +39,10 @@ export default function Dashboard({
         lifeBalance={lifeBalance}
         onGoToChecklist={onGoToChecklist}
       />
+
+      <div className="section">
+        <CardForecastCard forecast={forecastSummary} salarySchedule={salarySchedule} monthlyIncome={monthlyIncome} />
+      </div>
 
       <PaymentReminderCard reminders={paymentReminders} onMarkPaid={onMarkCardPaid} />
 

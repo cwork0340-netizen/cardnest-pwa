@@ -8,9 +8,11 @@ import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken } from './utils/googleSheetSync'
-import { fetchImportRows, toISODate as toImportISODate } from './utils/importSheetSync'
+import { fetchImportRows, findImportedTransaction, importedPostedDate, toISODate as toImportISODate, isUsableImportRow, resolveImportedCard } from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
+import { buildCardForecast } from './utils/cardForecast'
+import { getSalarySchedule, normalizeSalarySettings } from './utils/salarySchedule'
 import {
   ensureInstallmentOccurrences, unpaidInstallmentOccurrences, paidCountOf,
   daysUntilDue as daysUntilInstallmentDue,
@@ -367,6 +369,7 @@ export default function App() {
   const [checklistMonth] = useState(currentMonthKey)
   const [envelopes, setEnvelopes] = useState(stored?.envelopes ?? [])
   const [income, setIncome] = useState(stored?.income ?? 0)
+  const [salarySettings, setSalarySettings] = useState(() => normalizeSalarySettings(stored?.salarySettings))
   const [savings, setSavings] = useState(stored?.savings ?? [])
   const [googleSync, setGoogleSync] = useState(stored?.googleSync ?? null)
   const [cardImport, setCardImport] = useState(
@@ -375,8 +378,8 @@ export default function App() {
   const [importingCardNotifications, setImportingCardNotifications] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync, cardImport }))
-  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, savings, googleSync, cardImport])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, salarySettings, savings, googleSync, cardImport }))
+  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, salarySettings, savings, googleSync, cardImport])
 
   // 鋆?瘥撐?∠?撣喳?望?嚗?∠???頝銝活??撌脩?頝券??啁?蝯董?伐??賣??券ㄐ?芸???
   // ?啁?銝???蒂撖怠? cards?歇蝬??函??望?銝?鋡怠??堆??芰像??銝?渡?????憭晞?
@@ -385,7 +388,17 @@ export default function App() {
       let changed = false
       const next = prev.map((card) => {
         const cycles = ensureBillingCycles(card, { transactions, plans })
-        if (cycles.length !== (card.billingCycles?.length ?? 0)) {
+        const previousCycles = card.billingCycles ?? []
+        const hasCycleChanges = cycles.length !== previousCycles.length || cycles.some((cycle, index) => {
+          const previous = previousCycles[index]
+          return !previous
+            || cycle.amount !== previous.amount
+            || cycle.estimatedAmount !== previous.estimatedAmount
+            || cycle.closeDate !== previous.closeDate
+            || cycle.dueDate !== previous.dueDate
+            || cycle.refreshNeeded !== previous.refreshNeeded
+        })
+        if (hasCycleChanges) {
           changed = true
           return { ...card, billingCycles: cycles }
         }
@@ -505,24 +518,46 @@ export default function App() {
     }
   }, [cards])
   const handleAddTransaction = useCallback((tx) => setTransactions(p => [normalizeTransaction(tx), ...p]), [normalizeTransaction])
-  const handleUpdateTransaction = useCallback((updated) => setTransactions(p => p.map(t => t.id === updated.id ? normalizeTransaction(updated) : t)), [normalizeTransaction])
+  const handleUpdateTransaction = useCallback((updated) => {
+    const normalized = normalizeTransaction(updated)
+    const previous = transactions.find((transaction) => transaction.id === normalized.id)
+    if (previous && previous.postedDate !== normalized.postedDate) {
+      setCards((items) => items.map((card) => matchesCard(normalized, card)
+        ? {
+          ...card,
+          billingCycles: (card.billingCycles ?? []).map((cycle) => (
+            cycle.paid || cycle.amountIsActual || cycle.manuallyCalibrated ? cycle : { ...cycle, refreshNeeded: true }
+          )),
+        }
+        : card))
+    }
+    setTransactions((items) => items.map((transaction) => transaction.id === normalized.id ? normalized : transaction))
+  }, [normalizeTransaction, transactions])
   // ?桃??瑕頧????啣???閮銝衣宏?文??祉??桃?閮?嚗??銴??交???
   const handleConvertToInstallment = useCallback((txId, plan) => {
     setPlans(p => [normalizePlan(plan), ...p])
-    setTransactions(p => p.filter(t => t.id !== txId))
+    setTransactions(p => p.map(t => t.id === txId ? {
+      ...t,
+      installmentPlanId: plan.id,
+      installmentStatus: 'converted',
+      convertedAt: plan.conversionDate,
+    } : t))
   }, [normalizePlan])
 
   // ?銵????瑕??臬嚗ettings 撌脩 permalink ?駁?銴祟??撠??∠???銵?
   // ?ㄐ?芾?鞎祆??蕪敺??唬漱???脖?嚗蒂閮?? permalink ?踹?銝活???臬
-  const handleImportTransactions = useCallback((newTxs, newKeys, summary = {}) => {
-    setTransactions(p => [...newTxs.map(normalizeTransaction), ...p])
+  const handleImportTransactions = useCallback((newTxs, updatedTxs, newKeys, summary = {}) => {
+    const updates = new Map(updatedTxs.map((tx) => [tx.id, normalizeTransaction(tx)]))
+    setTransactions(p => [...newTxs.map(normalizeTransaction), ...p.map((tx) => updates.get(tx.id) ?? tx)])
     setCardImport(prev => ({
       ...prev,
       importedKeys: [...prev.importedKeys, ...newKeys],
       lastImportAt: Date.now(),
       lastImportCount: newTxs.length,
+      lastImportUpdatedCount: updatedTxs.length,
       lastImportDuplicateCount: summary.duplicateCount ?? 0,
       lastImportSkippedUnmapped: summary.skippedUnmapped ?? 0,
+      lastImportInvalidCount: summary.invalidCount ?? 0,
     }))
   }, [normalizeTransaction])
 
@@ -537,20 +572,45 @@ export default function App() {
     try {
       const token = await getAccessToken(clientId)
       const rows = await fetchImportRows({ accessToken: token, sheetId: importSheetId })
-      const importedKeys = new Set(cardImport?.importedKeys ?? [])
+      const importedKeys = new Set([
+        ...(cardImport?.importedKeys ?? []),
+        ...transactions.map((tx) => tx.source?.permalink).filter(Boolean),
+      ])
 
       const newTxs = []
+      const updatedTxs = []
       const newKeys = []
       let skippedUnmapped = 0
       let duplicateCount = 0
+      let invalidCount = 0
 
       rows.forEach((row) => {
+        if (!isUsableImportRow(row)) {
+          invalidCount++
+          return
+        }
+        const mappedCard = resolveImportedCard({ row, cards, bankCardMap: cardImport?.bankCardMap })
+        if (!mappedCard) { skippedUnmapped++; return }
+        const existingTx = findImportedTransaction({ row, card: mappedCard, transactions })
+        const postedDate = importedPostedDate(row)
+        if (existingTx) {
+          if (postedDate && existingTx.postedDate !== postedDate) {
+            updatedTxs.push({
+              ...existingTx,
+              postedDate,
+              source: existingTx.source ?? {
+                provider: 'card-import', permalink: row.permalink, bank: row.bank, cardLast4: row.cardLast4,
+              },
+            })
+          } else {
+            duplicateCount++
+          }
+          return
+        }
         if (importedKeys.has(row.permalink)) {
           duplicateCount++
           return
         }
-        const mappedCard = cards.find((card) => card.id === cardImport?.bankCardMap?.[row.bank] || card.name === cardImport?.bankCardMap?.[row.bank])
-        if (!mappedCard) { skippedUnmapped++; return }
         newTxs.push({
           id: crypto.randomUUID(),
           name: row.merchant || row.bank,
@@ -559,25 +619,31 @@ export default function App() {
           card: mappedCard.name,
           amount: row.amount,
           date: toImportISODate(row.rawDate),
-          ...(row.rawPostedDate && { postedDate: toImportISODate(row.rawPostedDate) }),
+          ...(postedDate && { postedDate }),
           note: `自動匯入・${row.bank}`,
+          source: {
+            provider: 'card-import',
+            permalink: row.permalink,
+            bank: row.bank,
+            cardLast4: row.cardLast4,
+          },
         })
         newKeys.push(row.permalink)
       })
 
-      handleImportTransactions(newTxs, newKeys, { duplicateCount, skippedUnmapped })
+      handleImportTransactions(newTxs, updatedTxs, newKeys, { duplicateCount, skippedUnmapped, invalidCount })
 
-      if (skippedUnmapped > 0) {
-        showToast(`新增 ${newTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedUnmapped} 筆未對應卡片`)
+      if (skippedUnmapped > 0 || invalidCount > 0) {
+        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedUnmapped} 筆未對應卡片`)
       } else {
-        showToast(`新增 ${newTxs.length} 筆，重複略過 ${duplicateCount} 筆`)
+        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複略過 ${duplicateCount} 筆`)
       }
     } catch (e) {
       showToast(e.message || '更新失敗，請稍後再試')
     } finally {
       setImportingCardNotifications(false)
     }
-  }, [cardImport, cards, googleSync, handleImportTransactions, showToast])
+  }, [cardImport, cards, googleSync, handleImportTransactions, showToast, transactions])
 
   const handleDeleteTransaction = useCallback((id) => {
     setTransactions(prev => {
@@ -713,6 +779,7 @@ export default function App() {
     setChecklist([])
     setEnvelopes([])
     setIncome(0)
+    setSalarySettings(normalizeSalarySettings())
     setSavings([])
     setFxSettings({ usdRate: 32.5, feeRate: 1.5 })
     setGoogleSync(null)
@@ -730,6 +797,7 @@ export default function App() {
     setEnvelopes(Array.isArray(data.envelopes) ? data.envelopes : [])
     if (data.fxSettings && typeof data.fxSettings === 'object') setFxSettings(data.fxSettings)
     if (typeof data.income === 'number') setIncome(data.income)
+    setSalarySettings(normalizeSalarySettings(data.salarySettings))
     setSavings(Array.isArray(data.savings) ? data.savings : [])
     setGoogleSync(data.googleSync ?? null)
     setCardImport(data.cardImport ?? { sheetId: '', bankCardMap: {}, importedKeys: [] })
@@ -760,6 +828,9 @@ export default function App() {
 
   const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
   const reconciliationSummary = buildReconciliationSummary({ transactions, cards: enrichedCards, cardImport })
+  const salarySchedule = getSalarySchedule(salarySettings)
+  const availableIncome = salarySchedule.receivedThisMonth ? income : 0
+  const forecastSummary = buildCardForecast(enrichedCards, plans, { income: availableIncome, essentialTotal })
 
   // 靽∠?⊿?隡啣董?殷???閬??身摰??詨?嚗?帘摰?霈?銝?撠董嚗歇蝜喟??蔣?踱?
   // ???撌脩??望?撠望?望?鈭?銝??璅?撌脩像撠晞????暑蝯???
@@ -845,6 +916,9 @@ export default function App() {
         onGoToChecklist={() => setTab('checklist')}
         onGoToTransactions={() => setTab('transactions')}
         reconciliationSummary={reconciliationSummary}
+        forecastSummary={forecastSummary}
+        salarySchedule={salarySchedule}
+        monthlyIncome={income}
       />
     ),
     transactions: (
@@ -880,6 +954,9 @@ export default function App() {
         savings={savings}
         cardBills={cards.map(c => ({ id: c.id, name: c.name, bill: Number(c.estimatedBill) || 0 }))}
         onIncomeChange={setIncome}
+        salarySettings={salarySettings}
+        salarySchedule={salarySchedule}
+        onSalarySettingsChange={setSalarySettings}
         onAdd={handleAddChecklistItem}
         onToggle={handleToggleChecklistItem}
         onUpdate={handleUpdateChecklistItem}
@@ -912,7 +989,7 @@ export default function App() {
         onAddEnvelope={handleAddEnvelope}
         onUpdateEnvelope={handleUpdateEnvelope}
         onDeleteEnvelope={handleDeleteEnvelope}
-        backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings, income, savings, googleSync, cardImport }}
+        backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings, income, salarySettings, savings, googleSync, cardImport }}
         onImportData={handleImportData}
         onClearData={handleClearData}
         transactions={transactions}

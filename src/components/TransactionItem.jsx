@@ -19,6 +19,10 @@ function auditLabel(tx) {
   return '待對帳'
 }
 
+function installmentLabel(tx) {
+  return tx.installmentPlanId ? '已轉分期・原始憑據' : null
+}
+
 export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onReconcile }) {
   const dotColor = CATEGORY_COLORS[tx.category] ?? '#B9ADA6'
   const needsReconcile = onReconcile && auditLabel(tx) === '待對帳'
@@ -39,6 +43,7 @@ export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onRec
           <span className="tx-badges">
             <span className={`tx-badge${isImported(tx) ? ' tx-badge-imported' : ''}`}>{sourceLabel(tx)}</span>
             <span className={`tx-badge${tx.postedDate ? ' tx-badge-posted' : ''}`}>{auditLabel(tx)}</span>
+            {installmentLabel(tx) && <span className="tx-badge tx-badge-converted">{installmentLabel(tx)}</span>}
           </span>
         </div>
       </div>
@@ -52,7 +57,7 @@ export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onRec
         {needsReconcile && (
           <button className="tx-reconcile-btn" onClick={(e) => { e.stopPropagation(); onReconcile(tx) }} aria-label="對帳">對帳</button>
         )}
-        {onConvert && (
+        {onConvert && !tx.installmentPlanId && (
           <button className="tx-convert-btn" onClick={(e) => { e.stopPropagation(); onConvert(tx) }} aria-label="轉為分期">轉分期</button>
         )}
         <button className="tx-edit-btn" onClick={(e) => { e.stopPropagation(); onEdit(tx) }} aria-label="編輯">✎</button>

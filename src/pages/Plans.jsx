@@ -56,6 +56,8 @@ export default function Plans({ showToast, plans, cards, fxSettings, onAddPlan, 
         <h1 className="plans-title">計畫管理</h1>
       </div>
 
+      <p className="plans-purpose">先看未來承諾，再決定今天可刷多少；已轉分期會保留原始憑據，但只把每一期計入預算。</p>
+
       <div className="segmented-tabs">
         {TABS.map((tab) => (
           <button

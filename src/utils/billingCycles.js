@@ -44,6 +44,14 @@ function nextCloseDate(prevClose, billingDay) {
   return new Date(nextY, nextM, clampDayInMonth(nextY, nextM, billingDay))
 }
 
+function previousCloseDate(closeDate, billingDay) {
+  const year = closeDate.getFullYear()
+  const month = closeDate.getMonth() - 1
+  const previousYear = year + (month < 0 ? -1 : 0)
+  const previousMonth = (month + 12) % 12
+  return new Date(previousYear, previousMonth, clampDayInMonth(previousYear, previousMonth, billingDay))
+}
+
 // 把一段時間窗內的刷卡記錄、訂閱、未繳分期，加總成那個結帳週期「結帳當下」該有的金額。
 // tx.date 是 "M/D" 字串，跟 App.jsx 既有的 resolveNearDate 邏輯一致（避免跨年誤判）。
 function resolveNearDate(displayDate, near) {
@@ -146,7 +154,21 @@ export function ensureBillingCycles(card, { transactions, plans, today = new Dat
     lastClose = windowEnd
   }
 
-  return cycles
+  // Refresh only estimates explicitly affected by a posted-date change.
+  // Historical snapshots remain stable until their source data changes.
+  return cycles.map((cycle) => {
+    if (!cycle.refreshNeeded || cycle.paid || cycle.amountIsActual || cycle.manuallyCalibrated) return cycle
+    const closeDate = parseYmd(cycle.closeDate)
+    const estimatedAmount = snapshotAmount({
+      card,
+      cardName: card.name,
+      windowStart: previousCloseDate(closeDate, billingDay),
+      windowEnd: closeDate,
+      transactions,
+      plans,
+    })
+    return { ...cycle, amount: estimatedAmount, estimatedAmount, refreshNeeded: false }
+  })
 }
 
 // 未繳清的週期，依到期日排序（最早到期的在前面）

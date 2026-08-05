@@ -76,9 +76,24 @@ export default function AddPlanForm({ onSubmit, onClose, cards, fxSettings, init
       ...(currency === 'USD' && { amountOriginal: num, usdRate, feeRate }),
     }
 
+    const preservedInstallmentFields = type === 'installment' && initialValues
+      ? {
+        firstDueDate: initialValues.firstDueDate,
+        // When the user corrects the paid count, regenerate the schedule from
+        // that declared progress. Otherwise keep the checked-off occurrence dates.
+        ...(paidCount === Number(initialValues.paidCount) && { occurrences: initialValues.occurrences }),
+        totalAmount: initialValues.totalAmount,
+        conversionDate: initialValues.conversionDate,
+        originalTransactionId: initialValues.originalTransactionId,
+        originalAmount: initialValues.originalAmount,
+        originalDate: initialValues.originalDate,
+        originalPostedDate: initialValues.originalPostedDate,
+      }
+      : {}
+
     const newPlan = type === 'subscription'
       ? { ...base, active: initialValues?.active ?? true }
-      : { ...base, paidCount, totalCount: total, paid: initialValues?.paid ?? false }
+      : { ...base, ...preservedInstallmentFields, paidCount, totalCount: total, paid: initialValues?.paid ?? false }
 
     onSubmit(newPlan)
   }

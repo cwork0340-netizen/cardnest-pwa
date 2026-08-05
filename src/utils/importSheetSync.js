@@ -32,6 +32,54 @@ export async function fetchImportRows({ accessToken, sheetId }) {
     }))
 }
 
+export function normalizeLast4(value) {
+  const digits = String(value ?? '').replace(/\D/g, '')
+  return digits.length === 4 ? digits : ''
+}
+
+export function isUsableImportRow(row) {
+  return Boolean(
+    row?.permalink
+    && Number.isFinite(Number(row.amount))
+    && Number(row.amount) !== 0
+    && /^\d{4}-\d{2}-\d{2}$/.test(toISODate(row.rawDate)),
+  )
+}
+
+export function importedPostedDate(row) {
+  const date = toISODate(row?.rawPostedDate)
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : ''
+}
+
+export function findImportedTransaction({ row, card, transactions = [] }) {
+  const byPermalink = transactions.filter((tx) => tx?.source?.permalink === row?.permalink)
+  if (byPermalink.length === 1) return byPermalink[0]
+
+  const consumedOn = toISODate(row?.rawDate)
+  const candidates = transactions.filter((tx) => {
+    const cameFromImport = tx?.source?.provider === 'card-import' || String(tx?.note ?? '').includes('自動匯入')
+    const onSameCard = tx?.cardId === card?.id || tx?.card === card?.name
+    return cameFromImport
+      && onSameCard
+      && Number(tx?.amount) === Number(row?.amount)
+      && tx?.date === consumedOn
+  })
+  return candidates.length === 1 ? candidates[0] : null
+}
+
+// Prefer a card's last four digits. Bank-only mapping is retained for existing
+// users, but only as a fallback when no last-four value is available.
+export function resolveImportedCard({ row, cards, bankCardMap = {} }) {
+  const last4 = normalizeLast4(row?.cardLast4)
+  if (last4) {
+    const matches = cards.filter((card) => normalizeLast4(card.last4) === last4)
+    return matches.length === 1 ? matches[0] : null
+  }
+
+  const mapped = bankCardMap[row?.bank]
+  return cards.find((card) => card.id === mapped || card.name === mapped) ?? null
+}
+
 // Sheet 上的日期可能是 2026/04/07、2026-06-30 等格式，統一轉成 CardNest 慣用的 "M/D"
 export function toDisplayDate(rawDate) {
   const parts = String(rawDate).split(/[/-]/).map(Number)

@@ -64,6 +64,41 @@
   gap: 12px;
 }
 
+.checklist-salary-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--color-border, rgba(47, 42, 37, .08));
+}
+
+.checklist-salary-settings p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.checklist-salary-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.checklist-salary-row label { min-width: 88px; }
+.checklist-salary-row input, .checklist-salary-row select {
+  border: 1px solid var(--color-border, rgba(47, 42, 37, .15));
+  border-radius: 8px;
+  background: var(--color-surface, #fff);
+  color: var(--color-text-main);
+  padding: 6px 8px;
+  font: inherit;
+}
+.checklist-salary-row input[type="number"] { width: 48px; }
+.checklist-salary-row--actual input { min-width: 136px; }
+
 .checklist-estimate-hint {
   font-size: 12.5px;
   color: var(--color-text-muted);

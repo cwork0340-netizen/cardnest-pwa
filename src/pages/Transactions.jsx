@@ -6,7 +6,7 @@ import BottomSheet from '../components/BottomSheet'
 import QuickTransactionForm from '../components/QuickTransactionForm'
 import ConvertToInstallmentForm from '../components/ConvertToInstallmentForm'
 import EmptyState from '../components/EmptyState'
-import { matchesCard, parseISODate, resolveCardId, toISODate } from '../utils/financeData'
+import { isBillableTransaction, matchesCard, parseISODate, resolveCardId, toISODate } from '../utils/financeData'
 import { buildStatementCalibration } from '../utils/statementCalibration'
 
 const PERIOD_TABS = [
@@ -122,7 +122,7 @@ export default function Transactions({
     return true
   })
 
-  const filteredTotal = filteredTransactions.reduce((s, tx) => s + tx.amount, 0)
+  const filteredTotal = filteredTransactions.filter(isBillableTransaction).reduce((s, tx) => s + tx.amount, 0)
   const pendingReconciliationCount = transactions.filter(isPendingReconciliation).length
 
   function closeSheet() {
@@ -130,7 +130,7 @@ export default function Transactions({
     setEditingTx(null)
   }
 
-  function handleSubmit({ amount, category, cardId, card, date, note }) {
+  function handleSubmit({ amount, category, cardId, card, date, postedDate, note }) {
     const selectedCard = cards.find((c) => c.id === (cardId || resolveCardId({ card }, cards)))
     const fields = {
       name: note.trim() || category,
@@ -139,6 +139,7 @@ export default function Transactions({
       card: selectedCard?.name ?? card,
       amount,
       date: toISODate(date),
+      ...(postedDate ? { postedDate: toISODate(postedDate) } : { postedDate: undefined }),
       note,
     }
     if (editingTx) {
@@ -157,7 +158,7 @@ export default function Transactions({
   }
 
   function handleReconcile(tx) {
-    onUpdateTransaction({ ...tx, postedDate: tx.date })
+    setEditingTx(tx)
     showToast('已標記對帳')
   }
 

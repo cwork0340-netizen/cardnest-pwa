@@ -8,6 +8,7 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
   const [billingDay, setBillingDay] = useState(initialValues?.billingDay ?? '')
   const [dueDay, setDueDay] = useState(initialValues?.dueDay ?? '')
   const [budget, setBudget] = useState(initialValues?.budget ?? '')
+  const [last4, setLast4] = useState(initialValues?.last4 ?? '')
   const [error, setError] = useState('')
 
   function handleSubmit(e) {
@@ -19,6 +20,8 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
     if (!dd || dd < 1 || dd > 30) { setError('繳款寬限天數請填 1–30'); return }
     const bgt = Number(budget)
     if (!bgt || bgt <= 0) { setError('請輸入有效預算'); return }
+    const normalizedLast4 = String(last4).replace(/\D/g, '')
+    if (normalizedLast4 && normalizedLast4.length !== 4) { setError('卡號末四碼請填 4 位數字'); return }
     setError('')
 
     const card = {
@@ -29,6 +32,7 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
       billingDay: bd,
       dueDay: dd,
       budget: bgt,
+      ...(normalizedLast4 && { last4: normalizedLast4 }),
       billingCycles: initialValues?.billingCycles ?? [],
     }
 
@@ -102,6 +106,20 @@ export default function CardForm({ onSubmit, onClose, initialValues }) {
             value={budget}
             onChange={(e) => setBudget(e.target.value)}
           />
+        </div>
+
+        <div className="cdf-field">
+          <label className="cdf-label">卡號末四碼（建議填寫）</label>
+          <input
+            className="cdf-input"
+            type="text"
+            inputMode="numeric"
+            maxLength="4"
+            placeholder="1234"
+            value={last4}
+            onChange={(e) => setLast4(e.target.value.replace(/\D/g, ''))}
+          />
+          <p className="cdf-field-note">用於正確匯入同一家銀行的多張信用卡；不會儲存完整卡號。</p>
         </div>
 
         <p className="cdf-field-note">

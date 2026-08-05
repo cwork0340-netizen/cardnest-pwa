@@ -39,6 +39,13 @@ function nextDueDate(prevDue, billingDay) {
   return new Date(nextY, nextM, clampDayInMonth(nextY, nextM, billingDay))
 }
 
+function occurrenceAmount(plan, index, totalCount) {
+  const regularAmount = Number(plan.amount) || 0
+  const totalAmount = Number(plan.totalAmount)
+  if (!Number.isFinite(totalAmount) || totalAmount <= 0 || index < totalCount - 1) return regularAmount
+  return totalAmount - regularAmount * (totalCount - 1)
+}
+
 // 「最近一次已經過去的週期」錨點，用來回推歷史已繳期數
 function currentAnchor(billingDay, today) {
   const y = today.getFullYear(), m = today.getMonth(), d = today.getDate()
@@ -63,7 +70,7 @@ export function ensureInstallmentOccurrences(plan, { today = new Date() } = {}) 
           id: crypto.randomUUID(),
           cycleKey: cycleKeyOf(cursor),
           dueDate: ymd(cursor),
-          amount: plan.amount,
+          amount: occurrenceAmount(plan, historical.length, totalCount),
           paid: true,
           paidAt: null,
         })
@@ -89,7 +96,7 @@ export function ensureInstallmentOccurrences(plan, { today = new Date() } = {}) 
       id: crypto.randomUUID(),
       cycleKey: cycleKeyOf(nextDate),
       dueDate: ymd(nextDate),
-      amount: plan.amount,
+      amount: occurrenceAmount(plan, occurrences.length, totalCount),
       paid: false,
       paidAt: null,
     })

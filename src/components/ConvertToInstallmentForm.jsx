@@ -18,38 +18,31 @@ function defaultFirstDueDate(tx, billingDay) {
 
 export default function ConvertToInstallmentForm({ tx, onSubmit, onClose }) {
   const [totalCount, setTotalCount] = useState('3')
-  const [amount, setAmount] = useState(String(Math.round(tx.amount / 3)))
-  const [amountTouched, setAmountTouched] = useState(false)
+  const [totalAmount, setTotalAmount] = useState(String(tx.amount))
   const [billingDay, setBillingDay] = useState(String(defaultBillingDay(tx)))
   const [firstDueDate, setFirstDueDate] = useState(() => defaultFirstDueDate(tx, defaultBillingDay(tx)))
+  const [conversionDate, setConversionDate] = useState(tx.postedDate ?? tx.date)
   const [error, setError] = useState('')
 
-  function handleTotalCountChange(v) {
-    setTotalCount(v)
-    const n = Number(v)
-    if (!amountTouched && n > 0) {
-      setAmount(String(Math.round(tx.amount / n)))
-    }
+  const count = Number(totalCount) || 0
+  const convertedTotal = Number(totalAmount) || 0
+  const regularAmount = count > 0 ? Math.floor(convertedTotal / count) : 0
+  const finalAmount = count > 0 ? convertedTotal - regularAmount * (count - 1) : 0
+
+  function handleBillingDayChange(value) {
+    setBillingDay(value)
+    const day = Number(value)
+    if (Number.isInteger(day) && day >= 1 && day <= 31) setFirstDueDate(defaultFirstDueDate(tx, day))
   }
 
-  function handleBillingDayChange(v) {
-    setBillingDay(v)
-    const day = Number(v)
-    if (Number.isInteger(day) && day >= 1 && day <= 31) {
-      setFirstDueDate(defaultFirstDueDate(tx, day))
-    }
-  }
-
-  function handleSubmit(e) {
-    e.preventDefault()
-    const total = Number(totalCount)
-    if (!Number.isInteger(total) || total < 2) { setError('分期總期數至少 2 期'); return }
-    const perAmount = Number(amount)
-    if (!perAmount || perAmount <= 0) { setError('請輸入有效每期金額'); return }
+  function handleSubmit(event) {
+    event.preventDefault()
+    if (!Number.isInteger(count) || count < 2) return setError('分期期數至少為 2 期')
+    if (!convertedTotal || convertedTotal <= 0) return setError('請填寫銀行確認的分期總額')
     const day = Number(billingDay)
-    if (!Number.isInteger(day) || day < 1 || day > 31) { setError('請輸入每月 1～31 號'); return }
-    if (!parseISODate(firstDueDate)) { setError('請選擇第一期開始日'); return }
-    setError('')
+    if (!Number.isInteger(day) || day < 1 || day > 31) return setError('請填寫 1 到 31 的帳單日')
+    if (!parseISODate(firstDueDate)) return setError('請填寫首期入帳日')
+    if (!parseISODate(conversionDate)) return setError('請填寫轉分期確認日')
 
     onSubmit({
       id: crypto.randomUUID(),
@@ -58,12 +51,18 @@ export default function ConvertToInstallmentForm({ tx, onSubmit, onClose }) {
       cardId: tx.cardId,
       card: tx.card,
       currency: 'TWD',
-      amount: perAmount,
+      amount: regularAmount,
+      totalAmount: convertedTotal,
       period: '期',
       billingDay: day,
       firstDueDate,
+      conversionDate,
+      originalTransactionId: tx.id,
+      originalAmount: Number(tx.amount),
+      originalDate: tx.date,
+      originalPostedDate: tx.postedDate,
       paidCount: 0,
-      totalCount: total,
+      totalCount: count,
       paid: false,
     })
   }
@@ -71,64 +70,41 @@ export default function ConvertToInstallmentForm({ tx, onSubmit, onClose }) {
   return (
     <form className="apf" onSubmit={handleSubmit}>
       <p className="apf-convert-hint">
-        「{tx.name}」（NT${Number(tx.amount).toLocaleString()}）將轉為分期計畫，這筆刷卡記錄會被移除，改由分期計畫每月追蹤應繳金額。
+        原刷卡紀錄會保留為「已轉分期」憑據，不再算入一次性消費；從首期入帳日開始，才會列入每期帳單與承諾支出。
       </p>
 
       <div className="apf-fields">
         <div className="apf-field-row">
           <div className="apf-field">
-            <label className="apf-label">總期數</label>
-            <input
-              className="apf-input"
-              type="number"
-              inputMode="numeric"
-              placeholder="3"
-              value={totalCount}
-              onChange={(e) => handleTotalCountChange(e.target.value)}
-            />
+            <label className="apf-label">分期期數</label>
+            <input className="apf-input" type="number" inputMode="numeric" min="2" value={totalCount} onChange={(e) => setTotalCount(e.target.value)} />
           </div>
           <div className="apf-field">
-            <label className="apf-label">每期金額</label>
-            <input
-              className="apf-input"
-              type="number"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => { setAmountTouched(true); setAmount(e.target.value) }}
-            />
+            <label className="apf-label">銀行確認的分期總額</label>
+            <input className="apf-input" type="number" inputMode="decimal" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} />
           </div>
         </div>
-
+        {count >= 2 && convertedTotal > 0 && (
+          <span className="apf-fx-hint">前 {count - 1} 期 NT${regularAmount.toLocaleString()}，末期 NT${finalAmount.toLocaleString()}；合計會等於分期總額。</span>
+        )}
         <div className="apf-field">
-          <label className="apf-label">每月幾號繳款</label>
-          <input
-            className="apf-input"
-            type="number"
-            inputMode="numeric"
-            min="1"
-            max="31"
-            value={billingDay}
-            onChange={(e) => handleBillingDayChange(e.target.value)}
-          />
-          <span className="apf-fx-hint">預設帶入原刷卡日，可依銀行實際扣款日調整</span>
+          <label className="apf-label">每期預計列帳日</label>
+          <input className="apf-input" type="number" inputMode="numeric" min="1" max="31" value={billingDay} onChange={(e) => handleBillingDayChange(e.target.value)} />
         </div>
-
         <div className="apf-field">
-          <label className="apf-label">第一期開始日</label>
-          <input
-            className="apf-input"
-            type="date"
-            value={firstDueDate}
-            onChange={(e) => setFirstDueDate(e.target.value)}
-          />
-          <span className="apf-fx-hint">預設從下一期開始，避免本期刷卡金額和分期重複計算</span>
+          <label className="apf-label">首期入帳日</label>
+          <input className="apf-input" type="date" value={firstDueDate} onChange={(e) => setFirstDueDate(e.target.value)} />
+        </div>
+        <div className="apf-field">
+          <label className="apf-label">銀行轉分期確認日</label>
+          <input className="apf-input" type="date" value={conversionDate} onChange={(e) => setConversionDate(e.target.value)} />
+          <span className="apf-fx-hint">若帳單同時出現原消費與沖銷，請以銀行實際入帳資料為準。</span>
         </div>
       </div>
 
       {error && <span className="apf-error">{error}</span>}
-
       <div className="apf-actions">
-        <button type="submit" className="button-primary">轉為分期</button>
+        <button type="submit" className="button-primary">確認轉分期</button>
         <button type="button" className="apf-cancel" onClick={onClose}>取消</button>
       </div>
     </form>
