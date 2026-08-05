@@ -6,22 +6,31 @@
   box-shadow: var(--shadow-card);
 }
 
-.card-forecast-heading { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.card-forecast-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 .card-forecast-heading span { color: var(--color-primary); font-size: 12px; font-weight: 700; }
 .card-forecast-heading h2 { margin: 3px 0 0; font-size: 18px; }
-.card-forecast-heading p { margin: 2px 0 0; color: var(--color-text-muted); font-size: 12px; text-align: right; }
+.card-forecast-detail-btn {
+  min-height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: var(--color-surface-warm, #fffcf7);
+  border: 1px solid var(--color-border, rgba(47, 42, 37, .08));
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
 .card-forecast-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
 .card-forecast-metric { min-width: 0; padding: 11px 10px; border-radius: 14px; background: var(--color-surface-warm, #fffcf7); }
 .card-forecast-metric--accent { background: var(--color-primary-soft, #eef2ff); }
-.card-forecast-metric span, .card-forecast-metric small { display: block; color: var(--color-text-muted); font-size: 11px; line-height: 1.35; }
+.card-forecast-metric span { display: block; color: var(--color-text-muted); font-size: 11px; line-height: 1.35; white-space: nowrap; }
 .card-forecast-metric strong { display: block; margin: 4px 0; color: var(--color-text-main); font-size: 15px; white-space: nowrap; }
 .card-forecast-cards { margin-top: 12px; border-top: 1px solid var(--color-border, rgba(47, 42, 37, .08)); padding-top: 8px; }
 .card-forecast-safe { margin-top: 12px; padding: 12px; border-radius: 14px; background: var(--color-success-soft, #eaf5ee); }
 .card-forecast-safe--warning { background: var(--color-warning-soft, #fff4de); }
 .card-forecast-safe--pending { background: var(--color-primary-soft, #eef2ff); }
-.card-forecast-safe span, .card-forecast-safe small { display: block; color: var(--color-text-secondary); font-size: 12px; }
+.card-forecast-safe span { display: block; color: var(--color-text-secondary); font-size: 12px; }
 .card-forecast-safe strong { display: block; margin: 3px 0; color: var(--color-text-main); font-size: 22px; }
 .card-forecast-income-hint { margin: 12px 0 0; color: var(--color-text-muted); font-size: 12px; }
 .card-forecast-cards > div { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; color: var(--color-text-secondary); font-size: 12px; }
 .card-forecast-cards i { display: inline-block; width: 7px; height: 7px; border-radius: 999px; margin-right: 5px; }
-@media (max-width: 360px) { .card-forecast-grid { grid-template-columns: 1fr; } .card-forecast-heading { display: block; } .card-forecast-heading p { text-align: left; margin-top: 6px; } }
+@media (max-width: 360px) { .card-forecast-grid { grid-template-columns: 1fr; } }
