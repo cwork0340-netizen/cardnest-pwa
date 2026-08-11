@@ -133,7 +133,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
             <span className="credit-card-summary-amount-value">{fmt(card.unpaidTotal ?? 0)}</span>
           </div>
           <div className="credit-card-summary-amount-col">
-            <span className="credit-card-summary-amount-label">本期已入帳</span>
+            <span className="credit-card-summary-amount-label">新帳期已入帳</span>
             <span className="credit-card-summary-amount-value">{fmt(card.currentCycleAmount ?? 0)}</span>
           </div>
         </div>

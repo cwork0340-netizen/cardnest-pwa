@@ -30,7 +30,7 @@ export default function HeroStatusCard({ budget, estimatedTotal, pendingBillTota
       </div>
       <div className="hero-card-metrics">
         <div className="hero-card-metric">
-          <span>本期已入帳</span>
+          <span>新帳期已入帳</span>
           <strong>{fmt(currentCycleTotal)}</strong>
         </div>
         <div className="hero-card-metric">

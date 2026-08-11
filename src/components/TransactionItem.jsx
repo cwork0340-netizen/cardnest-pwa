@@ -55,7 +55,7 @@ export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onRec
       </div>
       <div className="tx-action-btns">
         {needsReconcile && (
-          <button className="tx-reconcile-btn" onClick={(e) => { e.stopPropagation(); onReconcile(tx) }} aria-label="對帳">對帳</button>
+          <button className="tx-reconcile-btn" onClick={(e) => { e.stopPropagation(); onReconcile(tx) }} aria-label="填入帳日">填入帳日</button>
         )}
         {onConvert && !tx.installmentPlanId && (
           <button className="tx-convert-btn" onClick={(e) => { e.stopPropagation(); onConvert(tx) }} aria-label="轉為分期">轉分期</button>

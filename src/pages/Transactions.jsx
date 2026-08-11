@@ -159,7 +159,7 @@ export default function Transactions({
 
   function handleReconcile(tx) {
     setEditingTx(tx)
-    showToast('已標記對帳')
+    showToast('請填入銀行入帳日後儲存')
   }
 
   function handleConvertSubmit(plan) {

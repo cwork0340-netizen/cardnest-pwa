@@ -91,10 +91,10 @@ describe('Transactions import entry', () => {
     )
 
     expect(screen.getByText('待對帳')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: '對帳' }))
+    fireEvent.click(screen.getByRole('button', { name: '填入帳日' }))
 
     expect(onUpdateTransaction).not.toHaveBeenCalled()
-    expect(showToast).toHaveBeenCalledWith('已標記對帳')
+    expect(showToast).toHaveBeenCalledWith('請填入銀行入帳日後儲存')
   })
 
   it('filters the list to pending reconciliation transactions', () => {

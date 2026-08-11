@@ -634,7 +634,7 @@ describe('各卡狀態：上期與本期累積', () => {
       .find(c => c.textContent.includes('台新卡'))
     expect(summary.textContent).toContain('待繳帳單')
     expect(summary.textContent).toContain('NT$3,022')
-    expect(summary.textContent).toContain('本期已入帳')
+    expect(summary.textContent).toContain('新帳期已入帳')
     expect(summary.textContent).toContain('NT$500')
   })
 
