@@ -70,6 +70,10 @@ function isPendingReconciliation(tx) {
   return isImportedTransaction(tx) && !tx.postedDate
 }
 
+function hasImportedPostedDate(tx) {
+  return isImportedTransaction(tx) && !!tx.postedDate
+}
+
 export default function Transactions({
   showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction,
   onConvertToInstallment, cardImport, importingCardNotifications, onImportCardNotifications,
@@ -114,6 +118,7 @@ export default function Transactions({
     }
     if (!isInPeriod(tx.date, periodFilter, { rangeStart, rangeEnd })) return false
     if (auditFilter === 'pending' && !isPendingReconciliation(tx)) return false
+    if (auditFilter === 'posted' && !hasImportedPostedDate(tx)) return false
     if (keyword.trim()) {
       const kw = keyword.trim().toLowerCase()
       const haystack = `${tx.name ?? ''} ${tx.note ?? ''} ${tx.category ?? ''} ${tx.card ?? ''}`.toLowerCase()
@@ -124,6 +129,7 @@ export default function Transactions({
 
   const filteredTotal = filteredTransactions.filter(isBillableTransaction).reduce((s, tx) => s + tx.amount, 0)
   const pendingReconciliationCount = transactions.filter(isPendingReconciliation).length
+  const postedImportedCount = transactions.filter(hasImportedPostedDate).length
 
   function closeSheet() {
     setShowSheet(false)
@@ -228,12 +234,26 @@ export default function Transactions({
               <option key={c.id} value={c.name}>{c.name}</option>
             ))}
           </select>
-          <button
-            className={`tx-audit-filter${auditFilter === 'pending' ? ' tx-audit-filter-active' : ''}`}
-            onClick={() => setAuditFilter((value) => value === 'pending' ? 'all' : 'pending')}
-          >
-            只看待對帳{pendingReconciliationCount > 0 ? `（${pendingReconciliationCount}）` : ''}
-          </button>
+          <div className="tx-audit-tabs" aria-label="入帳狀態篩選">
+            <button
+              className={`tx-audit-filter${auditFilter === 'all' ? ' tx-audit-filter-active' : ''}`}
+              onClick={() => setAuditFilter('all')}
+            >
+              全部
+            </button>
+            <button
+              className={`tx-audit-filter${auditFilter === 'pending' ? ' tx-audit-filter-active' : ''}`}
+              onClick={() => setAuditFilter('pending')}
+            >
+              待填入帳日{pendingReconciliationCount > 0 ? `（${pendingReconciliationCount}）` : ''}
+            </button>
+            <button
+              className={`tx-audit-filter${auditFilter === 'posted' ? ' tx-audit-filter-active' : ''}`}
+              onClick={() => setAuditFilter('posted')}
+            >
+              已有入帳日{postedImportedCount > 0 ? `（${postedImportedCount}）` : ''}
+            </button>
+          </div>
           {periodFilter === 'range' && (
             <div className="tx-range-row">
               <input

@@ -16,7 +16,7 @@ function sourceLabel(tx) {
 function auditLabel(tx) {
   if (!isImported(tx)) return '自行確認'
   if (tx.postedDate) return '有入帳日'
-  return '待對帳'
+  return '待填入帳日'
 }
 
 function installmentLabel(tx) {
@@ -25,7 +25,7 @@ function installmentLabel(tx) {
 
 export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onReconcile }) {
   const dotColor = CATEGORY_COLORS[tx.category] ?? '#B9ADA6'
-  const needsReconcile = onReconcile && auditLabel(tx) === '待對帳'
+  const needsReconcile = onReconcile && auditLabel(tx) === '待填入帳日'
 
   return (
     <div

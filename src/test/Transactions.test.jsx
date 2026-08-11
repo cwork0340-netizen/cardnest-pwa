@@ -90,7 +90,7 @@ describe('Transactions import entry', () => {
       />,
     )
 
-    expect(screen.getByText('待對帳')).toBeInTheDocument()
+    expect(screen.getByText('待填入帳日')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '填入帳日' }))
 
     expect(onUpdateTransaction).not.toHaveBeenCalled()
@@ -133,10 +133,52 @@ describe('Transactions import entry', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: '只看待對帳（1）' }))
+    fireEvent.click(screen.getByRole('button', { name: '待填入帳日（1）' }))
 
     expect(screen.getByText('待入帳消費')).toBeInTheDocument()
     expect(screen.queryByText('已入帳消費')).not.toBeInTheDocument()
+  })
+
+  it('filters the list to imported transactions with posted dates', () => {
+    render(
+      <Transactions
+        showToast={vi.fn()}
+        transactions={[
+          {
+            id: 'tx1',
+            name: '待入帳消費',
+            card: '永豐卡',
+            category: '日常',
+            amount: 500,
+            date: '2026-07-23',
+            note: '自動匯入・永豐',
+          },
+          {
+            id: 'tx2',
+            name: '已入帳消費',
+            card: '永豐卡',
+            category: '日常',
+            amount: 600,
+            date: '2026-07-22',
+            postedDate: '2026-07-24',
+            note: '自動匯入・永豐',
+          },
+        ]}
+        cards={[{ id: 'c1', name: '永豐卡' }]}
+        onAddTransaction={vi.fn()}
+        onUpdateTransaction={vi.fn()}
+        onDeleteTransaction={vi.fn()}
+        onConvertToInstallment={vi.fn()}
+        cardImport={null}
+        importingCardNotifications={false}
+        onImportCardNotifications={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '已有入帳日（1）' }))
+
+    expect(screen.queryByText('待入帳消費')).not.toBeInTheDocument()
+    expect(screen.getByText('已入帳消費')).toBeInTheDocument()
   })
 
   it('calibrates a statement cycle from the transactions page', () => {
