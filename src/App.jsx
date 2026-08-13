@@ -181,7 +181,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
         .filter(tx => { const dt = resolveNearDate(transactionCycleDate(tx), today); return dt && dt > bounds.prevBillingDate && dt <= bounds.lastBillingDate })
         .reduce((s, tx) => s + tx.amount, 0)
       currentCycleAmount = cardTx
-        .filter(tx => { const dt = resolveNearDate(transactionCycleDate(tx), today); return dt && dt > bounds.lastBillingDate && dt <= today })
+        .filter(tx => { const dt = tx.postedDate ? resolveNearDate(tx.postedDate, today) : null; return dt && dt > bounds.lastBillingDate && dt <= today })
         .reduce((s, tx) => s + tx.amount, 0)
       const currentCyclePurchases = cardTx
         .filter(tx => { const dt = resolveNearDate(tx.date, today); return dt && dt >= bounds.lastBillingDate && dt <= today })
@@ -192,7 +192,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     } else {
       // 瘝‵蝯董?伐?????祆??隡啁?
       used = cardTx.filter(tx => isThisMonth(tx.date)).reduce((s, tx) => s + tx.amount, 0)
-      currentCycleAmount = cardTx.filter(tx => isThisMonth(transactionCycleDate(tx))).reduce((s, tx) => s + tx.amount, 0)
+      currentCycleAmount = cardTx.filter(tx => tx.postedDate && isThisMonth(tx.postedDate)).reduce((s, tx) => s + tx.amount, 0)
       currentCyclePurchaseAmount = used
       currentCyclePendingAmount = cardTx
         .filter(tx => isThisMonth(tx.date) && !tx.postedDate)
