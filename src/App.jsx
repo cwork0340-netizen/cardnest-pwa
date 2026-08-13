@@ -175,7 +175,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     const cardTx = allCardTx.filter(isBillableTransaction)
     const bounds = billingCycleBounds(card.billingDay, today)
     // 銝?嚗歇蝯董嚗?敺像甈橘?嚗?敞蝛?蝯董?乩?敺?瑞?嚗?瘝撣喉?嚗?蝯董?亙?嚗??舀??
-    let used, currentCycleAmount
+    let used, currentCycleAmount, currentCyclePurchaseAmount, currentCyclePendingAmount
     if (bounds) {
       used = cardTx
         .filter(tx => { const dt = resolveNearDate(transactionCycleDate(tx), today); return dt && dt > bounds.prevBillingDate && dt <= bounds.lastBillingDate })
@@ -183,10 +183,20 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
       currentCycleAmount = cardTx
         .filter(tx => { const dt = resolveNearDate(transactionCycleDate(tx), today); return dt && dt > bounds.lastBillingDate && dt <= today })
         .reduce((s, tx) => s + tx.amount, 0)
+      const currentCyclePurchases = cardTx
+        .filter(tx => { const dt = resolveNearDate(tx.date, today); return dt && dt >= bounds.lastBillingDate && dt <= today })
+      currentCyclePurchaseAmount = currentCyclePurchases.reduce((s, tx) => s + tx.amount, 0)
+      currentCyclePendingAmount = currentCyclePurchases
+        .filter(tx => !tx.postedDate)
+        .reduce((s, tx) => s + tx.amount, 0)
     } else {
       // 瘝‵蝯董?伐?????祆??隡啁?
       used = cardTx.filter(tx => isThisMonth(tx.date)).reduce((s, tx) => s + tx.amount, 0)
-      currentCycleAmount = 0
+      currentCycleAmount = cardTx.filter(tx => isThisMonth(transactionCycleDate(tx))).reduce((s, tx) => s + tx.amount, 0)
+      currentCyclePurchaseAmount = used
+      currentCyclePendingAmount = cardTx
+        .filter(tx => isThisMonth(tx.date) && !tx.postedDate)
+        .reduce((s, tx) => s + tx.amount, 0)
     }
     // ???脰?銝剔?閮嚗???蝯艾?敞蝛?蝝啣??嚗?撣喳?望?甇瑕閮??臬隞嗡?嚗?
     const subsOnCard = plans
@@ -208,8 +218,9 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
         windowStart: bounds?.lastBillingDate ?? new Date(today.getFullYear(), today.getMonth(), 1),
         windowEnd: monthEnd,
       }), 0)
-    const cardRemaining = card.budget - used
-    const cp = card.budget > 0 ? used / card.budget : 0
+    const spendingWarningTotal = currentCyclePurchaseAmount + subsOnCard + instOnCard
+    const cardRemaining = card.budget - spendingWarningTotal
+    const cp = card.budget > 0 ? spendingWarningTotal / card.budget : 0
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
 
     // 撣喳?望?嚗?銝??舀??祕?交??蝡????芰像??銝?渡敞??銝??????憭望?鋡怨炊??
@@ -232,7 +243,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     nextDue.setDate(nextDue.getDate() + (Number(card.dueDay) || 0))
 
     return {
-      ...card, used, currentCycleAmount,
+      ...card, used, currentCycleAmount, currentCyclePurchaseAmount, currentCyclePendingAmount, spendingWarningTotal,
       subsOnCard, instOnCard,
       unpaidCycles: unpaidWithDaysLeft, unpaidTotal,
       reconciliationHints,

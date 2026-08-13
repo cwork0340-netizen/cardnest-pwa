@@ -23,6 +23,8 @@ export default function Dashboard({
 }) {
   const pendingBillTotal = cards.reduce((sum, card) => sum + Number(card.unpaidTotal ?? 0), 0)
   const currentCycleTotal = cards.reduce((sum, card) => sum + Number(card.currentCycleAmount ?? 0), 0)
+  const spendingWarningTotal = cards.reduce((sum, card) => sum + Number(card.spendingWarningTotal ?? 0), 0)
+  const pendingCycleTotal = cards.reduce((sum, card) => sum + Number(card.currentCyclePendingAmount ?? 0), 0)
   const needsReconciliation = Number(reconciliationSummary?.totalIssueCount ?? 0) > 0
 
   return (
@@ -84,6 +86,8 @@ export default function Dashboard({
           estimatedTotal={currentMonth.estimatedTotal}
           pendingBillTotal={pendingBillTotal}
           currentCycleTotal={currentCycleTotal}
+          spendingWarningTotal={spendingWarningTotal}
+          pendingCycleTotal={pendingCycleTotal}
           status={currentMonth.status}
         />
       </div>

@@ -10,13 +10,15 @@ export function buildCardForecast(cards = [], plans = [], { income = 0, essentia
     name: card.name,
     color: card.color,
     statementDue: Number(card.unpaidTotal || 0),
-    nextEstimate: Number(card.currentCycleAmount || 0)
+    nextEstimate: Number(card.spendingWarningTotal ?? (
+      Number(card.currentCycleAmount || 0)
       + Number(card.subsOnCard || 0)
-      + Number(card.instOnCard || 0),
+      + Number(card.instOnCard || 0)
+    )),
   }))
 
   const statementDue = perCard.reduce((total, card) => total + card.statementDue, 0)
-  const currentCyclePurchases = cards.reduce((total, card) => total + Number(card.currentCycleAmount || 0), 0)
+  const currentCyclePurchases = cards.reduce((total, card) => total + Number(card.currentCyclePurchaseAmount ?? card.currentCycleAmount ?? 0), 0)
   const nextEstimate = perCard.reduce((total, card) => total + card.nextEstimate, 0)
 
   return {

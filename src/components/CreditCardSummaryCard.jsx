@@ -59,6 +59,10 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
 
   const unpaid = card.unpaidCycles ?? []
   const reconciliationHints = card.reconciliationHints ?? []
+  const currentCyclePurchaseAmount = card.currentCyclePurchaseAmount ?? card.currentCycleAmount ?? 0
+  const currentCyclePendingAmount = card.currentCyclePendingAmount ?? Math.max(0, currentCyclePurchaseAmount - Number(card.currentCycleAmount ?? 0))
+  const spendingWarningTotal = card.spendingWarningTotal
+    ?? (currentCyclePurchaseAmount + Number(card.subsOnCard ?? 0) + Number(card.instOnCard ?? 0))
 
   function startEdit(e, cycle) {
     e.stopPropagation()
@@ -127,14 +131,14 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
         </div>
         <div className="credit-card-summary-amounts">
           <div className="credit-card-summary-amount-col">
+            <span className="credit-card-summary-amount-label">目前累計刷卡</span>
+            <span className="credit-card-summary-amount-value credit-card-summary-amount-value-main">{fmt(spendingWarningTotal)}</span>
+          </div>
+          <div className="credit-card-summary-amount-col credit-card-summary-amount-col-secondary">
             <span className="credit-card-summary-amount-label">
               待繳帳單{unpaid.length > 1 ? `（${unpaid.length} 期）` : ''}
             </span>
             <span className="credit-card-summary-amount-value">{fmt(card.unpaidTotal ?? 0)}</span>
-          </div>
-          <div className="credit-card-summary-amount-col">
-            <span className="credit-card-summary-amount-label">新帳期已入帳</span>
-            <span className="credit-card-summary-amount-value">{fmt(card.currentCycleAmount ?? 0)}</span>
           </div>
         </div>
       </button>
@@ -259,8 +263,16 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
             </div>
           )}
           <div className="credit-card-summary-breakdown-row">
-            <span>已入帳刷卡</span>
-            <span>{fmt(card.used ?? 0)}</span>
+            <span>目前刷卡紀錄</span>
+            <span>{fmt(currentCyclePurchaseAmount)}</span>
+          </div>
+          <div className="credit-card-summary-breakdown-row">
+            <span>銀行已入帳</span>
+            <span>{fmt(card.currentCycleAmount ?? 0)}</span>
+          </div>
+          <div className="credit-card-summary-breakdown-row">
+            <span>待確認入帳</span>
+            <span>{fmt(currentCyclePendingAmount)}</span>
           </div>
           <div className="credit-card-summary-breakdown-row">
             <span>訂閱小計</span>
@@ -271,8 +283,8 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
             <span>{fmt(card.instOnCard ?? 0)}</span>
           </div>
           <div className="credit-card-summary-breakdown-row credit-card-summary-breakdown-total">
-            <span>App 估算合計</span>
-            <span>{fmt((card.used ?? 0) + (card.subsOnCard ?? 0) + (card.instOnCard ?? 0))}</span>
+            <span>預警合計</span>
+            <span>{fmt(spendingWarningTotal)}</span>
           </div>
         </div>
       )}
