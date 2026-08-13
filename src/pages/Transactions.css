@@ -59,14 +59,20 @@
 
 .tx-audit-filter {
   min-height: 38px;
-  padding: 0 12px;
+  padding: 0 10px;
   border-radius: 10px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   text-align: center;
+}
+
+.tx-audit-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .tx-audit-filter-active {

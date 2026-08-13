@@ -16,7 +16,7 @@ function sourceLabel(tx) {
 function auditLabel(tx) {
   if (!isImported(tx)) return '自行確認'
   if (tx.postedDate) return '有入帳日'
-  return '待對帳'
+  return '待填入帳日'
 }
 
 function installmentLabel(tx) {
@@ -25,7 +25,7 @@ function installmentLabel(tx) {
 
 export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onReconcile }) {
   const dotColor = CATEGORY_COLORS[tx.category] ?? '#B9ADA6'
-  const needsReconcile = onReconcile && auditLabel(tx) === '待對帳'
+  const needsReconcile = onReconcile && auditLabel(tx) === '待填入帳日'
 
   return (
     <div
@@ -55,7 +55,7 @@ export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onRec
       </div>
       <div className="tx-action-btns">
         {needsReconcile && (
-          <button className="tx-reconcile-btn" onClick={(e) => { e.stopPropagation(); onReconcile(tx) }} aria-label="對帳">對帳</button>
+          <button className="tx-reconcile-btn" onClick={(e) => { e.stopPropagation(); onReconcile(tx) }} aria-label="填入帳日">填入帳日</button>
         )}
         {onConvert && !tx.installmentPlanId && (
           <button className="tx-convert-btn" onClick={(e) => { e.stopPropagation(); onConvert(tx) }} aria-label="轉為分期">轉分期</button>
