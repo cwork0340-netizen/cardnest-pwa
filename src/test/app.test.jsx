@@ -634,7 +634,7 @@ describe('各卡狀態：上期與本期累積', () => {
       .find(c => c.textContent.includes('台新卡'))
     expect(summary.textContent).toContain('待繳帳單')
     expect(summary.textContent).toContain('NT$3,022')
-    expect(summary.textContent).toContain('新帳期已入帳')
+    expect(summary.textContent).toContain('目前累計刷卡')
     expect(summary.textContent).toContain('NT$500')
   })
 
@@ -656,13 +656,13 @@ describe('各卡狀態：上期與本期累積', () => {
 
     const breakdown = summary.querySelector('.credit-card-summary-breakdown')
     expect(breakdown).toBeInTheDocument()
-    expect(breakdown.textContent).toContain('已入帳刷卡')
+    expect(breakdown.textContent).toContain('目前刷卡紀錄')
     expect(breakdown.textContent).toContain('NT$1,000')
     expect(breakdown.textContent).toContain('訂閱小計')
     expect(breakdown.textContent).toContain('NT$390')
     expect(breakdown.textContent).toContain('分期小計')
     expect(breakdown.textContent).toContain('NT$600')
-    expect(breakdown.textContent).toContain('App 估算合計')
+    expect(breakdown.textContent).toContain('預警合計')
     expect(breakdown.textContent).toContain('NT$1,990')
   })
 
