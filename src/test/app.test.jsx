@@ -638,6 +638,24 @@ describe('各卡狀態：上期與本期累積', () => {
     expect(summary.textContent).toContain('NT$500')
   })
 
+  it('本月消費預警不會因為尚未到信用卡結帳日而顯示 0', () => {
+    vi.setSystemTime(new Date(2026, 7, 19))
+    seed({
+      cards: [{ id: 'c1', name: '國泰卡', color: '#5E7CE2', billingDay: 23, dueDay: 15, budget: 50000 }],
+      transactions: [
+        { id: 't1', card: '國泰卡', amount: 125, date: '2026-08-14', category: '一般購物', name: '一般購物' },
+        { id: 't2', card: '國泰卡', amount: 400, date: '2026-08-09', category: '一般購物', name: '自動匯入刷卡' },
+      ],
+    })
+
+    render(<App />)
+
+    const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
+      .find(c => c.textContent.includes('國泰卡'))
+    expect(summary.textContent).toContain('目前累計刷卡')
+    expect(summary.textContent).toContain('NT$525')
+  })
+
   it('點卡片可展開看刷卡／訂閱／分期小計', () => {
     vi.setSystemTime(new Date(2026, 5, 12))
     seed({

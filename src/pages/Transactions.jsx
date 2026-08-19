@@ -16,6 +16,37 @@ const PERIOD_TABS = [
   { key: 'range', label: '自訂區間' },
 ]
 
+function ymdLocal(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function periodRange(period, from = new Date(), rangeStart = '', rangeEnd = '') {
+  if (period === 'month') {
+    return {
+      start: ymdLocal(new Date(from.getFullYear(), from.getMonth(), 1)),
+      end: ymdLocal(new Date(from.getFullYear(), from.getMonth() + 1, 0)),
+    }
+  }
+  if (period === 'week') {
+    const start = new Date(from)
+    start.setDate(from.getDate() - from.getDay())
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(start)
+    end.setDate(start.getDate() + 6)
+    return { start: ymdLocal(start), end: ymdLocal(end) }
+  }
+  if (period === 'range') return { start: rangeStart, end: rangeEnd }
+  return null
+}
+
+function periodSummary(period, rangeStart = '', rangeEnd = '') {
+  if (period === 'all') return '已查詢：全部記錄'
+  const tab = PERIOD_TABS.find((item) => item.key === period)
+  const range = periodRange(period, new Date(), rangeStart, rangeEnd)
+  if (!range?.start && !range?.end) return `已查詢：${tab?.label ?? '區間'}`
+  return `已查詢：${tab?.label ?? '區間'} ${range.start || '最早'} ～ ${range.end || '今天'}`
+}
+
 // 用本地時區解析 "YYYY-MM-DD"（<input type="date"> 的格式），不能直接 new Date(字串)——
 // 那會被當成 UTC 午夜，跟其他本地時間日期比較時會因時區產生誤差。
 function parseYmd(s) {
@@ -130,6 +161,16 @@ export default function Transactions({
   const filteredTotal = filteredTransactions.filter(isBillableTransaction).reduce((s, tx) => s + tx.amount, 0)
   const pendingReconciliationCount = transactions.filter(isPendingReconciliation).length
   const postedImportedCount = transactions.filter(hasImportedPostedDate).length
+  const activePeriodSummary = periodSummary(periodFilter, rangeStart, rangeEnd)
+
+  function selectPeriod(period) {
+    setPeriodFilter(period)
+    if (period === 'range' && !rangeStart && !rangeEnd) {
+      const range = periodRange('month')
+      setRangeStart(range.start)
+      setRangeEnd(range.end)
+    }
+  }
 
   function closeSheet() {
     setShowSheet(false)
@@ -222,7 +263,7 @@ export default function Transactions({
               <button
                 key={tab.key}
                 className={`segmented-tab${periodFilter === tab.key ? ' segmented-tab-active' : ''}`}
-                onClick={() => setPeriodFilter(tab.key)}
+                onClick={() => selectPeriod(tab.key)}
               >
                 {tab.label}
               </button>
@@ -271,6 +312,7 @@ export default function Transactions({
               />
             </div>
           )}
+          <div className="tx-filter-summary">{activePeriodSummary}</div>
         </div>
       )}
 
