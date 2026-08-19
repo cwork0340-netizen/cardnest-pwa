@@ -110,17 +110,47 @@ export function isBillableTransaction(tx) {
   return !tx?.installmentPlanId && !isCreditCardPayment(tx) && !isInstallmentConversionCredit(tx)
 }
 
+function normalizePlanText(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/\+/g, ' plus ')
+    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, '')
+}
+
+function amountCloseEnough(txAmount, planAmount) {
+  const tx = Number(txAmount)
+  const plan = Number(planAmount)
+  if (!Number.isFinite(tx) || !Number.isFinite(plan)) return false
+  const diff = Math.abs(tx - plan)
+  return diff === 0 || diff <= Math.max(20, Math.round(plan * 0.03))
+}
+
+function planNameMatchesTransaction(tx, plan) {
+  const txText = normalizePlanText(`${tx?.name ?? ''} ${tx?.note ?? ''} ${tx?.category ?? ''}`)
+  const planText = normalizePlanText(plan?.name)
+  if (!txText || !planText) return false
+  if (txText.includes(planText) || planText.includes(txText)) return true
+
+  const aliases = [
+    ['chatgpt', 'openai'],
+    ['claude', 'anthropic'],
+    ['googleone', 'google'],
+    ['disneyplus', 'disney'],
+  ]
+
+  return aliases.some(([planAlias, txAlias]) => (
+    planText.includes(planAlias) && txText.includes(txAlias)
+  ))
+}
+
 export function transactionRepresentsPlan(tx, plan, cards) {
   if (!matchesCard(tx, { id: resolveCardId(plan, cards), name: plan.card })) return false
-  if (Number(tx.amount) !== Number(plan.amount)) return false
+  if (!amountCloseEnough(tx.amount, plan.amount)) return false
 
-  const txName = String(tx.name ?? '').toLowerCase()
-  const txNote = String(tx.note ?? '').toLowerCase()
-  const planName = String(plan.name ?? '').toLowerCase()
-  if (planName && (txName.includes(planName) || txNote.includes(planName))) return true
+  if (planNameMatchesTransaction(tx, plan)) return true
 
   const category = String(tx.category ?? '').toLowerCase()
-  return category.includes(plan.type)
+  return category.includes(plan.type) || (plan.type === 'subscription' && /訂閱|subscription/.test(category))
 }
 
 export function planAmountNotRecorded({ plan, transactions, cards, windowStart, windowEnd }) {
