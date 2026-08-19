@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import Transactions from '../pages/Transactions'
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('Transactions import entry', () => {
   it('puts the card notification update action on the transactions page', () => {
@@ -179,6 +183,41 @@ describe('Transactions import entry', () => {
 
     expect(screen.queryByText('待入帳消費')).not.toBeInTheDocument()
     expect(screen.getByText('已入帳消費')).toBeInTheDocument()
+  })
+
+  it('shows the applied query period for month and custom range filters', () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date(2026, 7, 19))
+
+    render(
+      <Transactions
+        showToast={vi.fn()}
+        transactions={[{
+          id: 'tx1',
+          name: '八月消費',
+          card: '國泰',
+          category: '一般購物',
+          amount: 500,
+          date: '2026-08-14',
+        }]}
+        cards={[{ id: 'c1', name: '國泰' }]}
+        onAddTransaction={vi.fn()}
+        onUpdateTransaction={vi.fn()}
+        onDeleteTransaction={vi.fn()}
+        onConvertToInstallment={vi.fn()}
+        cardImport={null}
+        importingCardNotifications={false}
+        onImportCardNotifications={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '本月' }))
+    expect(screen.getByText('已查詢：本月 2026-08-01 ～ 2026-08-31')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '自訂區間' }))
+    expect(screen.getByDisplayValue('2026-08-01')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('2026-08-31')).toBeInTheDocument()
+    expect(screen.getByText('已查詢：自訂區間 2026-08-01 ～ 2026-08-31')).toBeInTheDocument()
   })
 
   it('calibrates a statement cycle from the transactions page', () => {

@@ -98,6 +98,13 @@
   flex-shrink: 0;
 }
 
+.tx-filter-summary {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  padding: 0 2px;
+}
+
 .tx-statement-card {
   display: flex;
   flex-direction: column;
