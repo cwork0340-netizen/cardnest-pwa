@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # ci（不是 install）：完全照 package-lock.json 裝，裝不出來就直接失敗。
+      # 這樣才抓得到「只在某個人機器上裝得起來」的相依問題。
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run test
+
+      # build 也要跑：測試全過但打包壞掉（漏 import、語法在 production 模式炸掉）
+      # 是會上線才發現的那種問題。
+      - run: npm run build
