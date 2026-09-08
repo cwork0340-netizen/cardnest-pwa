@@ -289,4 +289,49 @@ describe('Transactions import entry', () => {
     }))
     expect(showToast).toHaveBeenCalledWith('已用銀行帳單校準')
   })
+
+  it('lists the transactions behind the estimate, and what the cycle left out', () => {
+    render(
+      <Transactions
+        showToast={vi.fn()}
+        transactions={[
+          { id: 'tx1', name: '全聯', cardId: 'c1', card: '永豐卡', category: '日常', amount: 1000, date: '2026-07-02' },
+          { id: 'tx2', name: '行動條碼繳款', cardId: 'c1', card: '永豐卡', category: '繳款', amount: -8000, date: '2026-07-03' },
+        ]}
+        cards={[{
+          id: 'c1',
+          name: '永豐卡',
+          billingDay: 6,
+          dueDay: 15,
+          billingCycles: [{
+            id: 'cycle1',
+            closeDate: '2026-07-06',
+            dueDate: '2026-07-21',
+            amount: 1000,
+            estimatedAmount: 1000,
+            paid: false,
+          }],
+        }]}
+        onAddTransaction={vi.fn()}
+        onUpdateTransaction={vi.fn()}
+        onDeleteTransaction={vi.fn()}
+        onConvertToInstallment={vi.fn()}
+        cardImport={null}
+        importingCardNotifications={false}
+        onImportCardNotifications={vi.fn()}
+        plans={[]}
+        onUpdateCycle={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '打開校準' }))
+    fireEvent.change(screen.getByPlaceholderText('例如 4607'), { target: { value: '1000' } })
+    fireEvent.click(screen.getByRole('button', { name: /逐筆明細/ }))
+
+    const detail = document.querySelector('.tx-statement-detail')
+    expect(detail.textContent).toContain('全聯')
+    expect(detail.textContent).toContain('NT$1,000')
+    expect(detail.textContent).toContain('行動條碼繳款')
+    expect(detail.textContent).toContain('繳款，不計入消費')
+  })
 })

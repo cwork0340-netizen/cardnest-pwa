@@ -58,25 +58,26 @@ export function buildStatementCalibration({
     .filter((tx) => txDateInWindow(tx, windowStart, windowEnd))
 
   const transactionAmount = billableTransactions.reduce((sum, tx) => sum + Number(tx.amount || 0), 0)
-  const subscriptionAmount = plans
-    .filter((plan) => plan.type === 'subscription' && (plan.active ?? true) && matchesCard(plan, card))
-    .reduce((sum, plan) => sum + planAmountNotRecorded({
-      plan,
-      transactions,
-      cards,
-      windowStart,
-      windowEnd,
-    }), 0)
 
-  const installmentAmount = plans
-    .filter((plan) => plan.type === 'installment' && matchesCard(plan, card))
-    .reduce((sum, plan) => sum + installmentAmountNotRecordedInWindow({
+  // 訂閱／分期是「這一期算得進去、但還沒有對應刷卡記錄」的金額。逐筆留下來，
+  // 這樣下面的明細加總才會剛好等於 App 預估，使用者才有辦法逐行跟銀行帳單核對。
+  const subscriptionItems = plans
+    .filter((plan) => plan.type === 'subscription' && (plan.active ?? true) && matchesCard(plan, card))
+    .map((plan) => ({
       plan,
-      transactions,
-      cards,
-      windowStart,
-      windowEnd,
-    }), 0)
+      amount: planAmountNotRecorded({ plan, transactions, cards, windowStart, windowEnd }),
+    }))
+    .filter((item) => item.amount !== 0)
+  const subscriptionAmount = subscriptionItems.reduce((sum, item) => sum + item.amount, 0)
+
+  const installmentItems = plans
+    .filter((plan) => plan.type === 'installment' && matchesCard(plan, card))
+    .map((plan) => ({
+      plan,
+      amount: installmentAmountNotRecordedInWindow({ plan, transactions, cards, windowStart, windowEnd }),
+    }))
+    .filter((item) => item.amount !== 0)
+  const installmentAmount = installmentItems.reduce((sum, item) => sum + item.amount, 0)
 
   const estimatedAmount = transactionAmount + subscriptionAmount + installmentAmount
   const diff = amount - estimatedAmount
@@ -95,6 +96,63 @@ export function buildStatementCalibration({
     }).length
   const paymentCount = cardTransactions.filter(isCreditCardPayment).length
   const installmentCreditCount = cardTransactions.filter(isInstallmentConversionCredit).length
+
+  // 算進這一期的每一筆，加總剛好等於 estimatedAmount。差額不是憑空出現的，
+  // 一定是這張清單上某一行跟銀行帳單對不起來，或是銀行帳單上有這裡沒有的一行。
+  const includedItems = [
+    ...billableTransactions.map((tx) => ({
+      key: `tx-${tx.id}`,
+      kind: 'transaction',
+      date: tx.postedDate || tx.date,
+      name: tx.name || '未命名消費',
+      amount: Number(tx.amount || 0),
+      note: tx.postedDate && tx.postedDate !== tx.date ? `消費 ${tx.date}・入帳 ${tx.postedDate}` : '',
+    })),
+    ...subscriptionItems.map(({ plan, amount: planAmount }) => ({
+      key: `sub-${plan.id}`,
+      kind: 'subscription',
+      date: '',
+      name: plan.name || '訂閱',
+      amount: planAmount,
+      note: '訂閱推估，還沒有對應的刷卡記錄',
+    })),
+    ...installmentItems.map(({ plan, amount: planAmount }) => ({
+      key: `inst-${plan.id}`,
+      kind: 'installment',
+      date: '',
+      name: plan.name || '分期',
+      amount: planAmount,
+      note: '分期本期款，還沒有對應的刷卡記錄',
+    })),
+  ].sort((a, b) => String(a.date).localeCompare(String(b.date)))
+
+  // 落在這一期、但故意沒算進去的那幾筆。這些正是帳單對不起來時最常見的元凶，
+  // 只給一個數字（「N 筆繳款已排除」）使用者還是得自己一筆一筆翻。
+  const excludedItems = cardTransactions
+    .map((tx) => {
+      const consumedAt = parseISODate(tx.date, windowEnd)
+      const inWindowByConsumption = consumedAt && consumedAt > windowStart && consumedAt <= windowEnd
+      if (isCreditCardPayment(tx) && inWindowByConsumption) {
+        return { tx, reason: '繳款，不計入消費' }
+      }
+      if (isInstallmentConversionCredit(tx) && inWindowByConsumption) {
+        return { tx, reason: '轉分期沖銷，不計入消費' }
+      }
+      if (tx.postedDate && inWindowByConsumption) {
+        const postedAt = parseISODate(tx.postedDate, windowEnd)
+        if (postedAt && postedAt > windowEnd) return { tx, reason: '入帳日落到下一期' }
+      }
+      return null
+    })
+    .filter(Boolean)
+    .map(({ tx, reason }) => ({
+      key: `ex-${tx.id}`,
+      date: tx.date,
+      name: tx.name || '未命名消費',
+      amount: Number(tx.amount || 0),
+      reason,
+    }))
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))
 
   const hints = []
   if (Math.abs(diff) < 1) {
@@ -122,6 +180,8 @@ export function buildStatementCalibration({
     movedToNextCycleCount,
     paymentCount,
     installmentCreditCount,
+    includedItems,
+    excludedItems,
     hints,
   }
 }

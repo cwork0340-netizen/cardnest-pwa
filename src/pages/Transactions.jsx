@@ -128,6 +128,7 @@ export default function Transactions({
   const [calibrationCycleId, setCalibrationCycleId] = useState('')
   const selectedCalibrationCycle = calibrationCycles.find((cycle) => cycle.id === calibrationCycleId) ?? calibrationCycles[0]
   const [calibrationForm, setCalibrationForm] = useState({ amount: '', closeDate: '', dueDate: '' })
+  const [calibrationDetailOpen, setCalibrationDetailOpen] = useState(false)
   const effectiveCloseDate = calibrationForm.closeDate || selectedCalibrationCycle?.closeDate || ''
   const effectiveDueDate = calibrationForm.dueDate || selectedCalibrationCycle?.dueDate || ''
   const calibrationResult = buildStatementCalibration({
@@ -426,6 +427,60 @@ export default function Transactions({
                       <span key={hint}>{hint}</span>
                     ))}
                   </div>
+
+                  <button
+                    type="button"
+                    className="tx-statement-detail-toggle"
+                    onClick={() => setCalibrationDetailOpen((v) => !v)}
+                    aria-expanded={calibrationDetailOpen}
+                  >
+                    {calibrationDetailOpen ? '收合逐筆明細' : `逐筆明細（算進本期 ${calibrationResult.includedItems.length} 筆）`}
+                  </button>
+
+                  {calibrationDetailOpen && (
+                    <div className="tx-statement-detail">
+                      <span className="tx-statement-detail-caption">
+                        {calibrationResult.windowStart} ～ {calibrationResult.windowEnd}・以下加總 = App 預估
+                      </span>
+                      {calibrationResult.includedItems.length === 0 ? (
+                        <p className="tx-statement-detail-empty">這一期沒有算進任何金額。</p>
+                      ) : (
+                        <ul className="tx-statement-detail-list">
+                          {calibrationResult.includedItems.map((item) => (
+                            <li className="tx-statement-detail-row" key={item.key}>
+                              <span className="tx-statement-detail-main">
+                                <span className="tx-statement-detail-name">{item.name}</span>
+                                {item.date && <span className="tx-statement-detail-date">{item.date}</span>}
+                              </span>
+                              <span className="tx-statement-detail-amount">NT${item.amount.toLocaleString()}</span>
+                              {item.note && <span className="tx-statement-detail-note">{item.note}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {calibrationResult.excludedItems.length > 0 && (
+                        <>
+                          <span className="tx-statement-detail-caption">
+                            落在這一期但沒算進去（{calibrationResult.excludedItems.length} 筆）
+                          </span>
+                          <ul className="tx-statement-detail-list">
+                            {calibrationResult.excludedItems.map((item) => (
+                              <li className="tx-statement-detail-row tx-statement-detail-row-excluded" key={item.key}>
+                                <span className="tx-statement-detail-main">
+                                  <span className="tx-statement-detail-name">{item.name}</span>
+                                  <span className="tx-statement-detail-date">{item.date}</span>
+                                </span>
+                                <span className="tx-statement-detail-amount">NT${item.amount.toLocaleString()}</span>
+                                <span className="tx-statement-detail-note">{item.reason}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   <button className="tx-statement-save" onClick={handleSaveCalibration}>
                     儲存校準
                   </button>
