@@ -3,6 +3,37 @@
   flex-direction: column;
 }
 
+/* 期間篩選（全部／本週／本月／自訂區間）。這份樣式本來只寫在 Plans.css 裡，
+   而 Plans.jsx 已經沒有任何地方 import 了——CSS 要被 import 才會進 bundle，
+   所以打包出來的樣式表裡一次都沒有 .segmented-tab，那四顆按鈕在線上是全裸的，
+   擠成「全部本週本月自訂區間」一整串。搬到真正在用它的這一頁。 */
+.segmented-tabs {
+  background: var(--divider);
+  border-radius: 999px;
+  padding: 4px;
+  display: flex;
+  gap: 0;
+}
+
+.segmented-tab {
+  flex: 1;
+  height: 36px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.segmented-tab-active {
+  background: #FFFFFF;
+  color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(72, 56, 38, 0.06);
+}
+
 .tx-page-header {
   display: flex;
   align-items: flex-start;

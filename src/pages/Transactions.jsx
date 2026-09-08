@@ -121,7 +121,15 @@ export default function Transactions({
   const [rangeEnd, setRangeEnd] = useState('')
   const [calibrationOpen, setCalibrationOpen] = useState(false)
   const [calibrationCardId, setCalibrationCardId] = useState(cards[0]?.id ?? '')
-  const selectedCalibrationCard = cards.find((card) => card.id === calibrationCardId) ?? cards[0]
+  // 上面已經選了一張卡來篩清單，校準面板就跟著同一張。同一個畫面上兩個卡片選擇
+  // 各走各的，會變成「清單在看台新、校準卻在算國泰」，而且畫面上沒有任何地方
+  // 說得出為什麼。篩選是「所有卡片」時才回頭用面板自己的選擇。
+  const filteredCard = cardFilter === 'all'
+    ? null
+    : cards.find((card) => card.id === cardFilter || card.name === cardFilter)
+  const selectedCalibrationCard = filteredCard
+    ?? cards.find((card) => card.id === calibrationCardId)
+    ?? cards[0]
   const calibrationCycles = [...(selectedCalibrationCard?.billingCycles ?? [])]
     .filter((cycle) => !cycle.paid)
     .sort((a, b) => b.closeDate.localeCompare(a.closeDate))
@@ -346,6 +354,12 @@ export default function Transactions({
                       setCalibrationCardId(e.target.value)
                       setCalibrationCycleId('')
                       setCalibrationForm({ amount: '', closeDate: '', dueDate: '' })
+                      // 正在篩某一張卡時，從這裡換卡就把篩選一起換過去，
+                      // 否則下一次重繪又會被篩選拉回去，看起來像選不動。
+                      if (cardFilter !== 'all') {
+                        const next = cards.find((card) => card.id === e.target.value)
+                        if (next) setCardFilter(next.name)
+                      }
                     }}
                   >
                     {cards.map((card) => (
