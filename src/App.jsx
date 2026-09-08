@@ -8,7 +8,10 @@ import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken } from './utils/googleSheetSync'
-import { fetchImportRows, findImportedTransaction, importedPostedDate, toISODate as toImportISODate, isUsableImportRow, resolveImportedCard } from './utils/importSheetSync'
+import {
+  fetchImportRows, findImportedTransaction, importedPostedDate, toISODate as toImportISODate,
+  isUsableImportRow, resolveImportedCardResult, summarizeImportRowsByBank, describeSkippedRow,
+} from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
 import { buildCardForecast } from './utils/cardForecast'
@@ -569,6 +572,11 @@ export default function App() {
       lastImportDuplicateCount: summary.duplicateCount ?? 0,
       lastImportSkippedUnmapped: summary.skippedUnmapped ?? 0,
       lastImportInvalidCount: summary.invalidCount ?? 0,
+      // 診斷用：Sheet 上每家銀行各抓到幾列、以及被跳過那幾列的理由。
+      // 只留前 20 筆，localStorage 不需要扛完整的匯入歷史。
+      lastImportBankCounts: summary.bankCounts ?? [],
+      lastImportSkippedRows: (summary.skippedRows ?? []).slice(0, 20),
+      lastImportRowCount: summary.rowCount ?? 0,
     }))
   }, [normalizeTransaction])
 
@@ -591,6 +599,7 @@ export default function App() {
       const newTxs = []
       const updatedTxs = []
       const newKeys = []
+      const skippedRows = []
       let skippedUnmapped = 0
       let duplicateCount = 0
       let invalidCount = 0
@@ -598,10 +607,17 @@ export default function App() {
       rows.forEach((row) => {
         if (!isUsableImportRow(row)) {
           invalidCount++
+          skippedRows.push(describeSkippedRow({ row, reason: 'invalid-row' }))
           return
         }
-        const mappedCard = resolveImportedCard({ row, cards, bankCardMap: cardImport?.bankCardMap })
-        if (!mappedCard) { skippedUnmapped++; return }
+        const { card: mappedCard, reason } = resolveImportedCardResult({
+          row, cards, bankCardMap: cardImport?.bankCardMap,
+        })
+        if (!mappedCard) {
+          skippedUnmapped++
+          skippedRows.push(describeSkippedRow({ row, reason }))
+          return
+        }
         const existingTx = findImportedTransaction({ row, card: mappedCard, transactions })
         const postedDate = importedPostedDate(row)
         if (existingTx) {
@@ -642,10 +658,23 @@ export default function App() {
         newKeys.push(row.permalink)
       })
 
-      handleImportTransactions(newTxs, updatedTxs, newKeys, { duplicateCount, skippedUnmapped, invalidCount })
+      handleImportTransactions(newTxs, updatedTxs, newKeys, {
+        duplicateCount,
+        skippedUnmapped,
+        invalidCount,
+        rowCount: rows.length,
+        bankCounts: summarizeImportRowsByBank(rows),
+        skippedRows,
+      })
 
-      if (skippedUnmapped > 0 || invalidCount > 0) {
-        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedUnmapped} 筆未對應卡片`)
+      // 被跳過的筆數要講完整（之前只印未對應卡片，格式壞掉的列連提都沒提到），
+      // 並指路去設定頁看逐列理由，不然使用者只會看到「少了幾筆」卻查不出原因。
+      const skippedParts = [
+        skippedUnmapped > 0 && `${skippedUnmapped} 筆未對應卡片`,
+        invalidCount > 0 && `${invalidCount} 筆格式不符`,
+      ].filter(Boolean)
+      if (skippedParts.length > 0) {
+        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedParts.join('、')}（設定頁可看原因）`)
       } else {
         showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複略過 ${duplicateCount} 筆`)
       }

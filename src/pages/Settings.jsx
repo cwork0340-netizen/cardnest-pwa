@@ -10,6 +10,15 @@ import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet, sync
 // 這裡也要跟著加一行，才有對應的卡片可以選。
 const SUPPORTED_BANKS = ['富邦', '永豐', '國泰世華']
 
+// 每種跳過原因對應的下一步。重點是讓使用者分得出「要去 App 補設定」還是
+// 「要去 card-import 腳本／Sheet 查」，不要只看到一個沒有出口的數字。
+const SKIP_REASON_TEXT = {
+  'last4-unknown': '這組末四碼沒有對到任何卡片 → 到上面卡片設定補填末四碼',
+  'last4-ambiguous': '這組末四碼對到多張卡片 → 末四碼重複了，請改掉其中一張',
+  'no-bank-mapping': '這家銀行還沒設定對應卡片 → 用上面的下拉選一張',
+  'invalid-row': 'Sheet 這一列的日期或金額格式不符 → 回 Sheet 檢查該列',
+}
+
 export default function Settings({
   showToast, cards, fxSettings, onFxChange, onAddCard, onSaveCard, onDeleteCard,
   backupData, onImportData, onClearData, transactions, googleSync, onGoogleSyncChange,
@@ -28,6 +37,20 @@ export default function Settings({
   const [syncing, setSyncing] = useState(false)
   const [importSheetId, setImportSheetId] = useState(cardImport?.sheetId ?? '')
   const [bankCardMap, setBankCardMap] = useState(cardImport?.bankCardMap ?? {})
+
+  // 上次匯入的診斷資料。支援的銀行就算 Sheet 上一列都沒有也要列出來（顯示 0 列），
+  // 「這家銀行完全沒進資料」正是要看到的訊號。
+  const skippedRows = cardImport?.lastImportSkippedRows ?? []
+  const bankCounts = cardImport?.lastImportBankCounts ?? []
+  const bankRowSummary = [
+    ...SUPPORTED_BANKS.map((bank) => ({
+      bank,
+      count: bankCounts.find((item) => item.bank === bank)?.count ?? 0,
+    })),
+    ...bankCounts.filter((item) => !SUPPORTED_BANKS.includes(item.bank)),
+  ]
+  const emptyBanks = bankRowSummary.filter((item) => item.count === 0 && SUPPORTED_BANKS.includes(item.bank))
+    .map((item) => item.bank)
 
   // 填完離開欄位就存，不用等同步成功——否則第一次同步失敗的話，
   // 每次進設定頁都要重打一次 Client ID / Sheet ID
@@ -359,6 +382,55 @@ export default function Settings({
               </select>
             </div>
           ))}
+
+          {cardImport?.lastImportAt && (
+            <div className="settings-import-diagnostics">
+              <strong className="settings-import-diagnostics-title">上次匯入診斷</strong>
+              <span className="settings-import-diagnostics-sub">
+                Sheet 讀到 {cardImport.lastImportRowCount ?? 0} 列・成功 {cardImport.lastImportCount ?? 0} 筆・
+                補正入帳日 {cardImport.lastImportUpdatedCount ?? 0} 筆・重複 {cardImport.lastImportDuplicateCount ?? 0} 筆
+              </span>
+
+              <div className="settings-import-bank-counts">
+                {bankRowSummary.map(({ bank, count }) => (
+                  <span
+                    className={`settings-import-bank-count${count === 0 ? ' settings-import-bank-count-empty' : ''}`}
+                    key={bank}
+                  >
+                    {bank} {count} 列
+                  </span>
+                ))}
+              </div>
+
+              {emptyBanks.length > 0 && (
+                <p className="settings-import-diagnostics-hint">
+                  {emptyBanks.join('、')} 在 Sheet 裡一列都沒有，代表信件還沒被 card-import 腳本解析進來，
+                  要從 Gmail 篩選條件或腳本那邊查，不是 App 這邊漏掉。
+                </p>
+              )}
+
+              {skippedRows.length > 0 ? (
+                <>
+                  <span className="settings-import-diagnostics-sub">被跳過的列（最多顯示 20 筆）</span>
+                  <ul className="settings-import-skipped-list">
+                    {skippedRows.map((row, index) => (
+                      <li className="settings-import-skipped-row" key={`${row.date}-${row.amount}-${index}`}>
+                        <span className="settings-import-skipped-main">
+                          {row.date}・{row.bank || '未填銀行'}
+                          {row.cardLast4 ? `・末四碼 ${row.cardLast4}` : ''}
+                          ・NT${Number(row.amount).toLocaleString()}
+                          {row.merchant ? `・${row.merchant}` : ''}
+                        </span>
+                        <span className="settings-import-skipped-reason">{SKIP_REASON_TEXT[row.reason] ?? '無法判斷原因'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="settings-import-diagnostics-hint">上次匯入沒有任何被跳過的列。</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
