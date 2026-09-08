@@ -13,7 +13,7 @@ import {
   isUsableImportRow, resolveImportedCardResult, summarizeImportRowsByBank, describeSkippedRow,
 } from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
-import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
+import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue, withLiveCycleEstimates } from './utils/billingCycles'
 import { buildCardForecast } from './utils/cardForecast'
 import { getSalarySchedule, normalizeSalarySettings } from './utils/salarySchedule'
 import {
@@ -227,8 +227,11 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
 
     // 撣喳?望?嚗?銝??舀??祕?交??蝡????芰像??銝?渡敞??銝??????憭望?鋡怨炊??
-    const unpaid = unpaidCycles(card)
-    const unpaidTotal = totalUnpaid(card)
+    // 待繳帳單的金額改成即時重算（已繳／已校準的期別除外，見 withLiveCycleEstimates），
+    // 這樣晚到的對帳信件補進來的消費才進得了待繳帳單，不會跟 App 估算合計對不起來。
+    const cardWithLiveCycles = withLiveCycleEstimates(card, { transactions, plans })
+    const unpaid = unpaidCycles(cardWithLiveCycles)
+    const unpaidTotal = totalUnpaid(cardWithLiveCycles)
     const unpaidWithDaysLeft = unpaid.map(c => ({ ...c, daysLeft: daysUntilDue(c) }))
     const postedDateCount = allCardTx.filter(tx => tx.postedDate && tx.postedDate !== tx.date).length
     const paymentCount = allCardTx.filter(isCreditCardPayment).length
@@ -410,7 +413,6 @@ export default function App() {
             || cycle.estimatedAmount !== previous.estimatedAmount
             || cycle.closeDate !== previous.closeDate
             || cycle.dueDate !== previous.dueDate
-            || cycle.refreshNeeded !== previous.refreshNeeded
         })
         if (hasCycleChanges) {
           changed = true
@@ -532,21 +534,12 @@ export default function App() {
     }
   }, [cards])
   const handleAddTransaction = useCallback((tx) => setTransactions(p => [normalizeTransaction(tx), ...p]), [normalizeTransaction])
+  // 改了入帳日不需要在這裡通知帳單週期重算：未繳、未校準的期別本來就是每次
+  // 重畫都即時重算的（withLiveCycleEstimates），沒有快取需要手動失效。
   const handleUpdateTransaction = useCallback((updated) => {
     const normalized = normalizeTransaction(updated)
-    const previous = transactions.find((transaction) => transaction.id === normalized.id)
-    if (previous && previous.postedDate !== normalized.postedDate) {
-      setCards((items) => items.map((card) => matchesCard(normalized, card)
-        ? {
-          ...card,
-          billingCycles: (card.billingCycles ?? []).map((cycle) => (
-            cycle.paid || cycle.amountIsActual || cycle.manuallyCalibrated ? cycle : { ...cycle, refreshNeeded: true }
-          )),
-        }
-        : card))
-    }
     setTransactions((items) => items.map((transaction) => transaction.id === normalized.id ? normalized : transaction))
-  }, [normalizeTransaction, transactions])
+  }, [normalizeTransaction])
   // ?桃??瑕頧????啣???閮銝衣宏?文??祉??桃?閮?嚗??銴??交???
   const handleConvertToInstallment = useCallback((txId, plan) => {
     setPlans(p => [normalizePlan(plan), ...p])
