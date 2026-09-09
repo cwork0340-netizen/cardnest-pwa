@@ -1,10 +1,25 @@
 import { ensureInstallmentOccurrences } from './installmentCycles'
 
+// 這個 App 裡的日期有三種來源格式：使用者手動輸入或舊資料的 "M/D"（沒有年份）、
+// <input type="date"> 的 "YYYY-MM-DD"，以及 card-import Sheet 的 "YYYY/MM/DD"。
+// 三種都要在這一個函式裡收斂——以前 importSheetSync.js 另外寫了一份同名的，
+// 各自只認得對方不認得的格式，而且認不得時是「安靜地把原字串吐回去」：
+// 日期沒轉成功不會報錯，只會讓那筆交易落不進任何帳單週期，帳就少一筆。
+//
+// 注意缺值會回傳「今天」而不是空字串或 null。呼叫端如果需要分辨「沒有這個日期」
+// （例如 Sheet 上選填的入帳日），必須自己先擋掉空值，不能靠這裡。
 export function toISODate(value, near = new Date()) {
   if (!value) return ymd(near)
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  const text = String(value).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text
 
-  const match = String(value).match(/^(\d{1,2})\/(\d{1,2})$/)
+  // 有年份：2026/8/3、2026-8-3、2026/08/03 一律補成 YYYY-MM-DD
+  const full = text.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/)
+  if (full) {
+    return `${full[1]}-${String(Number(full[2])).padStart(2, '0')}-${String(Number(full[3])).padStart(2, '0')}`
+  }
+
+  const match = text.match(/^(\d{1,2})\/(\d{1,2})$/)
   if (!match) return value
 
   const month = Number(match[1])
@@ -27,11 +42,6 @@ export function parseISODate(value, near = new Date()) {
   return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
 }
 
-export function toDisplayDate(value, near = new Date()) {
-  const date = parseISODate(value, near)
-  if (!date) return value ?? ''
-  return `${date.getMonth() + 1}/${date.getDate()}`
-}
 
 export function isSameMonth(value, from = new Date()) {
   const date = parseISODate(value, from)

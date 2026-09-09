@@ -9,7 +9,7 @@ import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken } from './utils/googleSheetSync'
 import {
-  fetchImportRows, findImportedTransaction, importedPostedDate, toISODate as toImportISODate,
+  fetchImportRows, findImportedTransaction, importedConsumedDate, importedPostedDate,
   isUsableImportRow, resolveImportedCardResult, summarizeImportRowsByBank, describeSkippedRow,
   isImportedTransaction, isPendingReconciliation, SKIP_REASON_INVALID_ROW,
 } from './utils/importSheetSync'
@@ -611,7 +611,7 @@ export default function App() {
           cardId: mappedCard.id,
           card: mappedCard.name,
           amount: row.amount,
-          date: toImportISODate(row.rawDate),
+          date: importedConsumedDate(row),
           ...(postedDate && { postedDate }),
           note: `自動匯入・${row.bank}`,
           source: {

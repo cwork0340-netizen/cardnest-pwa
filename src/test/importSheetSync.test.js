@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   describeSkippedRow,
   findImportedTransaction,
+  importedConsumedDate,
   importedPostedDate,
   isImportedTransaction,
   isPendingReconciliation,
@@ -123,6 +124,22 @@ describe('card notification import safeguards', () => {
 
     expect(findImportedTransaction({ row: { permalink: 'mail-1', rawDate: '2026/08/01', amount: 99 }, card, transactions })?.id).toBe('source-match')
     expect(findImportedTransaction({ row: { permalink: 'missing', rawDate: '2026/08/02', amount: 100 }, card, transactions })?.id).toBe('legacy-match')
+  })
+
+  it('treats a blank sheet date as absent, not as today', () => {
+    // 入帳日是選填欄位，多數列是空的。toISODate 對缺值會回傳「今天」，如果直接餵
+    // 過去，每一列沒有入帳日的都會被標成今天入帳：「待填入帳日」整批消失，
+    // 而且入帳日決定帳期歸屬，帳會跟著錯。
+    expect(importedPostedDate({ rawPostedDate: '' })).toBe('')
+    expect(importedPostedDate({ rawPostedDate: '   ' })).toBe('')
+    expect(importedPostedDate({})).toBe('')
+    expect(importedConsumedDate({ rawDate: '' })).toBe('')
+    expect(isUsableImportRow({ permalink: 'mail-1', rawDate: '', amount: '150' })).toBe(false)
+  })
+
+  it('reads the sheet date format the sheet actually writes', () => {
+    expect(importedConsumedDate({ rawDate: '2026/08/03' })).toBe('2026-08-03')
+    expect(importedPostedDate({ rawPostedDate: '2026/8/5' })).toBe('2026-08-05')
   })
 
   it('only accepts a real posted date for a backfill', () => {
