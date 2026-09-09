@@ -51,13 +51,25 @@ export function importedPostedDate(row) {
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : ''
 }
 
+// 「這筆是信件匯入來的嗎」只能有一份答案。匯入時會同時寫 source.provider 和
+// 「自動匯入・銀行」的備註，但備註是使用者可以自己改的——只看備註的話，改過備註的
+// 那筆就會從待對帳清單、對帳提醒、列表標籤裡一起消失，明明它還是匯入來的。
+// source 才是機器寫的憑據，備註只是升級前舊資料的退路。
+export function isImportedTransaction(tx) {
+  return tx?.source?.provider === 'card-import' || String(tx?.note ?? '').includes('自動匯入')
+}
+
+export function isPendingReconciliation(tx) {
+  return isImportedTransaction(tx) && !tx?.postedDate
+}
+
 export function findImportedTransaction({ row, card, transactions = [] }) {
   const byPermalink = transactions.filter((tx) => tx?.source?.permalink === row?.permalink)
   if (byPermalink.length === 1) return byPermalink[0]
 
   const consumedOn = toISODate(row?.rawDate)
   const candidates = transactions.filter((tx) => {
-    const cameFromImport = tx?.source?.provider === 'card-import' || String(tx?.note ?? '').includes('自動匯入')
+    const cameFromImport = isImportedTransaction(tx)
     const onSameCard = tx?.cardId === card?.id || tx?.card === card?.name
     return cameFromImport
       && onSameCard
@@ -75,6 +87,9 @@ function mappedCardFor({ row, cards, bankCardMap }) {
 // 這一列為什麼配到／配不到卡片。匯入畫面只給一個「N 筆未對應卡片」的數字時，
 // 使用者沒辦法判斷是「Apps Script 沒把這家銀行的信解析進 Sheet」還是「卡片沒填末四碼」，
 // 所以配對結果一律附上理由，讓設定頁可以照理由給出對應的下一步。
+// 配對失敗以外的另一種跳過：這一列本身就不能用（日期壞掉、金額 0）。
+export const SKIP_REASON_INVALID_ROW = 'invalid-row'
+
 export const CARD_MATCH_REASON = {
   LAST4: 'last4',
   BANK: 'bank',

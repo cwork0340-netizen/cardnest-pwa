@@ -5,6 +5,7 @@ import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
 import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet, syncMonthlyPlanToSheet } from '../utils/googleSheetSync'
+import { CARD_MATCH_REASON, SKIP_REASON_INVALID_ROW } from '../utils/importSheetSync'
 
 // card-import（projects/card-import/Code.gs）目前支援的銀行。之後那支腳本加新銀行，
 // 這裡也要跟著加一行，才有對應的卡片可以選。
@@ -13,10 +14,10 @@ const SUPPORTED_BANKS = ['富邦', '永豐', '國泰世華']
 // 每種跳過原因對應的下一步。重點是讓使用者分得出「要去 App 補設定」還是
 // 「要去 card-import 腳本／Sheet 查」，不要只看到一個沒有出口的數字。
 const SKIP_REASON_TEXT = {
-  'last4-unknown': '這組末四碼沒有對到任何卡片 → 到上面卡片設定補填末四碼',
-  'last4-ambiguous': '這組末四碼對到多張卡片 → 末四碼重複了，請改掉其中一張',
-  'no-bank-mapping': '這家銀行還沒設定對應卡片 → 用上面的下拉選一張',
-  'invalid-row': 'Sheet 這一列的日期或金額格式不符 → 回 Sheet 檢查該列',
+  [CARD_MATCH_REASON.LAST4_UNKNOWN]: '這組末四碼沒有對到任何卡片 → 到上面卡片設定補填末四碼',
+  [CARD_MATCH_REASON.LAST4_AMBIGUOUS]: '這組末四碼對到多張卡片 → 末四碼重複了，請改掉其中一張',
+  [CARD_MATCH_REASON.NO_BANK_MAPPING]: '這家銀行還沒設定對應卡片 → 用上面的下拉選一張',
+  [SKIP_REASON_INVALID_ROW]: 'Sheet 這一列的日期或金額格式不符 → 回 Sheet 檢查該列',
 }
 
 export default function Settings({

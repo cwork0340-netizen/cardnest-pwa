@@ -11,6 +11,7 @@ import { getAccessToken } from './utils/googleSheetSync'
 import {
   fetchImportRows, findImportedTransaction, importedPostedDate, toISODate as toImportISODate,
   isUsableImportRow, resolveImportedCardResult, summarizeImportRowsByBank, describeSkippedRow,
+  isImportedTransaction, isPendingReconciliation, SKIP_REASON_INVALID_ROW,
 } from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue, withLiveCycleEstimates } from './utils/billingCycles'
@@ -322,14 +323,6 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
   return { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary }
 }
 
-function isImportedTransaction(tx) {
-  return String(tx?.note ?? '').includes('自動匯入')
-}
-
-function isPendingReconciliation(tx) {
-  return isImportedTransaction(tx) && !tx.postedDate
-}
-
 function buildReconciliationSummary({ transactions, cards, cardImport }) {
   const pendingTransactions = transactions.filter(isPendingReconciliation)
   const postedImportedCount = transactions.filter(tx => isImportedTransaction(tx) && tx.postedDate).length
@@ -600,7 +593,7 @@ export default function App() {
       rows.forEach((row) => {
         if (!isUsableImportRow(row)) {
           invalidCount++
-          skippedRows.push(describeSkippedRow({ row, reason: 'invalid-row' }))
+          skippedRows.push(describeSkippedRow({ row, reason: SKIP_REASON_INVALID_ROW }))
           return
         }
         const { card: mappedCard, reason } = resolveImportedCardResult({

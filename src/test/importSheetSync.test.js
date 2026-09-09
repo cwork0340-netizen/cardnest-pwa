@@ -3,6 +3,8 @@ import {
   describeSkippedRow,
   findImportedTransaction,
   importedPostedDate,
+  isImportedTransaction,
+  isPendingReconciliation,
   isUsableImportRow,
   resolveImportedCard,
   resolveImportedCardResult,
@@ -84,6 +86,25 @@ describe('card notification import safeguards', () => {
       merchant: '全聯',
       reason: 'last4-unknown',
     })
+  })
+
+  it('still recognises an imported transaction after its note has been edited', () => {
+    // 備註是使用者可以改的，source 是匯入時機器寫的。只看備註的話，改過備註的那筆
+    // 就會從待對帳清單、對帳提醒和列表標籤裡一起消失，明明它還是信件匯入來的。
+    const renamed = { id: 'tx1', source: { provider: 'card-import', permalink: 'mail-1' }, note: '改成自己的備註' }
+    expect(isImportedTransaction(renamed)).toBe(true)
+    expect(isPendingReconciliation(renamed)).toBe(true)
+    expect(isPendingReconciliation({ ...renamed, postedDate: '2026-08-05' })).toBe(false)
+  })
+
+  it('still recognises legacy imports that only carry the note', () => {
+    // 這個功能上線前匯入的舊資料沒有 source，只有備註，不能因為改判斷就漏掉
+    expect(isImportedTransaction({ id: 'old', note: '自動匯入・國泰世華' })).toBe(true)
+  })
+
+  it('does not mistake a hand-entered transaction for an imported one', () => {
+    expect(isImportedTransaction({ id: 'manual', note: '茶包' })).toBe(false)
+    expect(isImportedTransaction({ id: 'blank' })).toBe(false)
   })
 
   it('rejects unusable source rows before they can affect a statement estimate', () => {

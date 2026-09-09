@@ -8,6 +8,7 @@ import ConvertToInstallmentForm from '../components/ConvertToInstallmentForm'
 import EmptyState from '../components/EmptyState'
 import { isBillableTransaction, matchesCard, parseISODate, resolveCardId, toISODate } from '../utils/financeData'
 import { buildStatementCalibration } from '../utils/statementCalibration'
+import { isImportedTransaction, isPendingReconciliation } from '../utils/importSheetSync'
 
 const PERIOD_TABS = [
   { key: 'all', label: '全部' },
@@ -93,13 +94,6 @@ function importStatusText(cardImport) {
   return `上次更新：${updatedAt}・新增 ${count} 筆・重複 ${duplicates} 筆・未對應 ${unmapped} 筆`
 }
 
-function isImportedTransaction(tx) {
-  return String(tx?.note ?? '').includes('自動匯入')
-}
-
-function isPendingReconciliation(tx) {
-  return isImportedTransaction(tx) && !tx.postedDate
-}
 
 function hasImportedPostedDate(tx) {
   return isImportedTransaction(tx) && !!tx.postedDate

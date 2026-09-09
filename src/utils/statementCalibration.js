@@ -9,6 +9,7 @@ import {
   planAmountNotRecorded,
   transactionCycleDate,
 } from './financeData'
+import { isPendingReconciliation } from './importSheetSync'
 
 function ymd(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -82,7 +83,7 @@ export function buildStatementCalibration({
   const estimatedAmount = transactionAmount + subscriptionAmount + installmentAmount
   const diff = amount - estimatedAmount
   const pendingImportedCount = cardTransactions
-    .filter((tx) => String(tx.note ?? '').includes('自動匯入') && !tx.postedDate)
+    .filter(isPendingReconciliation)
     .filter((tx) => {
       const date = parseISODate(tx.date, windowEnd)
       return date && date > windowStart && date <= windowEnd
