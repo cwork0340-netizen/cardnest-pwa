@@ -9,12 +9,11 @@ import CreditCardSummaryCard from '../components/CreditCardSummaryCard'
 import CategoryBreakdownCard from '../components/CategoryBreakdownCard'
 import TrendChartCard from '../components/TrendChartCard'
 import DebtOverviewCard from '../components/DebtOverviewCard'
-import EnvelopeBudgetCard from '../components/EnvelopeBudgetCard'
 import CardForecastCard from '../components/CardForecastCard'
 
 export default function Dashboard({
   greeting, dateLabel, currentMonth, weekDays, cards, categories, trends,
-  liabilityItems = [], totalDebt = 0, envelopeView = [], envelopeSummary = null,
+  liabilityItems = [], totalDebt = 0,
   paymentReminders = [], onMarkCardPaid, onMarkAllCyclesPaid, onUpdateCycle,
   income = 0, essentialTotal = 0, cardEstimateTotal = 0, lifeBalance = 0, onGoToChecklist,
   onGoToTransactions, reconciliationSummary = null,
@@ -97,12 +96,6 @@ export default function Dashboard({
         <WeekCalendar days={weekDays} />
       </div>
 
-      {envelopeView.length > 0 && (
-        <div className="section">
-          <SectionHeader title="分類預算（信封）" />
-          <EnvelopeBudgetCard envelopes={envelopeView} summary={envelopeSummary} />
-        </div>
-      )}
 
       <div className="section">
         <SectionHeader title="各卡狀態" />

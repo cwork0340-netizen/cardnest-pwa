@@ -154,21 +154,47 @@ export function ensureBillingCycles(card, { transactions, plans, today = new Dat
     lastClose = windowEnd
   }
 
-  // Refresh only estimates explicitly affected by a posted-date change.
-  // Historical snapshots remain stable until their source data changes.
-  return cycles.map((cycle) => {
-    if (!cycle.refreshNeeded || cycle.paid || cycle.amountIsActual || cycle.manuallyCalibrated) return cycle
-    const closeDate = parseYmd(cycle.closeDate)
-    const estimatedAmount = snapshotAmount({
-      card,
-      cardName: card.name,
-      windowStart: previousCloseDate(closeDate, billingDay),
-      windowEnd: closeDate,
-      transactions,
-      plans,
-    })
-    return { ...cycle, amount: estimatedAmount, estimatedAmount, refreshNeeded: false }
-  })
+  return cycles
+}
+
+// 一期還沒被確認過的金額，永遠用當下的刷卡記錄重算，不要停在結帳那一刻。
+//
+// 凍結只對「人確認過的數字」有意義：已繳、或已用銀行帳單校準過的期別是事實，
+// 不能被之後的刷卡記錄變動蓋掉。但一個還沒人確認的估算沒有理由凍結——晚到的
+// 對帳信件、事後補登的消費、改掉的入帳日，都會落在早就結帳的窗口裡，凍結的話
+// 那些錢就永遠進不了待繳帳單，跟同一張卡即時重算的「App 估算合計」對不起來。
+//
+// 這裡只回傳覆蓋後的副本，不寫回 state：算給畫面看就好，存起來只會再度過期。
+export function withLiveCycleEstimates(card, { transactions = [], plans = [] } = {}) {
+  const cycles = card?.billingCycles ?? []
+  if (cycles.length === 0) return card
+
+  const billingDay = Number(card.billingDay) || 1
+  const byCloseDate = [...cycles].sort((a, b) => String(a.closeDate).localeCompare(String(b.closeDate)))
+
+  return {
+    ...card,
+    billingCycles: cycles.map((cycle) => {
+      if (cycle.paid || cycle.amountIsActual || cycle.manuallyCalibrated) return cycle
+      const closeDate = parseYmd(cycle.closeDate)
+      if (!closeDate) return cycle
+
+      // 窗口起點優先用「上一期實際的結帳日」，校準改過結帳日之後才對得起來；
+      // 沒有上一期才退回用結帳日往前推一個月。
+      const earlier = byCloseDate.filter((item) => item.closeDate < cycle.closeDate).pop()
+      const windowStart = earlier ? parseYmd(earlier.closeDate) : previousCloseDate(closeDate, billingDay)
+
+      const amount = snapshotAmount({
+        card,
+        cardName: card.name,
+        windowStart,
+        windowEnd: closeDate,
+        transactions,
+        plans,
+      })
+      return { ...cycle, amount, estimatedAmount: amount }
+    }),
+  }
 }
 
 // 未繳清的週期，依到期日排序（最早到期的在前面）
