@@ -839,7 +839,9 @@ export default function App() {
   const reconciliationSummary = buildReconciliationSummary({ transactions, cards: enrichedCards, cardImport })
   const salarySchedule = getSalarySchedule(salarySettings)
   const availableIncome = salarySchedule.receivedThisMonth ? income : 0
-  const forecastSummary = buildCardForecast(enrichedCards, plans, { income: availableIncome, essentialTotal })
+  // commitments 用首頁同一份 fixedMonthlyAmount：本月已知會扣、但還沒有刷卡記錄的金額。
+  // 傳「所有訂閱＋分期總額」的話，已經扣款並匯入的那些會跟本月刷卡重複扣一次。
+  const forecastSummary = buildCardForecast(enrichedCards, { income: availableIncome, essentialTotal, commitments: fixedMonthlyAmount })
 
   // 信用卡預估帳單：月初規劃時設定的數字，整月穩定不變，不受封帳／已繳狀態影響——
   // 這個月的錢已經花掉就是花掉了，不會因為標記已繳就「還」回生活結餘。
