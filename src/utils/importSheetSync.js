@@ -1,6 +1,8 @@
 // 讀取 card-import Apps Script（projects/card-import）產生的「CardNest 消費記錄」Sheet，
 // 把銀行自動收集的刷卡通知轉成 CardNest 的刷卡記錄。跟 googleSheetSync.js 共用同一組
 // OAuth（scope 都是 spreadsheets），差別只在這支是讀取，不是寫入。
+import { toISODate } from './financeData'
+
 const SHEET_TAB = '消費紀錄'
 // Sheet 欄位順序：
 // 匯入時間、銀行、卡末四碼、消費日期、金額、商店/交易內容、原始信件連結、
@@ -42,12 +44,24 @@ export function isUsableImportRow(row) {
     row?.permalink
     && Number.isFinite(Number(row.amount))
     && Number(row.amount) !== 0
-    && /^\d{4}-\d{2}-\d{2}$/.test(toISODate(row.rawDate)),
+    && /^\d{4}-\d{2}-\d{2}$/.test(sheetDate(row.rawDate)),
   )
 }
 
+// Sheet 的日期欄位可能是空的（H 欄入帳日本來就選填）。空值一定要在這裡擋掉：
+// toISODate 對缺值會回傳「今天」，直接餵過去的話，每一列沒有入帳日的都會被當成
+// 今天入帳，「待填入帳日」整批消失，帳期歸屬也跟著錯。
+function sheetDate(raw) {
+  const text = String(raw ?? '').trim()
+  return text ? toISODate(text) : ''
+}
+
+export function importedConsumedDate(row) {
+  return sheetDate(row?.rawDate)
+}
+
 export function importedPostedDate(row) {
-  const date = toISODate(row?.rawPostedDate)
+  const date = sheetDate(row?.rawPostedDate)
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : ''
 }
 
@@ -55,7 +69,7 @@ export function findImportedTransaction({ row, card, transactions = [] }) {
   const byPermalink = transactions.filter((tx) => tx?.source?.permalink === row?.permalink)
   if (byPermalink.length === 1) return byPermalink[0]
 
-  const consumedOn = toISODate(row?.rawDate)
+  const consumedOn = sheetDate(row?.rawDate)
   const candidates = transactions.filter((tx) => {
     const cameFromImport = tx?.source?.provider === 'card-import' || String(tx?.note ?? '').includes('自動匯入')
     const onSameCard = tx?.cardId === card?.id || tx?.card === card?.name
@@ -80,17 +94,4 @@ export function resolveImportedCard({ row, cards, bankCardMap = {} }) {
   return cards.find((card) => card.id === mapped || card.name === mapped) ?? null
 }
 
-// Sheet 上的日期可能是 2026/04/07、2026-06-30 等格式，統一轉成 CardNest 慣用的 "M/D"
-export function toDisplayDate(rawDate) {
-  const parts = String(rawDate).split(/[/-]/).map(Number)
-  if (parts.length < 3 || parts.some(Number.isNaN)) return rawDate
-  const [, m, d] = parts
-  return `${m}/${d}`
-}
 
-export function toISODate(rawDate) {
-  const parts = String(rawDate).split(/[/-]/).map(Number)
-  if (parts.length < 3 || parts.some(Number.isNaN)) return rawDate
-  const [y, m, d] = parts
-  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-}

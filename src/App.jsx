@@ -8,7 +8,7 @@ import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken } from './utils/googleSheetSync'
-import { fetchImportRows, findImportedTransaction, importedPostedDate, toISODate as toImportISODate, isUsableImportRow, resolveImportedCard } from './utils/importSheetSync'
+import { fetchImportRows, findImportedTransaction, importedConsumedDate, importedPostedDate, isUsableImportRow, resolveImportedCard } from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
 import { buildCardForecast } from './utils/cardForecast'
@@ -629,7 +629,7 @@ export default function App() {
           cardId: mappedCard.id,
           card: mappedCard.name,
           amount: row.amount,
-          date: toImportISODate(row.rawDate),
+          date: importedConsumedDate(row),
           ...(postedDate && { postedDate }),
           note: `自動匯入・${row.bank}`,
           source: {
