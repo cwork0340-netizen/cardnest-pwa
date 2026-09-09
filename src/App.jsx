@@ -157,7 +157,7 @@ function billingCycleBounds(billingDay, today) {
   return { prevBillingDate, lastBillingDate }
 }
 
-function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = []) {
+function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, plans = []) {
   // ??嚗?蝜喳????瑕閮?嚗楊????????頝臬?銝敞??
   const monthTx = transactions.filter(tx => Number(tx.amount) > 0 && isThisMonth(tx.date))
   const totalSpent = monthTx.reduce((s, tx) => s + tx.amount, 0)
@@ -267,25 +267,6 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     }))
     .sort((a, b) => b.amount - a.amount)
 
-  // ??靽∪???嚗??縑撠??祆?撌脰嚗?瑕???蜇嚗?瘥?憿漲
-  const envelopeView = envelopes.map(e => {
-    const used = catMap[e.name] ?? 0
-    return {
-      id: e.id,
-      name: e.name,
-      necessity: e.necessity,
-      budget: e.monthlyBudget,
-      used,
-      remaining: e.monthlyBudget - used,
-      color: CATEGORY_COLORS[e.name] ?? '#B9ADA6',
-    }
-  })
-  const envelopeSummary = {
-    necessaryBudget: envelopes.filter(e => e.necessity === 'necessary').reduce((s, e) => s + e.monthlyBudget, 0),
-    flexibleBudget: envelopes.filter(e => e.necessity === 'flexible').reduce((s, e) => s + e.monthlyBudget, 0),
-    necessaryUsed: envelopeView.filter(e => e.necessity === 'necessary').reduce((s, e) => s + e.used, 0),
-    flexibleUsed: envelopeView.filter(e => e.necessity === 'flexible').reduce((s, e) => s + e.used, 0),
-  }
 
   const trendMap = monthTx.reduce((map, tx) => {
     const date = parseISODate(tx.date, today)
@@ -313,7 +294,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     statusText: status === 'safe' ? `${monthName} on track` : status === 'warning' ? `${monthName} near budget` : `${monthName} over budget`,
   }
 
-  return { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary }
+  return { currentMonth, enrichedCards, categories, trends }
 }
 
 function isImportedTransaction(tx) {
@@ -378,7 +359,6 @@ export default function App() {
   const [fxSettings, setFxSettings] = useState(stored?.fxSettings ?? { usdRate: 32.5, feeRate: 1.5 })
   const [checklist, setChecklist] = useState(initialChecklist)
   const [checklistMonth] = useState(currentMonthKey)
-  const [envelopes, setEnvelopes] = useState(stored?.envelopes ?? [])
   const [income, setIncome] = useState(stored?.income ?? 0)
   const [salarySettings, setSalarySettings] = useState(() => normalizeSalarySettings(stored?.salarySettings))
   const [savings, setSavings] = useState(stored?.savings ?? [])
@@ -389,8 +369,8 @@ export default function App() {
   const [importingCardNotifications, setImportingCardNotifications] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, salarySettings, savings, googleSync, cardImport }))
-  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, salarySettings, savings, googleSync, cardImport])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, income, salarySettings, savings, googleSync, cardImport }))
+  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, income, salarySettings, savings, googleSync, cardImport])
 
   // 鋆?瘥撐?∠?撣喳?望?嚗?∠???頝銝活??撌脩?頝券??啁?蝯董?伐??賣??券ㄐ?芸???
   // ?啁?銝???蒂撖怠? cards?歇蝬??函??望?銝?鋡怠??堆??芰像??銝?渡?????憭晞?
@@ -729,10 +709,6 @@ export default function App() {
     return { ...g, saved: 0, entries: [...(g.entries ?? []), entry] }
   })), [])
 
-  // Envelope handlers嚗?憿縑撠?蝞?
-  const handleAddEnvelope = useCallback((env) => setEnvelopes(p => [...p, env]), [])
-  const handleUpdateEnvelope = useCallback((updated) => setEnvelopes(p => p.map(e => e.id === updated.id ? updated : e)), [])
-  const handleDeleteEnvelope = useCallback((id) => setEnvelopes(p => p.filter(e => e.id !== id)), [])
 
   // Cards handlers
   const handleAddCard = useCallback((card) => setCards(p => [...p, card]), [])
@@ -788,7 +764,6 @@ export default function App() {
     setPlans([])
     setTransactions([])
     setChecklist([])
-    setEnvelopes([])
     setIncome(0)
     setSalarySettings(normalizeSalarySettings())
     setSavings([])
@@ -805,7 +780,6 @@ export default function App() {
     setPlans(normalized.plans)
     setTransactions(normalized.transactions)
     setChecklist(Array.isArray(data.checklist) ? data.checklist : [])
-    setEnvelopes(Array.isArray(data.envelopes) ? data.envelopes : [])
     if (data.fxSettings && typeof data.fxSettings === 'object') setFxSettings(data.fxSettings)
     if (typeof data.income === 'number') setIncome(data.income)
     setSalarySettings(normalizeSalarySettings(data.salarySettings))
@@ -837,7 +811,7 @@ export default function App() {
     .reduce((s, g) => s + Number(g.monthly || 0), 0)
   const essentialTotal = checklistTotal + essentialSavings
 
-  const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
+  const { currentMonth, enrichedCards, categories, trends } = computeDashboard(transactions, cards, fixedMonthlyAmount, plans)
   const reconciliationSummary = buildReconciliationSummary({ transactions, cards: enrichedCards, cardImport })
   const salarySchedule = getSalarySchedule(salarySettings)
   const availableIncome = salarySchedule.receivedThisMonth ? income : 0
@@ -914,8 +888,6 @@ export default function App() {
         trends={trends}
         liabilityItems={liabilityItems}
         totalDebt={totalDebt}
-        envelopeView={envelopeView}
-        envelopeSummary={envelopeSummary}
         paymentReminders={paymentReminders}
         onMarkCardPaid={handleMarkCardPaid}
         onMarkAllCyclesPaid={handleMarkAllCyclesPaid}
@@ -992,15 +964,11 @@ export default function App() {
         showToast={showToast}
         cards={cards}
         fxSettings={fxSettings}
-        envelopes={envelopes}
         onFxChange={setFxSettings}
         onAddCard={handleAddCard}
         onSaveCard={handleSaveCard}
         onDeleteCard={handleDeleteCard}
-        onAddEnvelope={handleAddEnvelope}
-        onUpdateEnvelope={handleUpdateEnvelope}
-        onDeleteEnvelope={handleDeleteEnvelope}
-        backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings, income, salarySettings, savings, googleSync, cardImport }}
+        backupData={{ cards, plans, transactions, checklist, checklistMonth, fxSettings, income, salarySettings, savings, googleSync, cardImport }}
         onImportData={handleImportData}
         onClearData={handleClearData}
         transactions={transactions}
