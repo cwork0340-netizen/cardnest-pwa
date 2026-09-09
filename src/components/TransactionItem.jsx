@@ -1,9 +1,6 @@
 import './TransactionItem.css'
 import { categoryColor } from '../utils/categoryColors'
-
-function isImported(tx) {
-  return String(tx.note ?? '').includes('自動匯入')
-}
+import { isImportedTransaction as isImported } from '../utils/importSheetSync'
 
 function sourceLabel(tx) {
   return isImported(tx) ? '信件匯入' : '手動'

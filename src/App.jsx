@@ -9,9 +9,13 @@ import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken } from './utils/googleSheetSync'
 import { categoryColor } from './utils/categoryColors'
-import { fetchImportRows, findImportedTransaction, importedPostedDate, toISODate as toImportISODate, isUsableImportRow, resolveImportedCard } from './utils/importSheetSync'
+import {
+  fetchImportRows, findImportedTransaction, importedConsumedDate, importedPostedDate,
+  isUsableImportRow, resolveImportedCardResult, summarizeImportRowsByBank, describeSkippedRow,
+  isImportedTransaction, isPendingReconciliation, SKIP_REASON_INVALID_ROW,
+} from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
-import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
+import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue, withLiveCycleEstimates } from './utils/billingCycles'
 import { buildCardForecast } from './utils/cardForecast'
 import { getSalarySchedule, normalizeSalarySettings } from './utils/salarySchedule'
 import {
@@ -157,7 +161,7 @@ function billingCycleBounds(billingDay, today) {
   return { prevBillingDate, lastBillingDate }
 }
 
-function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes = [], plans = []) {
+function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, plans = []) {
   // ??嚗?蝜喳????瑕閮?嚗楊????????頝臬?銝敞??
   const monthTx = transactions.filter(tx => Number(tx.amount) > 0 && isThisMonth(tx.date))
   const totalSpent = monthTx.reduce((s, tx) => s + tx.amount, 0)
@@ -224,8 +228,11 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
 
     // 撣喳?望?嚗?銝??舀??祕?交??蝡????芰像??銝?渡敞??銝??????憭望?鋡怨炊??
-    const unpaid = unpaidCycles(card)
-    const unpaidTotal = totalUnpaid(card)
+    // 待繳帳單的金額改成即時重算（已繳／已校準的期別除外，見 withLiveCycleEstimates），
+    // 這樣晚到的對帳信件補進來的消費才進得了待繳帳單，不會跟 App 估算合計對不起來。
+    const cardWithLiveCycles = withLiveCycleEstimates(card, { transactions, plans })
+    const unpaid = unpaidCycles(cardWithLiveCycles)
+    const unpaidTotal = totalUnpaid(cardWithLiveCycles)
     const unpaidWithDaysLeft = unpaid.map(c => ({ ...c, daysLeft: daysUntilDue(c) }))
     const postedDateCount = allCardTx.filter(tx => tx.postedDate && tx.postedDate !== tx.date).length
     const paymentCount = allCardTx.filter(isCreditCardPayment).length
@@ -267,26 +274,6 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     }))
     .sort((a, b) => b.amount - a.amount)
 
-  // ??靽∪???嚗??縑撠??祆?撌脰嚗?瑕???蜇嚗?瘥?憿漲
-  const envelopeView = envelopes.map(e => {
-    const used = catMap[e.name] ?? 0
-    return {
-      id: e.id,
-      name: e.name,
-      necessity: e.necessity,
-      budget: e.monthlyBudget,
-      used,
-      remaining: e.monthlyBudget - used,
-      color: categoryColor(e.name),
-    }
-  })
-  const envelopeSummary = {
-    necessaryBudget: envelopes.filter(e => e.necessity === 'necessary').reduce((s, e) => s + e.monthlyBudget, 0),
-    flexibleBudget: envelopes.filter(e => e.necessity === 'flexible').reduce((s, e) => s + e.monthlyBudget, 0),
-    necessaryUsed: envelopeView.filter(e => e.necessity === 'necessary').reduce((s, e) => s + e.used, 0),
-    flexibleUsed: envelopeView.filter(e => e.necessity === 'flexible').reduce((s, e) => s + e.used, 0),
-  }
-
   // 「最近 7 個月」要從所有交易算，不能從 monthTx——那個已經被篩成只剩本月，
   // 再照月份分組永遠只會分出一組，圖上就只有一根柱子，看不出任何趨勢。
   // 沒有花費的月份也要留成 0，不然 x 軸會把中間跳過去，看起來像連續的其實不是。
@@ -322,15 +309,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     statusText: status === 'safe' ? `${monthName} on track` : status === 'warning' ? `${monthName} near budget` : `${monthName} over budget`,
   }
 
-  return { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary }
-}
-
-function isImportedTransaction(tx) {
-  return String(tx?.note ?? '').includes('自動匯入')
-}
-
-function isPendingReconciliation(tx) {
-  return isImportedTransaction(tx) && !tx.postedDate
+  return { currentMonth, enrichedCards, categories, trends }
 }
 
 function buildReconciliationSummary({ transactions, cards, cardImport }) {
@@ -387,7 +366,6 @@ export default function App() {
   const [fxSettings, setFxSettings] = useState(stored?.fxSettings ?? { usdRate: 32.5, feeRate: 1.5 })
   const [checklist, setChecklist] = useState(initialChecklist)
   const [checklistMonth] = useState(currentMonthKey)
-  const [envelopes, setEnvelopes] = useState(stored?.envelopes ?? [])
   const [income, setIncome] = useState(stored?.income ?? 0)
   const [salarySettings, setSalarySettings] = useState(() => normalizeSalarySettings(stored?.salarySettings))
   const [savings, setSavings] = useState(stored?.savings ?? [])
@@ -398,8 +376,8 @@ export default function App() {
   const [importingCardNotifications, setImportingCardNotifications] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, salarySettings, savings, googleSync, cardImport }))
-  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, envelopes, income, salarySettings, savings, googleSync, cardImport])
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, plans, transactions, fxSettings, checklist, checklistMonth, income, salarySettings, savings, googleSync, cardImport }))
+  }, [cards, plans, transactions, fxSettings, checklist, checklistMonth, income, salarySettings, savings, googleSync, cardImport])
 
   // 鋆?瘥撐?∠?撣喳?望?嚗?∠???頝銝活??撌脩?頝券??啁?蝯董?伐??賣??券ㄐ?芸???
   // ?啁?銝???蒂撖怠? cards?歇蝬??函??望?銝?鋡怠??堆??芰像??銝?渡?????憭晞?
@@ -416,7 +394,6 @@ export default function App() {
             || cycle.estimatedAmount !== previous.estimatedAmount
             || cycle.closeDate !== previous.closeDate
             || cycle.dueDate !== previous.dueDate
-            || cycle.refreshNeeded !== previous.refreshNeeded
         })
         if (hasCycleChanges) {
           changed = true
@@ -538,21 +515,12 @@ export default function App() {
     }
   }, [cards])
   const handleAddTransaction = useCallback((tx) => setTransactions(p => [normalizeTransaction(tx), ...p]), [normalizeTransaction])
+  // 改了入帳日不需要在這裡通知帳單週期重算：未繳、未校準的期別本來就是每次
+  // 重畫都即時重算的（withLiveCycleEstimates），沒有快取需要手動失效。
   const handleUpdateTransaction = useCallback((updated) => {
     const normalized = normalizeTransaction(updated)
-    const previous = transactions.find((transaction) => transaction.id === normalized.id)
-    if (previous && previous.postedDate !== normalized.postedDate) {
-      setCards((items) => items.map((card) => matchesCard(normalized, card)
-        ? {
-          ...card,
-          billingCycles: (card.billingCycles ?? []).map((cycle) => (
-            cycle.paid || cycle.amountIsActual || cycle.manuallyCalibrated ? cycle : { ...cycle, refreshNeeded: true }
-          )),
-        }
-        : card))
-    }
     setTransactions((items) => items.map((transaction) => transaction.id === normalized.id ? normalized : transaction))
-  }, [normalizeTransaction, transactions])
+  }, [normalizeTransaction])
   // ?桃??瑕頧????啣???閮銝衣宏?文??祉??桃?閮?嚗??銴??交???
   const handleConvertToInstallment = useCallback((txId, plan) => {
     setPlans(p => [normalizePlan(plan), ...p])
@@ -578,6 +546,11 @@ export default function App() {
       lastImportDuplicateCount: summary.duplicateCount ?? 0,
       lastImportSkippedUnmapped: summary.skippedUnmapped ?? 0,
       lastImportInvalidCount: summary.invalidCount ?? 0,
+      // 診斷用：Sheet 上每家銀行各抓到幾列、以及被跳過那幾列的理由。
+      // 只留前 20 筆，localStorage 不需要扛完整的匯入歷史。
+      lastImportBankCounts: summary.bankCounts ?? [],
+      lastImportSkippedRows: (summary.skippedRows ?? []).slice(0, 20),
+      lastImportRowCount: summary.rowCount ?? 0,
     }))
   }, [normalizeTransaction])
 
@@ -600,6 +573,7 @@ export default function App() {
       const newTxs = []
       const updatedTxs = []
       const newKeys = []
+      const skippedRows = []
       let skippedUnmapped = 0
       let duplicateCount = 0
       let invalidCount = 0
@@ -607,10 +581,17 @@ export default function App() {
       rows.forEach((row) => {
         if (!isUsableImportRow(row)) {
           invalidCount++
+          skippedRows.push(describeSkippedRow({ row, reason: SKIP_REASON_INVALID_ROW }))
           return
         }
-        const mappedCard = resolveImportedCard({ row, cards, bankCardMap: cardImport?.bankCardMap })
-        if (!mappedCard) { skippedUnmapped++; return }
+        const { card: mappedCard, reason } = resolveImportedCardResult({
+          row, cards, bankCardMap: cardImport?.bankCardMap,
+        })
+        if (!mappedCard) {
+          skippedUnmapped++
+          skippedRows.push(describeSkippedRow({ row, reason }))
+          return
+        }
         const existingTx = findImportedTransaction({ row, card: mappedCard, transactions })
         const postedDate = importedPostedDate(row)
         if (existingTx) {
@@ -638,7 +619,7 @@ export default function App() {
           cardId: mappedCard.id,
           card: mappedCard.name,
           amount: row.amount,
-          date: toImportISODate(row.rawDate),
+          date: importedConsumedDate(row),
           ...(postedDate && { postedDate }),
           note: `自動匯入・${row.bank}`,
           source: {
@@ -651,10 +632,23 @@ export default function App() {
         newKeys.push(row.permalink)
       })
 
-      handleImportTransactions(newTxs, updatedTxs, newKeys, { duplicateCount, skippedUnmapped, invalidCount })
+      handleImportTransactions(newTxs, updatedTxs, newKeys, {
+        duplicateCount,
+        skippedUnmapped,
+        invalidCount,
+        rowCount: rows.length,
+        bankCounts: summarizeImportRowsByBank(rows),
+        skippedRows,
+      })
 
-      if (skippedUnmapped > 0 || invalidCount > 0) {
-        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedUnmapped} 筆未對應卡片`)
+      // 被跳過的筆數要講完整（之前只印未對應卡片，格式壞掉的列連提都沒提到），
+      // 並指路去設定頁看逐列理由，不然使用者只會看到「少了幾筆」卻查不出原因。
+      const skippedParts = [
+        skippedUnmapped > 0 && `${skippedUnmapped} 筆未對應卡片`,
+        invalidCount > 0 && `${invalidCount} 筆格式不符`,
+      ].filter(Boolean)
+      if (skippedParts.length > 0) {
+        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedParts.join('、')}（設定頁可看原因）`)
       } else {
         showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複略過 ${duplicateCount} 筆`)
       }
@@ -738,10 +732,6 @@ export default function App() {
     return { ...g, saved: 0, entries: [...(g.entries ?? []), entry] }
   })), [])
 
-  // Envelope handlers嚗?憿縑撠?蝞?
-  const handleAddEnvelope = useCallback((env) => setEnvelopes(p => [...p, env]), [])
-  const handleUpdateEnvelope = useCallback((updated) => setEnvelopes(p => p.map(e => e.id === updated.id ? updated : e)), [])
-  const handleDeleteEnvelope = useCallback((id) => setEnvelopes(p => p.filter(e => e.id !== id)), [])
 
   // Cards handlers
   const handleAddCard = useCallback((card) => setCards(p => [...p, card]), [])
@@ -797,7 +787,6 @@ export default function App() {
     setPlans([])
     setTransactions([])
     setChecklist([])
-    setEnvelopes([])
     setIncome(0)
     setSalarySettings(normalizeSalarySettings())
     setSavings([])
@@ -814,7 +803,6 @@ export default function App() {
     setPlans(normalized.plans)
     setTransactions(normalized.transactions)
     setChecklist(Array.isArray(data.checklist) ? data.checklist : [])
-    setEnvelopes(Array.isArray(data.envelopes) ? data.envelopes : [])
     if (data.fxSettings && typeof data.fxSettings === 'object') setFxSettings(data.fxSettings)
     if (typeof data.income === 'number') setIncome(data.income)
     setSalarySettings(normalizeSalarySettings(data.salarySettings))
@@ -846,7 +834,7 @@ export default function App() {
     .reduce((s, g) => s + Number(g.monthly || 0), 0)
   const essentialTotal = checklistTotal + essentialSavings
 
-  const { currentMonth, enrichedCards, categories, trends, envelopeView, envelopeSummary } = computeDashboard(transactions, cards, fixedMonthlyAmount, envelopes, plans)
+  const { currentMonth, enrichedCards, categories, trends } = computeDashboard(transactions, cards, fixedMonthlyAmount, plans)
   const reconciliationSummary = buildReconciliationSummary({ transactions, cards: enrichedCards, cardImport })
   const salarySchedule = getSalarySchedule(salarySettings)
   const availableIncome = salarySchedule.receivedThisMonth ? income : 0
@@ -923,8 +911,6 @@ export default function App() {
         trends={trends}
         liabilityItems={liabilityItems}
         totalDebt={totalDebt}
-        envelopeView={envelopeView}
-        envelopeSummary={envelopeSummary}
         paymentReminders={paymentReminders}
         onMarkCardPaid={handleMarkCardPaid}
         onMarkAllCyclesPaid={handleMarkAllCyclesPaid}
@@ -1001,15 +987,11 @@ export default function App() {
         showToast={showToast}
         cards={cards}
         fxSettings={fxSettings}
-        envelopes={envelopes}
         onFxChange={setFxSettings}
         onAddCard={handleAddCard}
         onSaveCard={handleSaveCard}
         onDeleteCard={handleDeleteCard}
-        onAddEnvelope={handleAddEnvelope}
-        onUpdateEnvelope={handleUpdateEnvelope}
-        onDeleteEnvelope={handleDeleteEnvelope}
-        backupData={{ cards, plans, transactions, checklist, checklistMonth, envelopes, fxSettings, income, salarySettings, savings, googleSync, cardImport }}
+        backupData={{ cards, plans, transactions, checklist, checklistMonth, fxSettings, income, salarySettings, savings, googleSync, cardImport }}
         onImportData={handleImportData}
         onClearData={handleClearData}
         transactions={transactions}

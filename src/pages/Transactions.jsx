@@ -8,6 +8,7 @@ import ConvertToInstallmentForm from '../components/ConvertToInstallmentForm'
 import EmptyState from '../components/EmptyState'
 import { isBillableTransaction, matchesCard, parseISODate, resolveCardId, toISODate } from '../utils/financeData'
 import { buildStatementCalibration } from '../utils/statementCalibration'
+import { isImportedTransaction, isPendingReconciliation } from '../utils/importSheetSync'
 
 const PERIOD_TABS = [
   { key: 'all', label: '全部' },
@@ -93,13 +94,6 @@ function importStatusText(cardImport) {
   return `上次更新：${updatedAt}・新增 ${count} 筆・重複 ${duplicates} 筆・未對應 ${unmapped} 筆`
 }
 
-function isImportedTransaction(tx) {
-  return String(tx?.note ?? '').includes('自動匯入')
-}
-
-function isPendingReconciliation(tx) {
-  return isImportedTransaction(tx) && !tx.postedDate
-}
 
 function hasImportedPostedDate(tx) {
   return isImportedTransaction(tx) && !!tx.postedDate
@@ -121,13 +115,22 @@ export default function Transactions({
   const [rangeEnd, setRangeEnd] = useState('')
   const [calibrationOpen, setCalibrationOpen] = useState(false)
   const [calibrationCardId, setCalibrationCardId] = useState(cards[0]?.id ?? '')
-  const selectedCalibrationCard = cards.find((card) => card.id === calibrationCardId) ?? cards[0]
+  // 上面已經選了一張卡來篩清單，校準面板就跟著同一張。同一個畫面上兩個卡片選擇
+  // 各走各的，會變成「清單在看台新、校準卻在算國泰」，而且畫面上沒有任何地方
+  // 說得出為什麼。篩選是「所有卡片」時才回頭用面板自己的選擇。
+  const filteredCard = cardFilter === 'all'
+    ? null
+    : cards.find((card) => card.id === cardFilter || card.name === cardFilter)
+  const selectedCalibrationCard = filteredCard
+    ?? cards.find((card) => card.id === calibrationCardId)
+    ?? cards[0]
   const calibrationCycles = [...(selectedCalibrationCard?.billingCycles ?? [])]
     .filter((cycle) => !cycle.paid)
     .sort((a, b) => b.closeDate.localeCompare(a.closeDate))
   const [calibrationCycleId, setCalibrationCycleId] = useState('')
   const selectedCalibrationCycle = calibrationCycles.find((cycle) => cycle.id === calibrationCycleId) ?? calibrationCycles[0]
   const [calibrationForm, setCalibrationForm] = useState({ amount: '', closeDate: '', dueDate: '' })
+  const [calibrationDetailOpen, setCalibrationDetailOpen] = useState(false)
   const effectiveCloseDate = calibrationForm.closeDate || selectedCalibrationCycle?.closeDate || ''
   const effectiveDueDate = calibrationForm.dueDate || selectedCalibrationCycle?.dueDate || ''
   const calibrationResult = buildStatementCalibration({
@@ -345,6 +348,12 @@ export default function Transactions({
                       setCalibrationCardId(e.target.value)
                       setCalibrationCycleId('')
                       setCalibrationForm({ amount: '', closeDate: '', dueDate: '' })
+                      // 正在篩某一張卡時，從這裡換卡就把篩選一起換過去，
+                      // 否則下一次重繪又會被篩選拉回去，看起來像選不動。
+                      if (cardFilter !== 'all') {
+                        const next = cards.find((card) => card.id === e.target.value)
+                        if (next) setCardFilter(next.name)
+                      }
                     }}
                   >
                     {cards.map((card) => (
@@ -426,6 +435,60 @@ export default function Transactions({
                       <span key={hint}>{hint}</span>
                     ))}
                   </div>
+
+                  <button
+                    type="button"
+                    className="tx-statement-detail-toggle"
+                    onClick={() => setCalibrationDetailOpen((v) => !v)}
+                    aria-expanded={calibrationDetailOpen}
+                  >
+                    {calibrationDetailOpen ? '收合逐筆明細' : `逐筆明細（算進本期 ${calibrationResult.includedItems.length} 筆）`}
+                  </button>
+
+                  {calibrationDetailOpen && (
+                    <div className="tx-statement-detail">
+                      <span className="tx-statement-detail-caption">
+                        {calibrationResult.windowStart} ～ {calibrationResult.windowEnd}・以下加總 = App 預估
+                      </span>
+                      {calibrationResult.includedItems.length === 0 ? (
+                        <p className="tx-statement-detail-empty">這一期沒有算進任何金額。</p>
+                      ) : (
+                        <ul className="tx-statement-detail-list">
+                          {calibrationResult.includedItems.map((item) => (
+                            <li className="tx-statement-detail-row" key={item.key}>
+                              <span className="tx-statement-detail-main">
+                                <span className="tx-statement-detail-name">{item.name}</span>
+                                {item.date && <span className="tx-statement-detail-date">{item.date}</span>}
+                              </span>
+                              <span className="tx-statement-detail-amount">NT${item.amount.toLocaleString()}</span>
+                              {item.note && <span className="tx-statement-detail-note">{item.note}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {calibrationResult.excludedItems.length > 0 && (
+                        <>
+                          <span className="tx-statement-detail-caption">
+                            落在這一期但沒算進去（{calibrationResult.excludedItems.length} 筆）
+                          </span>
+                          <ul className="tx-statement-detail-list">
+                            {calibrationResult.excludedItems.map((item) => (
+                              <li className="tx-statement-detail-row tx-statement-detail-row-excluded" key={item.key}>
+                                <span className="tx-statement-detail-main">
+                                  <span className="tx-statement-detail-name">{item.name}</span>
+                                  <span className="tx-statement-detail-date">{item.date}</span>
+                                </span>
+                                <span className="tx-statement-detail-amount">NT${item.amount.toLocaleString()}</span>
+                                <span className="tx-statement-detail-note">{item.reason}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   <button className="tx-statement-save" onClick={handleSaveCalibration}>
                     儲存校準
                   </button>
