@@ -1,12 +1,9 @@
 import './TransactionItem.css'
+import { isImportedTransaction as isImported } from '../utils/importSheetSync'
 
 const CATEGORY_COLORS = {
   餐飲: '#A98274', 購物: '#D6A04D', 訂閱: '#8DAA91',
   日常: '#B98D6F', 交通: '#C86E62', 娛樂: '#D6A04D', 其他: '#B9ADA6',
-}
-
-function isImported(tx) {
-  return String(tx.note ?? '').includes('自動匯入')
 }
 
 function sourceLabel(tx) {

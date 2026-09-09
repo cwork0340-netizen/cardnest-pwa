@@ -8,9 +8,13 @@ import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken } from './utils/googleSheetSync'
-import { fetchImportRows, findImportedTransaction, importedPostedDate, toISODate as toImportISODate, isUsableImportRow, resolveImportedCard } from './utils/importSheetSync'
+import {
+  fetchImportRows, findImportedTransaction, importedPostedDate, toISODate as toImportISODate,
+  isUsableImportRow, resolveImportedCardResult, summarizeImportRowsByBank, describeSkippedRow,
+  isImportedTransaction, isPendingReconciliation, SKIP_REASON_INVALID_ROW,
+} from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
-import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
+import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue, withLiveCycleEstimates } from './utils/billingCycles'
 import { buildCardForecast } from './utils/cardForecast'
 import { getSalarySchedule, normalizeSalarySettings } from './utils/salarySchedule'
 import {
@@ -224,8 +228,11 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, plans = [
     const cardStatus = cp < 0.7 ? 'safe' : cp < 0.9 ? 'warning' : 'danger'
 
     // 撣喳?望?嚗?銝??舀??祕?交??蝡????芰像??銝?渡敞??銝??????憭望?鋡怨炊??
-    const unpaid = unpaidCycles(card)
-    const unpaidTotal = totalUnpaid(card)
+    // 待繳帳單的金額改成即時重算（已繳／已校準的期別除外，見 withLiveCycleEstimates），
+    // 這樣晚到的對帳信件補進來的消費才進得了待繳帳單，不會跟 App 估算合計對不起來。
+    const cardWithLiveCycles = withLiveCycleEstimates(card, { transactions, plans })
+    const unpaid = unpaidCycles(cardWithLiveCycles)
+    const unpaidTotal = totalUnpaid(cardWithLiveCycles)
     const unpaidWithDaysLeft = unpaid.map(c => ({ ...c, daysLeft: daysUntilDue(c) }))
     const postedDateCount = allCardTx.filter(tx => tx.postedDate && tx.postedDate !== tx.date).length
     const paymentCount = allCardTx.filter(isCreditCardPayment).length
@@ -295,14 +302,6 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, plans = [
   }
 
   return { currentMonth, enrichedCards, categories, trends }
-}
-
-function isImportedTransaction(tx) {
-  return String(tx?.note ?? '').includes('自動匯入')
-}
-
-function isPendingReconciliation(tx) {
-  return isImportedTransaction(tx) && !tx.postedDate
 }
 
 function buildReconciliationSummary({ transactions, cards, cardImport }) {
@@ -387,7 +386,6 @@ export default function App() {
             || cycle.estimatedAmount !== previous.estimatedAmount
             || cycle.closeDate !== previous.closeDate
             || cycle.dueDate !== previous.dueDate
-            || cycle.refreshNeeded !== previous.refreshNeeded
         })
         if (hasCycleChanges) {
           changed = true
@@ -509,21 +507,12 @@ export default function App() {
     }
   }, [cards])
   const handleAddTransaction = useCallback((tx) => setTransactions(p => [normalizeTransaction(tx), ...p]), [normalizeTransaction])
+  // 改了入帳日不需要在這裡通知帳單週期重算：未繳、未校準的期別本來就是每次
+  // 重畫都即時重算的（withLiveCycleEstimates），沒有快取需要手動失效。
   const handleUpdateTransaction = useCallback((updated) => {
     const normalized = normalizeTransaction(updated)
-    const previous = transactions.find((transaction) => transaction.id === normalized.id)
-    if (previous && previous.postedDate !== normalized.postedDate) {
-      setCards((items) => items.map((card) => matchesCard(normalized, card)
-        ? {
-          ...card,
-          billingCycles: (card.billingCycles ?? []).map((cycle) => (
-            cycle.paid || cycle.amountIsActual || cycle.manuallyCalibrated ? cycle : { ...cycle, refreshNeeded: true }
-          )),
-        }
-        : card))
-    }
     setTransactions((items) => items.map((transaction) => transaction.id === normalized.id ? normalized : transaction))
-  }, [normalizeTransaction, transactions])
+  }, [normalizeTransaction])
   // ?桃??瑕頧????啣???閮銝衣宏?文??祉??桃?閮?嚗??銴??交???
   const handleConvertToInstallment = useCallback((txId, plan) => {
     setPlans(p => [normalizePlan(plan), ...p])
@@ -549,6 +538,11 @@ export default function App() {
       lastImportDuplicateCount: summary.duplicateCount ?? 0,
       lastImportSkippedUnmapped: summary.skippedUnmapped ?? 0,
       lastImportInvalidCount: summary.invalidCount ?? 0,
+      // 診斷用：Sheet 上每家銀行各抓到幾列、以及被跳過那幾列的理由。
+      // 只留前 20 筆，localStorage 不需要扛完整的匯入歷史。
+      lastImportBankCounts: summary.bankCounts ?? [],
+      lastImportSkippedRows: (summary.skippedRows ?? []).slice(0, 20),
+      lastImportRowCount: summary.rowCount ?? 0,
     }))
   }, [normalizeTransaction])
 
@@ -571,6 +565,7 @@ export default function App() {
       const newTxs = []
       const updatedTxs = []
       const newKeys = []
+      const skippedRows = []
       let skippedUnmapped = 0
       let duplicateCount = 0
       let invalidCount = 0
@@ -578,10 +573,17 @@ export default function App() {
       rows.forEach((row) => {
         if (!isUsableImportRow(row)) {
           invalidCount++
+          skippedRows.push(describeSkippedRow({ row, reason: SKIP_REASON_INVALID_ROW }))
           return
         }
-        const mappedCard = resolveImportedCard({ row, cards, bankCardMap: cardImport?.bankCardMap })
-        if (!mappedCard) { skippedUnmapped++; return }
+        const { card: mappedCard, reason } = resolveImportedCardResult({
+          row, cards, bankCardMap: cardImport?.bankCardMap,
+        })
+        if (!mappedCard) {
+          skippedUnmapped++
+          skippedRows.push(describeSkippedRow({ row, reason }))
+          return
+        }
         const existingTx = findImportedTransaction({ row, card: mappedCard, transactions })
         const postedDate = importedPostedDate(row)
         if (existingTx) {
@@ -622,10 +624,23 @@ export default function App() {
         newKeys.push(row.permalink)
       })
 
-      handleImportTransactions(newTxs, updatedTxs, newKeys, { duplicateCount, skippedUnmapped, invalidCount })
+      handleImportTransactions(newTxs, updatedTxs, newKeys, {
+        duplicateCount,
+        skippedUnmapped,
+        invalidCount,
+        rowCount: rows.length,
+        bankCounts: summarizeImportRowsByBank(rows),
+        skippedRows,
+      })
 
-      if (skippedUnmapped > 0 || invalidCount > 0) {
-        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedUnmapped} 筆未對應卡片`)
+      // 被跳過的筆數要講完整（之前只印未對應卡片，格式壞掉的列連提都沒提到），
+      // 並指路去設定頁看逐列理由，不然使用者只會看到「少了幾筆」卻查不出原因。
+      const skippedParts = [
+        skippedUnmapped > 0 && `${skippedUnmapped} 筆未對應卡片`,
+        invalidCount > 0 && `${invalidCount} 筆格式不符`,
+      ].filter(Boolean)
+      if (skippedParts.length > 0) {
+        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedParts.join('、')}（設定頁可看原因）`)
       } else {
         showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複略過 ${duplicateCount} 筆`)
       }
