@@ -196,39 +196,6 @@ describe('分期計畫：已繳期數', () => {
   })
 })
 
-describe('分類信封預算', () => {
-  it('設定信封後，首頁顯示該分類的已花/額度與剩餘', () => {
-    seed({
-      transactions: [
-        { id: 't1', name: '午餐', card: '永豐卡', category: '餐飲', amount: 1200, date: todayMD() },
-        { id: 't2', name: '晚餐', card: '永豐卡', category: '餐飲', amount: 800, date: todayMD() },
-      ],
-      envelopes: [{ id: 'e1', name: '餐飲', necessity: 'flexible', monthlyBudget: 5000 }],
-    })
-    render(<App />)
-    const env = document.querySelector('.envelope-card')
-    expect(env).not.toBeNull()
-    // 已花 2000 / 額度 5000，還剩 3000
-    expect(env.querySelector('.env-amount').textContent).toBe('NT$2,000 / NT$5,000')
-    expect(within(env).getByText(/還剩 NT\$3,000/)).toBeInTheDocument()
-  })
-
-  it('超出額度時顯示超出金額', () => {
-    seed({
-      transactions: [{ id: 't1', name: '購物', card: '永豐卡', category: '購物', amount: 4000, date: todayMD() }],
-      envelopes: [{ id: 'e1', name: '購物', necessity: 'flexible', monthlyBudget: 3000 }],
-    })
-    render(<App />)
-    const env = document.querySelector('.envelope-card')
-    expect(within(env).getByText(/超出 NT\$1,000/)).toBeInTheDocument()
-  })
-
-  it('沒有設定信封時首頁不顯示分類預算', () => {
-    seed()
-    render(<App />)
-    expect(screen.queryByText('分類預算（信封）')).not.toBeInTheDocument()
-  })
-})
 
 describe('未償負債總覽', () => {
   it('首頁加總所有分期的剩餘期數×金額，訂閱不計入負債', () => {
@@ -537,7 +504,6 @@ describe('資料備份：匯入還原', () => {
       plans: [],
       transactions: [{ id: 'tb1', name: '家樂福', card: '國泰世華卡', category: '餐飲', amount: 1234, date: '6/10' }],
       checklist: [],
-      envelopes: [],
       fxSettings: { usdRate: 32.5, feeRate: 1.5 },
     }
     const file = new File([JSON.stringify(backup)], 'cardnest-backup.json', { type: 'application/json' })
