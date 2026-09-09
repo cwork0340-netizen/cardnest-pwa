@@ -1,9 +1,5 @@
 import './TransactionItem.css'
-
-const CATEGORY_COLORS = {
-  餐飲: '#A98274', 購物: '#D6A04D', 訂閱: '#8DAA91',
-  日常: '#B98D6F', 交通: '#C86E62', 娛樂: '#D6A04D', 其他: '#B9ADA6',
-}
+import { categoryColor } from '../utils/categoryColors'
 
 function isImported(tx) {
   return String(tx.note ?? '').includes('自動匯入')
@@ -24,7 +20,7 @@ function installmentLabel(tx) {
 }
 
 export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onReconcile }) {
-  const dotColor = CATEGORY_COLORS[tx.category] ?? '#B9ADA6'
+  const dotColor = categoryColor(tx.category)
   const needsReconcile = onReconcile && auditLabel(tx) === '待填入帳日'
 
   return (

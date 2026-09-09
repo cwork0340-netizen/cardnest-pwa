@@ -230,6 +230,42 @@ describe('分類信封預算', () => {
   })
 })
 
+describe('最近 7 個月趨勢', () => {
+  it('顯示完整七個月，包含沒有消費的月份', () => {
+    // 系統時間固定在 2026/6/12，所以應該是 2025/12 ～ 2026/6
+    seed({
+      transactions: [
+        { id: 't1', name: '三月', card: '永豐卡', category: '餐飲', amount: 3200, date: '2026-03-10' },
+        { id: 't2', name: '五月', card: '永豐卡', category: '購物', amount: 4100, date: '2026-05-12' },
+        { id: 't3', name: '六月', card: '永豐卡', category: '餐飲', amount: 1500, date: '2026-06-05' },
+      ],
+    })
+    render(<App />)
+    const trend = Array.from(document.querySelectorAll('.section'))
+      .find(s => s.textContent.includes('最近 7 個月'))
+
+    // 之前這裡是先篩成「只有本月」再分組，所以永遠只有一根柱子
+    expect(trend.textContent).toContain('12/2025')
+    expect(trend.textContent).toContain('3/2026')
+    expect(trend.textContent).toContain('6/2026')
+    // 四月沒有任何消費，仍然要留一格，不能把 x 軸跳過去
+    expect(trend.textContent).toContain('4/2026')
+  })
+
+  it('跨年時用該月自己的年份標示，不是今年', () => {
+    seed({
+      transactions: [
+        { id: 't1', name: '去年十二月', card: '永豐卡', category: '餐飲', amount: 900, date: '2025-12-20' },
+      ],
+    })
+    render(<App />)
+    const trend = Array.from(document.querySelectorAll('.section'))
+      .find(s => s.textContent.includes('最近 7 個月'))
+    expect(trend.textContent).toContain('12/2025')
+    expect(trend.textContent).not.toContain('12/2026')
+  })
+})
+
 describe('未償負債總覽', () => {
   it('首頁加總所有分期的剩餘期數×金額，訂閱不計入負債', () => {
     seed({

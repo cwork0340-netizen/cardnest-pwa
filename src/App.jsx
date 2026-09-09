@@ -8,6 +8,7 @@ import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken } from './utils/googleSheetSync'
+import { categoryColor } from './utils/categoryColors'
 import { fetchImportRows, findImportedTransaction, importedPostedDate, toISODate as toImportISODate, isUsableImportRow, resolveImportedCard } from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue } from './utils/billingCycles'
@@ -52,7 +53,6 @@ function loadStorage() {
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const CATEGORY_COLORS = {}
 
 function getGreeting(hour) {
   if (hour < 5) return '夜深'
@@ -263,7 +263,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     .map(([name, amount]) => ({
       name, amount,
       percent: totalSpent > 0 ? Math.round(amount / totalSpent * 100) : 0,
-      color: CATEGORY_COLORS[name] ?? '#B9ADA6',
+      color: categoryColor(name),
     }))
     .sort((a, b) => b.amount - a.amount)
 
@@ -277,7 +277,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
       budget: e.monthlyBudget,
       used,
       remaining: e.monthlyBudget - used,
-      color: CATEGORY_COLORS[e.name] ?? '#B9ADA6',
+      color: categoryColor(e.name),
     }
   })
   const envelopeSummary = {
@@ -287,19 +287,28 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, envelopes
     flexibleUsed: envelopeView.filter(e => e.necessity === 'flexible').reduce((s, e) => s + e.used, 0),
   }
 
-  const trendMap = monthTx.reduce((map, tx) => {
+  // 「最近 7 個月」要從所有交易算，不能從 monthTx——那個已經被篩成只剩本月，
+  // 再照月份分組永遠只會分出一組，圖上就只有一根柱子，看不出任何趨勢。
+  // 沒有花費的月份也要留成 0，不然 x 軸會把中間跳過去，看起來像連續的其實不是。
+  const TREND_MONTHS = 7
+  const trendBuckets = Array.from({ length: TREND_MONTHS }, (_, i) => {
+    const date = new Date(today.getFullYear(), today.getMonth() - (TREND_MONTHS - 1 - i), 1)
+    return {
+      key: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+      // 標籤用這一格自己的年份，不是今年——跨年之後去年的月份會被標成今年
+      month: `${date.getMonth() + 1}/${date.getFullYear()}`,
+      amount: 0,
+    }
+  })
+  const trendIndex = new Map(trendBuckets.map((bucket, i) => [bucket.key, i]))
+  transactions.forEach(tx => {
+    if (!(Number(tx.amount) > 0)) return
     const date = parseISODate(tx.date, today)
-    if (!date) return map
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-    map.set(key, (map.get(key) ?? 0) + Number(tx.amount || 0))
-    return map
-  }, new Map())
-  const trends = [...trendMap.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, amount]) => {
-      const [, month] = key.split('-')
-      return { month: `${Number(month)}/${today.getFullYear()}`, amount }
-    })
+    if (!date) return
+    const i = trendIndex.get(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`)
+    if (i !== undefined) trendBuckets[i].amount += Number(tx.amount)
+  })
+  const trends = trendBuckets
 
   const estimatedTotal = totalSpent + fixedMonthlyAmount
   const currentMonth = {
