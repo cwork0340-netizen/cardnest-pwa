@@ -37,6 +37,16 @@ export default function Settings({
   const [sheetId, setSheetId] = useState(googleSync?.sheetId ?? '')
   const [syncing, setSyncing] = useState(false)
   const clientIdProblem = describeClientIdProblem(clientId)
+  const pageOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+
+  async function handleCopyOrigin() {
+    try {
+      await navigator.clipboard.writeText(pageOrigin)
+      showToast('已複製，貼到 Google Cloud Console 的已授權來源')
+    } catch {
+      showToast(pageOrigin)
+    }
+  }
   const [importSheetId, setImportSheetId] = useState(cardImport?.sheetId ?? '')
   const [bankCardMap, setBankCardMap] = useState(cardImport?.bankCardMap ?? {})
 
@@ -330,6 +340,25 @@ export default function Settings({
             {clientId.trim() && clientIdProblem && (
               <span className="settings-field-error">{clientIdProblem}</span>
             )}
+          </div>
+
+          {/* 裝到主畫面之後就沒有網址列，使用者看不到自己跑在哪個網址上。
+              但 Google 就是拿這個網址去比對 OAuth 用戶端的「已授權的 JavaScript 來源」，
+              對不上就回 400，而且錯誤頁不會說是哪個網址對不上。所以直接顯示出來。 */}
+          <div className="settings-origin-box">
+            <span className="settings-origin-label">這個 App 目前的網址</span>
+            <code className="settings-origin-value">{pageOrigin}</code>
+            <button
+              type="button"
+              className="settings-origin-copy"
+              onClick={handleCopyOrigin}
+            >
+              複製
+            </button>
+            <span className="settings-origin-hint">
+              這一行必須一字不差地出現在 Google Cloud Console →「憑證」→ 你的 OAuth 用戶端 →
+              「已授權的 JavaScript 來源」裡面。沒有的話，Google 會直接回 400，不會說是為什麼。
+            </span>
           </div>
           <div className="fx-field">
             <label>Google Sheet ID</label>

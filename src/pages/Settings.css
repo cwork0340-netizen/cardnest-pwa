@@ -522,3 +522,46 @@
   line-height: 1.5;
   color: var(--color-danger, #C86E62);
 }
+
+.settings-origin-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--bg);
+}
+
+.settings-origin-label {
+  width: 100%;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.settings-origin-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--color-text-main);
+  overflow-wrap: anywhere;
+}
+
+.settings-origin-copy {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-origin-hint {
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}

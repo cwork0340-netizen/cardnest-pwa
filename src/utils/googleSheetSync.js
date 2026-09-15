@@ -96,18 +96,36 @@ const SILENT_TIMEOUT_MS = 15 * 1000
 function requestToken(client, prompt, timeoutMs = AUTH_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     let settled = false
+    let cleanup = () => {}
     const finish = (fn) => (value) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
+      cleanup()
       fn(value)
     }
     const ok = finish(resolve)
     const fail = finish(reject)
 
-    const timer = setTimeout(() => {
-      fail(new Error('授權沒有完成。如果剛才看到 Google 的錯誤頁面，通常是 Client ID 填錯，或這個網址沒有登記在該 OAuth 用戶端的「已授權的 JavaScript 來源」裡'))
-    }, timeoutMs)
+    const failed = () => fail(new Error(
+      '授權沒有完成。如果剛才看到 Google 的錯誤頁面，通常是 Client ID 填錯，'
+      + '或這個網址沒有登記在該 OAuth 用戶端的「已授權的 JavaScript 來源」裡'
+      + '（設定頁有顯示這個 App 目前的網址）'
+    ))
+    const timer = setTimeout(failed, timeoutMs)
+
+    // 使用者切回 App 就代表授權那一頁已經結束了。如果是成功的，callback 會在這前後
+    // 觸發；再等幾秒還是沒有動靜，就是失敗了——不該讓畫面繼續空轉到逾時為止。
+    let graceTimer = null
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible' || settled || graceTimer) return
+      graceTimer = setTimeout(failed, 3000)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    cleanup = () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      clearTimeout(graceTimer)
+    }
 
     client.callback = (resp) => {
       if (resp?.error) return fail(new Error(describeAuthError(resp)))
