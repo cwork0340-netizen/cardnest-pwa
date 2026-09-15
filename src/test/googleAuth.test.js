@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeClientIdProblem } from '../utils/googleSheetSync'
+import { describeClientIdProblem, sanitizeClientId } from '../utils/googleSheetSync'
 
 describe('Client ID 檢查', () => {
   it('正確的 Client ID 沒有問題', () => {
@@ -26,5 +26,25 @@ describe('Client ID 檢查', () => {
   it('空的就說要先填', () => {
     expect(describeClientIdProblem('')).toContain('請先填')
     expect(describeClientIdProblem(undefined)).toContain('請先填')
+  })
+})
+
+describe('看不見的字元', () => {
+  it('清掉從網頁複製時夾帶的零寬字元', () => {
+    // 這是最難查的一種：Client ID 看起來一字不差，Google 卻回 400
+    const withZwsp = '123456789-abc​.apps.googleusercontent.com'
+    expect(sanitizeClientId(withZwsp)).toBe('123456789-abc.apps.googleusercontent.com')
+    expect(describeClientIdProblem(withZwsp)).toBe('')
+  })
+
+  it('也處理 BOM、軟連字號、word joiner', () => {
+    for (const ch of ['﻿', '­', '⁠', '‍']) {
+      expect(sanitizeClientId(`123456789-abc${ch}.apps.googleusercontent.com`))
+        .toBe('123456789-abc.apps.googleusercontent.com')
+    }
+  })
+
+  it('零寬字元躲在結尾也抓得到——否則結尾比對會失敗', () => {
+    expect(describeClientIdProblem('123456789-abc.apps.googleusercontent.com​')).toBe('')
   })
 })

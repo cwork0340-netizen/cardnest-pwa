@@ -4,7 +4,7 @@ import SectionHeader from '../components/SectionHeader'
 import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
-import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet, syncMonthlyPlanToSheet, describeClientIdProblem } from '../utils/googleSheetSync'
+import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet, syncMonthlyPlanToSheet, describeClientIdProblem, sanitizeClientId } from '../utils/googleSheetSync'
 import { CARD_MATCH_REASON, SKIP_REASON_INVALID_ROW } from '../utils/importSheetSync'
 
 // card-import（projects/card-import/Code.gs）目前支援的銀行。之後那支腳本加新銀行，
@@ -57,8 +57,11 @@ export default function Settings({
   // 填完離開欄位就存，不用等同步成功——否則第一次同步失敗的話，
   // 每次進設定頁都要重打一次 Client ID / Sheet ID
   function saveSyncSettings() {
-    if (clientId.trim() === (googleSync?.clientId ?? '') && sheetId.trim() === (googleSync?.sheetId ?? '')) return
-    onGoogleSyncChange({ ...googleSync, clientId: clientId.trim(), sheetId: sheetId.trim() })
+    // 存乾淨的值：從網頁貼過來的零寬字元留著的話，之後每次讀出來都還是壞的
+    const cleanClientId = sanitizeClientId(clientId)
+    if (cleanClientId !== clientId) setClientId(cleanClientId)
+    if (cleanClientId === (googleSync?.clientId ?? '') && sheetId.trim() === (googleSync?.sheetId ?? '')) return
+    onGoogleSyncChange({ ...googleSync, clientId: cleanClientId, sheetId: sheetId.trim() })
   }
 
   async function handleConnectAndSync() {
@@ -72,13 +75,13 @@ export default function Settings({
     }
     setSyncing(true)
     try {
-      const token = await getAccessToken(clientId.trim())
+      const token = await getAccessToken(sanitizeClientId(clientId))
       const count = await syncTransactionsToSheet({ accessToken: token, sheetId: sheetId.trim(), transactions })
       const cycleCount = await syncBillingCyclesToSheet({ accessToken: token, sheetId: sheetId.trim(), cards })
       if (planSummary?.income > 0) {
         await syncMonthlyPlanToSheet({ accessToken: token, sheetId: sheetId.trim(), summary: planSummary })
       }
-      onGoogleSyncChange({ clientId: clientId.trim(), sheetId: sheetId.trim(), lastSyncAt: Date.now(), lastSyncCount: count })
+      onGoogleSyncChange({ clientId: sanitizeClientId(clientId), sheetId: sheetId.trim(), lastSyncAt: Date.now(), lastSyncCount: count })
       showToast(`已同步 ${count} 筆刷卡紀錄、${cycleCount} 筆帳單週期，並更新本月規劃總帳`)
     } catch (e) {
       showToast(e.message || '同步失敗，請稍後再試')

@@ -7,8 +7,17 @@ const SCOPE = 'https://www.googleapis.com/auth/spreadsheets'
 // 貼錯（最常見的是貼成 Client Secret，或少複製了一段）的話，Google 會在收到請求的
 // 當下就回 400 malformed，而且那是一個跳轉出去的錯誤頁——App 這邊什麼都收不到，
 // 使用者只會看到一片空白的失敗。所以在送出去之前先擋下來，直接說是哪裡不對。
+// 從網頁複製貼上很容易夾帶看不見的字元（零寬空格、軟連字號、BOM）。trim() 清不掉
+// 它們，肉眼也看不出來——Client ID 看起來一字不差，Google 卻回 400 malformed。
+// 所以一律先清掉再用，而不是叫使用者去找一個他看不見的東西。
+const INVISIBLE_CHARS = /[\u200B-\u200D\u2060\uFEFF\u00AD]/g
+
+export function sanitizeClientId(value) {
+  return String(value ?? '').replace(INVISIBLE_CHARS, '').trim()
+}
+
 export function describeClientIdProblem(value) {
-  const id = String(value ?? '').trim()
+  const id = sanitizeClientId(value)
   if (!id) return '請先填 Google OAuth Client ID'
   if (/\s/.test(id)) return 'Client ID 中間不該有空白，請重新複製一次'
   if (!id.endsWith('.apps.googleusercontent.com')) {
@@ -147,7 +156,7 @@ export async function getAccessToken(clientId) {
   if (problem) throw new Error(problem)
 
   await loadGis()
-  const client = getTokenClient(String(clientId).trim())
+  const client = getTokenClient(sanitizeClientId(clientId))
 
   try {
     const resp = await requestToken(client, '', SILENT_TIMEOUT_MS)
