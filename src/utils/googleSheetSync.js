@@ -2,6 +2,30 @@
 // 整支 App 沒有後端，所以授權跟同步都是在瀏覽器裡直接打 Google 的 API。
 const GIS_SRC = 'https://accounts.google.com/gsi/client'
 const SCOPE = 'https://www.googleapis.com/auth/spreadsheets'
+
+// Google 的 OAuth Client ID 長得像 123456789-abc.apps.googleusercontent.com。
+// 貼錯（最常見的是貼成 Client Secret，或少複製了一段）的話，Google 會在收到請求的
+// 當下就回 400 malformed，而且那是一個跳轉出去的錯誤頁——App 這邊什麼都收不到，
+// 使用者只會看到一片空白的失敗。所以在送出去之前先擋下來，直接說是哪裡不對。
+// 從網頁複製貼上很容易夾帶看不見的字元（零寬空格、軟連字號、BOM）。trim() 清不掉
+// 它們，肉眼也看不出來——Client ID 看起來一字不差，Google 卻回 400 malformed。
+// 所以一律先清掉再用，而不是叫使用者去找一個他看不見的東西。
+const INVISIBLE_CHARS = /[\u200B-\u200D\u2060\uFEFF\u00AD]/g
+
+export function sanitizeClientId(value) {
+  return String(value ?? '').replace(INVISIBLE_CHARS, '').trim()
+}
+
+export function describeClientIdProblem(value) {
+  const id = sanitizeClientId(value)
+  if (!id) return '請先填 Google OAuth Client ID'
+  if (/\s/.test(id)) return 'Client ID 中間不該有空白，請重新複製一次'
+  if (!id.endsWith('.apps.googleusercontent.com')) {
+    return 'Client ID 結尾應該是 .apps.googleusercontent.com——你貼的可能是 Client Secret 或只複製到一半'
+  }
+  if (id.length <= '.apps.googleusercontent.com'.length) return 'Client ID 看起來不完整'
+  return ''
+}
 const SHEET_TITLE = '刷卡紀錄'
 const TOKEN_STORAGE_KEY = 'cardnest_google_token'
 // access token 效期通常 1 小時，提前 2 分鐘視為過期，避免卡在請求中途才過期
@@ -60,14 +84,64 @@ function getTokenClient(clientId) {
   return tokenClient
 }
 
-function requestToken(client, prompt) {
+// 授權視窗如果在 Google 那端就被擋掉（例如 Client ID 不對、或這個網址沒有登記在
+// OAuth 用戶端的「已授權的 JavaScript 來源」裡），使用者會看到 Google 自己的
+// 400 錯誤頁，而 callback 永遠不會被呼叫——這個 Promise 就會無聲地吊死，畫面
+// 停在「同步中…」，什麼線索都沒有。所以設一個上限，逾時就講清楚可能是什麼問題。
+const AUTH_TIMEOUT_MS = 90 * 1000
+// 靜默換新不該讓使用者等：它失敗是常態（第一次使用、或授權被撤銷），
+// 失敗了要趕快退回完整同意畫面，不能卡在這裡九十秒。
+const SILENT_TIMEOUT_MS = 15 * 1000
+
+function requestToken(client, prompt, timeoutMs = AUTH_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
-    client.callback = (resp) => {
-      if (resp.error) return reject(new Error(resp.error))
-      resolve(resp)
+    let settled = false
+    const finish = (fn) => (value) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      fn(value)
     }
-    client.requestAccessToken({ prompt })
+    const ok = finish(resolve)
+    const fail = finish(reject)
+
+    const timer = setTimeout(() => {
+      fail(new Error('授權沒有完成。如果剛才看到 Google 的錯誤頁面，通常是 Client ID 填錯，或這個網址沒有登記在該 OAuth 用戶端的「已授權的 JavaScript 來源」裡'))
+    }, timeoutMs)
+
+    client.callback = (resp) => {
+      if (resp?.error) return fail(new Error(describeAuthError(resp)))
+      if (!resp?.access_token) return fail(new Error('Google 沒有回傳授權碼，請再試一次'))
+      ok(resp)
+    }
+    // GIS 自己偵測到的錯誤（例如彈出視窗被瀏覽器擋住）走這裡，不會進 callback
+    client.error_callback = (err) => fail(new Error(describeAuthError(err)))
+
+    try {
+      client.requestAccessToken({ prompt })
+    } catch (err) {
+      fail(new Error(describeAuthError(err)))
+    }
   })
+}
+
+// 把 Google 回的代碼翻成看得懂、而且說得出下一步的話
+function describeAuthError(resp) {
+  const code = String(resp?.error ?? resp?.type ?? '').trim()
+  const detail = String(resp?.error_description ?? resp?.message ?? '').trim()
+  const known = {
+    popup_closed: '授權視窗被關掉了，請再按一次',
+    popup_closed_by_user: '授權視窗被關掉了，請再按一次',
+    popup_failed_to_open: '瀏覽器擋住了授權視窗，請允許彈出視窗後再試',
+    access_denied: '你在同意畫面選擇了拒絕，沒有取得授權',
+    invalid_client: 'Google 不認得這個 Client ID，請到 Google Cloud Console 確認後重填',
+    invalid_request: '授權請求被 Google 判定格式錯誤，最常見的原因是 Client ID 填錯，或這個網址沒有登記在該 OAuth 用戶端的「已授權的 JavaScript 來源」裡',
+    idpiframe_initialization_failed: '無法初始化 Google 登入，請確認這個網址已登記在 OAuth 用戶端的已授權來源',
+  }
+  if (known[code]) return known[code]
+  if (code && detail) return `Google 授權失敗：${code}（${detail}）`
+  if (code) return `Google 授權失敗：${code}`
+  return 'Google 授權失敗，原因不明'
 }
 
 // 之前登入過、token 還沒過期就直接沿用；過期了先嘗試背景默默換新（大部分時候
@@ -76,15 +150,21 @@ export async function getAccessToken(clientId) {
   const cached = loadStoredToken()
   if (cached) return cached
 
+  // 格式明顯不對就不要送出去——Google 會回一個跳轉出去的 400 頁面，
+  // App 這邊收不到任何訊息，使用者只會看到沒有解釋的失敗。
+  const problem = describeClientIdProblem(clientId)
+  if (problem) throw new Error(problem)
+
   await loadGis()
-  const client = getTokenClient(clientId)
+  const client = getTokenClient(sanitizeClientId(clientId))
 
   try {
-    const resp = await requestToken(client, '')
+    const resp = await requestToken(client, '', SILENT_TIMEOUT_MS)
     storeToken(resp.access_token, resp.expires_in)
     return resp.access_token
   } catch {
-    // 背景換新失敗（例如從未同意過、或已撤銷授權），退回完整同意畫面
+    // 背景換新失敗（例如從未同意過、或已撤銷授權），退回完整同意畫面。
+    // 這一次的錯誤要往外拋，不能再吞掉——它才是使用者需要看到的那個原因。
     const resp = await requestToken(client, 'consent')
     storeToken(resp.access_token, resp.expires_in)
     return resp.access_token

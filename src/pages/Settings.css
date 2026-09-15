@@ -514,3 +514,11 @@
 .settings-backup-actions .button-secondary {
   flex: 1;
 }
+
+.settings-field-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-danger, #C86E62);
+}
