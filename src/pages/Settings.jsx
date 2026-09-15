@@ -4,7 +4,7 @@ import SectionHeader from '../components/SectionHeader'
 import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
-import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet, syncMonthlyPlanToSheet } from '../utils/googleSheetSync'
+import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet, syncMonthlyPlanToSheet, describeClientIdProblem } from '../utils/googleSheetSync'
 import { CARD_MATCH_REASON, SKIP_REASON_INVALID_ROW } from '../utils/importSheetSync'
 
 // card-import（projects/card-import/Code.gs）目前支援的銀行。之後那支腳本加新銀行，
@@ -36,6 +36,7 @@ export default function Settings({
   const [clientId, setClientId] = useState(googleSync?.clientId ?? '')
   const [sheetId, setSheetId] = useState(googleSync?.sheetId ?? '')
   const [syncing, setSyncing] = useState(false)
+  const clientIdProblem = describeClientIdProblem(clientId)
   const [importSheetId, setImportSheetId] = useState(cardImport?.sheetId ?? '')
   const [bankCardMap, setBankCardMap] = useState(cardImport?.bankCardMap ?? {})
 
@@ -63,6 +64,10 @@ export default function Settings({
   async function handleConnectAndSync() {
     if (!clientId.trim() || !sheetId.trim()) {
       showToast('請先填入 Client ID 跟 Sheet ID')
+      return
+    }
+    if (clientIdProblem) {
+      showToast(clientIdProblem)
       return
     }
     setSyncing(true)
@@ -319,6 +324,9 @@ export default function Settings({
           <div className="fx-field">
             <label>Google OAuth Client ID</label>
             <input className="fx-input" value={clientId} onChange={e => setClientId(e.target.value)} onBlur={saveSyncSettings} placeholder="xxxxxxxx.apps.googleusercontent.com" />
+            {clientId.trim() && clientIdProblem && (
+              <span className="settings-field-error">{clientIdProblem}</span>
+            )}
           </div>
           <div className="fx-field">
             <label>Google Sheet ID</label>
