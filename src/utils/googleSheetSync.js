@@ -46,10 +46,12 @@ function loadGis() {
   return gisLoadPromise
 }
 
+// 授權存在 localStorage，不是 sessionStorage——sessionStorage 一關掉 App 就清空，
+// 而這是一個裝在主畫面、每天開關好幾次的 PWA，等於每次開都要重新授權一遍。
+// token 本身在 Google 那邊一小時就過期，下面也會檢查效期，過期就重新取得。
 function loadStoredToken() {
   try {
-    localStorage.removeItem(TOKEN_STORAGE_KEY)
-    const raw = sessionStorage.getItem(TOKEN_STORAGE_KEY)
+    const raw = localStorage.getItem(TOKEN_STORAGE_KEY) ?? sessionStorage.getItem(TOKEN_STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
     if (!parsed?.token || !parsed?.expiresAt) return null
@@ -61,8 +63,8 @@ function loadStoredToken() {
 }
 
 function storeToken(token, expiresInSeconds) {
-  localStorage.removeItem(TOKEN_STORAGE_KEY)
-  sessionStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
+  sessionStorage.removeItem(TOKEN_STORAGE_KEY)
+  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
     token,
     expiresAt: Date.now() + Number(expiresInSeconds || 3600) * 1000,
   }))
@@ -96,18 +98,36 @@ const SILENT_TIMEOUT_MS = 15 * 1000
 function requestToken(client, prompt, timeoutMs = AUTH_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     let settled = false
+    let cleanup = () => {}
     const finish = (fn) => (value) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
+      cleanup()
       fn(value)
     }
     const ok = finish(resolve)
     const fail = finish(reject)
 
-    const timer = setTimeout(() => {
-      fail(new Error('授權沒有完成。如果剛才看到 Google 的錯誤頁面，通常是 Client ID 填錯，或這個網址沒有登記在該 OAuth 用戶端的「已授權的 JavaScript 來源」裡'))
-    }, timeoutMs)
+    const failed = () => fail(new Error(
+      '授權沒有完成。如果剛才看到 Google 的錯誤頁面，通常是 Client ID 填錯，'
+      + '或這個網址沒有登記在該 OAuth 用戶端的「已授權的 JavaScript 來源」裡'
+      + '（設定頁有顯示這個 App 目前的網址）'
+    ))
+    const timer = setTimeout(failed, timeoutMs)
+
+    // 使用者切回 App 就代表授權那一頁已經結束了。如果是成功的，callback 會在這前後
+    // 觸發；再等幾秒還是沒有動靜，就是失敗了——不該讓畫面繼續空轉到逾時為止。
+    let graceTimer = null
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible' || settled || graceTimer) return
+      graceTimer = setTimeout(failed, 3000)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    cleanup = () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      clearTimeout(graceTimer)
+    }
 
     client.callback = (resp) => {
       if (resp?.error) return fail(new Error(describeAuthError(resp)))
@@ -146,6 +166,13 @@ function describeAuthError(resp) {
 
 // 之前登入過、token 還沒過期就直接沿用；過期了先嘗試背景默默換新（大部分時候
 // 不會再跳出選帳號畫面），只有真的需要重新同意時才彈出完整畫面。
+export function clearStoredToken() {
+  try {
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY)
+  } catch { /* 無痕模式之類的存取失敗，忽略 */ }
+}
+
 export async function getAccessToken(clientId) {
   const cached = loadStoredToken()
   if (cached) return cached
@@ -175,6 +202,12 @@ async function ensureSheetExists(sheetId, accessToken, title = SHEET_TITLE) {
   const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties.title`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
+  if (res.status === 401 || res.status === 403) {
+    // 存下來的授權可能已經在 Google 帳號那邊被移除了。清掉，下次就會重新授權，
+    // 而不是一直拿著一個壞掉的 token 重試、然後回報一個看不懂的錯。
+    clearStoredToken()
+    throw new Error('Google 授權已失效，請再按一次「連結並立即同步」重新授權')
+  }
   if (!res.ok) throw new Error('找不到這個 Google Sheet，請確認 Sheet ID 跟授權帳號是否正確')
   const data = await res.json()
   const exists = data.sheets?.some(s => s.properties.title === title)
