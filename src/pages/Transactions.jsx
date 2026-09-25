@@ -180,10 +180,10 @@ export default function Transactions({
     setEditingTx(null)
   }
 
-  function handleSubmit({ amount, category, cardId, card, date, postedDate, note }) {
+  function handleSubmit({ amount, category, cardId, card, date, postedDate, name, note }) {
     const selectedCard = cards.find((c) => c.id === (cardId || resolveCardId({ card }, cards)))
     const fields = {
-      name: note.trim() || category,
+      name: name.trim() || category,
       category,
       cardId: selectedCard?.id,
       card: selectedCard?.name ?? card,

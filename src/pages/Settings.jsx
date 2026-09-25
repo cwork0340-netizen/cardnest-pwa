@@ -6,6 +6,7 @@ import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
 import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet, syncMonthlyPlanToSheet, describeClientIdProblem, sanitizeClientId } from '../utils/googleSheetSync'
 import { CARD_MATCH_REASON, SKIP_REASON_INVALID_ROW } from '../utils/importSheetSync'
+import { backupToSheet, restoreFromSheet } from '../services/sheetsSync'
 
 // card-import（projects/card-import/Code.gs）目前支援的銀行。之後那支腳本加新銀行，
 // 這裡也要跟著加一行，才有對應的卡片可以選。
@@ -36,6 +37,8 @@ export default function Settings({
   const [clientId, setClientId] = useState(googleSync?.clientId ?? '')
   const [sheetId, setSheetId] = useState(googleSync?.sheetId ?? '')
   const [syncing, setSyncing] = useState(false)
+  const [backingUp, setBackingUp] = useState(false)
+  const [restoring, setRestoring] = useState(false)
   const clientIdProblem = describeClientIdProblem(clientId)
   const pageOrigin = typeof window !== 'undefined' ? window.location.origin : ''
 
@@ -97,6 +100,54 @@ export default function Settings({
       showToast(e.message || '同步失敗，請稍後再試')
     } finally {
       setSyncing(false)
+    }
+  }
+
+  async function handleBackupToSheet() {
+    if (!clientId.trim() || !sheetId.trim()) {
+      showToast('請先填入上面的 Client ID 跟 Sheet ID')
+      return
+    }
+    if (clientIdProblem) {
+      showToast(clientIdProblem)
+      return
+    }
+    setBackingUp(true)
+    try {
+      const token = await getAccessToken(sanitizeClientId(clientId))
+      const savedAt = await backupToSheet(token, sheetId.trim(), backupData)
+      onGoogleSyncChange({ ...googleSync, clientId: sanitizeClientId(clientId), sheetId: sheetId.trim(), lastBackupAt: savedAt })
+      showToast('已把整份資料備份到 Google Sheet')
+    } catch (e) {
+      showToast(e.message || '備份失敗，請稍後再試')
+    } finally {
+      setBackingUp(false)
+    }
+  }
+
+  async function handleRestoreFromSheet() {
+    if (!clientId.trim() || !sheetId.trim()) {
+      showToast('請先填入上面的 Client ID 跟 Sheet ID')
+      return
+    }
+    if (clientIdProblem) {
+      showToast(clientIdProblem)
+      return
+    }
+    setRestoring(true)
+    try {
+      const token = await getAccessToken(sanitizeClientId(clientId))
+      const result = await restoreFromSheet(token, sheetId.trim())
+      if (!result) {
+        showToast('這個 Sheet 裡還沒有備份過，請先在舊裝置按「備份整份資料」')
+        return
+      }
+      const ok = onImportData(result.backupData)
+      showToast(ok ? '已從 Google Sheet 還原整份資料' : '雲端備份格式不正確')
+    } catch (e) {
+      showToast(e.message || '還原失敗，請稍後再試')
+    } finally {
+      setRestoring(false)
     }
   }
 
@@ -367,6 +418,23 @@ export default function Settings({
           <div className="settings-backup-actions">
             <button className="button-secondary" onClick={handleConnectAndSync} disabled={syncing}>
               {syncing ? '同步中…' : '連結並立即同步'}
+            </button>
+          </div>
+
+          <p className="settings-backup-hint">
+            換手機的話用下面這兩顆：「備份整份資料」存的是完整帳務（含必繳清單、儲蓄目標），跟「資料備份」區的匯出備份是同一份內容，只是存進這個 Sheet 而不是下載檔案；換新手機後填同一組 Client ID／Sheet ID，按「還原整份資料」就拿得回來。
+          </p>
+          <span className="settings-cloud-sync-status">
+            {googleSync?.lastBackupAt
+              ? `上次備份：${new Date(googleSync.lastBackupAt).toLocaleString('zh-TW')}`
+              : '尚未備份過整份資料'}
+          </span>
+          <div className="settings-backup-actions">
+            <button className="button-secondary" onClick={handleBackupToSheet} disabled={backingUp}>
+              {backingUp ? '備份中…' : '備份整份資料'}
+            </button>
+            <button className="button-secondary" onClick={handleRestoreFromSheet} disabled={restoring}>
+              {restoring ? '還原中…' : '還原整份資料'}
             </button>
           </div>
         </div>

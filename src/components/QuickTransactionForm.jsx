@@ -24,6 +24,7 @@ export default function QuickTransactionForm({ onSubmit, onClose, cards, initial
   const [cardId, setCardId] = useState(resolveCardId(initialValues, cards) ?? cards[0]?.id ?? '')
   const [date, setDate] = useState(initialValues ? mdToIso(initialValues.date) : todayString())
   const [postedDate, setPostedDate] = useState(initialValues?.postedDate ? mdToIso(initialValues.postedDate) : '')
+  const [name, setName] = useState(initialValues?.name ?? '')
   const [note, setNote] = useState(initialValues?.note ?? '')
   const [error, setError] = useState('')
 
@@ -36,7 +37,7 @@ export default function QuickTransactionForm({ onSubmit, onClose, cards, initial
     }
     setError('')
     const selectedCard = cards.find((c) => c.id === cardId)
-    onSubmit({ amount: num, category, cardId, card: selectedCard?.name ?? '', date, postedDate, note })
+    onSubmit({ amount: num, category, cardId, card: selectedCard?.name ?? '', date, postedDate, name, note })
   }
 
   return (
@@ -107,6 +108,17 @@ export default function QuickTransactionForm({ onSubmit, onClose, cards, initial
             className="qtf-select"
             type="text"
             placeholder="例如：全聯、星巴克、IKEA"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+
+        <div className="qtf-field">
+          <label className="qtf-label">備註</label>
+          <input
+            className="qtf-select"
+            type="text"
+            placeholder="選填"
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
