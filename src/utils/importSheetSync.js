@@ -6,10 +6,10 @@ import { toISODate } from './financeData'
 const SHEET_TAB = '消費紀錄'
 // Sheet 欄位順序：
 // 匯入時間、銀行、卡末四碼、消費日期、金額、商店/交易內容、原始信件連結、
-// 入帳日（選填）、交易類型（選填）
+// 入帳日、交易類型、交易識別碼、修正前消費日期、修正前交易類型（皆選填）
 
 export async function fetchImportRows({ accessToken, sheetId }) {
-  const range = `${encodeURIComponent(SHEET_TAB)}!A2:I2000`
+  const range = `${encodeURIComponent(SHEET_TAB)}!A2:L2000`
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -31,6 +31,9 @@ export async function fetchImportRows({ accessToken, sheetId }) {
       permalink: r[6],
       rawPostedDate: r[7] ?? '',
       transactionType: r[8] ?? '',
+      transactionId: r[9] ?? '',
+      rawPreviousDate: r[10] ?? '',
+      previousTransactionType: r[11] ?? '',
     }))
 }
 
@@ -77,20 +80,100 @@ export function isPendingReconciliation(tx) {
   return isImportedTransaction(tx) && !tx?.postedDate
 }
 
-export function findImportedTransaction({ row, card, transactions = [] }) {
-  const byPermalink = transactions.filter((tx) => tx?.source?.permalink === row?.permalink)
-  if (byPermalink.length === 1) return byPermalink[0]
+export function importedRowKey(row) {
+  return 'row:v2:' + JSON.stringify(row.transactionId
+    ? [row.permalink, String(row.transactionId)]
+    : [row.permalink, row.bank ?? '', normalizeLast4(row.cardLast4),
+      sheetDate(row.rawDate), Number(row.amount), String(row.merchant ?? '').trim()])
+}
 
+export function findImportedTransaction({ row, card, transactions = [], siblingRows = [row] }) {
+  const key = importedRowKey(row)
+  const exact = transactions.find((tx) => tx?.source?.rowKey === key)
+  if (exact) return exact
+  if (row.transactionId) {
+    const oldKeys = [importedRowKey({ ...row, transactionId: '' }),
+      ...(row.rawPreviousDate ? [importedRowKey({ ...row, transactionId: '', rawDate: row.rawPreviousDate })] : [])]
+    const upgraded = transactions.filter((tx) => oldKeys.includes(tx.source?.rowKey))
+    if (upgraded.length === 1) return upgraded[0]
+  }
+  const legacySource = transactions.filter((tx) => !tx.source?.rowKey
+    && tx.source?.permalink === row.permalink
+    && (tx.cardId ? tx.cardId === card?.id : tx.card === card?.name))
+  // Preserve user edits on an old single-transaction email. This fallback is
+  // deliberately unavailable for emails with several rows.
+  if (siblingRows.length === 1 && legacySource.length === 1) return legacySource[0]
   const consumedOn = sheetDate(row?.rawDate)
   const candidates = transactions.filter((tx) => {
     const cameFromImport = isImportedTransaction(tx)
-    const onSameCard = tx?.cardId === card?.id || tx?.card === card?.name
+    const onSameCard = tx?.cardId ? tx.cardId === card?.id : tx?.card === card?.name
+    // A link identifies an email, not a purchase. Never match a different mail or
+    // an already identified row merely because its amount and date are equal.
+    const sameSource = !tx?.source?.rowKey
+      && (!tx?.source?.permalink || tx.source.permalink === row.permalink)
     return cameFromImport
+      && sameSource
       && onSameCard
       && Number(tx?.amount) === Number(row?.amount)
-      && tx?.date === consumedOn
+      && (tx?.date === consumedOn || (row.rawPreviousDate && tx?.date === sheetDate(row.rawPreviousDate)))
   })
+  const named = candidates.filter((tx) => tx.name && tx.name === row.merchant)
+  if (named.length === 1) return named[0]
   return candidates.length === 1 ? candidates[0] : null
+}
+
+// Shared by the app and regression tests: one transaction identity per row,
+// including rows first recovered from an email that was already imported.
+export function buildNotificationImport({ rows, cards, transactions = [], bankCardMap = {}, importedKeys = [], createId = () => crypto.randomUUID() }) {
+  const keys = new Set(importedKeys.filter((key) => String(key).startsWith('row:v2:')))
+  const newTxs = [], updatedTxs = [], newKeys = [], skippedRows = []
+  const claimed = new Set()
+  let skippedUnmapped = 0, duplicateCount = 0, invalidCount = 0, postedUpdatedCount = 0
+  for (const row of rows) {
+    if (!isUsableImportRow(row)) {
+      invalidCount++
+      skippedRows.push(describeSkippedRow({ row, reason: SKIP_REASON_INVALID_ROW }))
+      continue
+    }
+    const { card, reason } = resolveImportedCardResult({ row, cards, bankCardMap })
+    if (!card) {
+      skippedUnmapped++
+      skippedRows.push(describeSkippedRow({ row, reason }))
+      continue
+    }
+    const key = importedRowKey(row)
+    const existing = findImportedTransaction({ row, card, siblingRows: rows.filter((other) => other.permalink === row.permalink),
+      transactions: transactions.filter((tx) => !claimed.has(tx.id)) })
+    const postedDate = importedPostedDate(row)
+    const source = { provider: 'card-import', permalink: row.permalink, bank: row.bank, cardLast4: row.cardLast4, rowKey: key }
+    if (existing) {
+      claimed.add(existing.id)
+      if (postedDate && postedDate !== existing.postedDate) postedUpdatedCount++
+      // Repair only values still equal to the explicit before-image supplied by
+      // the recovery script. User-edited dates/categories must remain untouched.
+      const correction = existing.source?.rowKey !== key && row.transactionId ? {
+        ...(row.rawPreviousDate && existing.date === sheetDate(row.rawPreviousDate) && { date: importedConsumedDate(row) }),
+        ...(row.previousTransactionType && existing.category === row.previousTransactionType
+          && { category: row.transactionType || '其他' }),
+      } : {}
+      updatedTxs.push({ ...existing, ...correction, ...(postedDate && { postedDate }), source: { ...existing.source, ...source } })
+      duplicateCount++
+    } else if (keys.has(key) || (importedKeys.includes(row.permalink)
+      && rows.filter((other) => other.permalink === row.permalink).length === 1)) {
+      // Preserve old deletion markers for known single-row emails. A marker for
+      // a multi-row email cannot stand in for its not-yet-imported purchases.
+      duplicateCount++
+      continue
+    } else {
+      newTxs.push({ id: createId(), name: row.merchant || row.bank, category: row.transactionType || '其他',
+        cardId: card.id, card: card.name, amount: row.amount, date: importedConsumedDate(row),
+        ...(postedDate && { postedDate }), note: `自動匯入・${row.bank}`, source })
+    }
+    keys.add(key)
+    newKeys.push(key)
+  }
+  return { newTxs, updatedTxs, newKeys, skippedRows, skippedUnmapped, duplicateCount, invalidCount, postedUpdatedCount,
+    rowCount: rows.length, bankCounts: summarizeImportRowsByBank(rows) }
 }
 
 function mappedCardFor({ row, cards, bankCardMap }) {
