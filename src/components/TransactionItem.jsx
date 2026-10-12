@@ -16,7 +16,7 @@ function installmentLabel(tx) {
   return tx.installmentPlanId ? '已轉分期・原始憑據' : null
 }
 
-export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onReconcile }) {
+export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onReconcile, linkedPlanName }) {
   const dotColor = categoryColor(tx.category)
   const needsReconcile = onReconcile && auditLabel(tx) === '待填入帳日'
 
@@ -37,12 +37,13 @@ export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onRec
             <span className={`tx-badge${isImported(tx) ? ' tx-badge-imported' : ''}`}>{sourceLabel(tx)}</span>
             <span className={`tx-badge${tx.postedDate ? ' tx-badge-posted' : ''}`}>{auditLabel(tx)}</span>
             {installmentLabel(tx) && <span className="tx-badge tx-badge-converted">{installmentLabel(tx)}</span>}
+            {linkedPlanName && <span className="tx-badge tx-badge-subscription">訂閱：{linkedPlanName}</span>}
           </span>
         </div>
       </div>
       <div className="tx-right">
-        <span className="tx-amount">
-          -{'NT$' + Number(tx.amount).toLocaleString()}
+        <span className={`tx-amount${Number(tx.amount) < 0 ? ' tx-amount-refund' : ''}`}>
+          {Number(tx.amount) < 0 ? '+' : '-'}{'NT$' + Math.abs(Number(tx.amount)).toLocaleString()}
         </span>
         {tx.note ? <span className="tx-note">{tx.note}</span> : null}
       </div>
@@ -51,7 +52,7 @@ export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onRec
           <button className="tx-reconcile-btn" onClick={(e) => { e.stopPropagation(); onReconcile(tx) }} aria-label="填入帳日">填入帳日</button>
         )}
         {onConvert && !tx.installmentPlanId && (
-          <button className="tx-convert-btn" onClick={(e) => { e.stopPropagation(); onConvert(tx) }} aria-label="轉為分期">轉分期</button>
+          <button className="tx-convert-btn" onClick={(e) => { e.stopPropagation(); onConvert(tx) }} aria-label="設為訂閱或分期">設為定期</button>
         )}
         <button className="tx-edit-btn" onClick={(e) => { e.stopPropagation(); onEdit(tx) }} aria-label="編輯">✎</button>
         <button className="tx-delete-btn" onClick={(e) => { e.stopPropagation(); onDelete(tx.id) }} aria-label="刪除">✕</button>

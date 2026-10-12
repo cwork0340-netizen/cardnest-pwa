@@ -95,3 +95,28 @@
     width: 100%;
   }
 }
+
+.dashboard-sync-reminder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-warning) 12%, var(--color-surface));
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.dashboard-sync-reminder button {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+

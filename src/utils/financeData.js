@@ -103,6 +103,8 @@ export function transactionCycleDate(tx) {
 export function isCreditCardPayment(tx) {
   const amount = Number(tx?.amount) || 0
   if (amount >= 0) return false
+  // 使用者手動記的退款有明確標記，備註寫「取消付款」之類的字也不能被當成繳款排除掉
+  if (tx?.kind === 'refund') return false
   const text = `${tx?.name ?? ''} ${tx?.category ?? ''} ${tx?.note ?? ''}`.toLowerCase()
   return /繳款|付款|條碼繳款|card payment|bill payment|payment/.test(text)
 }
@@ -110,6 +112,7 @@ export function isCreditCardPayment(tx) {
 export function isInstallmentConversionCredit(tx) {
   const amount = Number(tx?.amount) || 0
   if (amount >= 0) return false
+  if (tx?.kind === 'refund') return false
   const text = `${tx?.name ?? ''} ${tx?.category ?? ''} ${tx?.note ?? ''}`.toLowerCase()
   return /轉刷卡樂|分期|installment/.test(text)
 }
@@ -121,6 +124,9 @@ export function isBillableTransaction(tx) {
 }
 
 export function transactionRepresentsPlan(tx, plan, cards) {
+  // 使用者在刷卡記錄上按「設為訂閱」就是明確認領：名稱對不上（匯入常只有「自動匯入・銀行」）
+  // 也算這個訂閱本期的扣款，不再靠猜。
+  if (tx?.planId && tx.planId === plan.id) return true
   if (!matchesCard(tx, { id: resolveCardId(plan, cards), name: plan.card })) return false
   if (Number(tx.amount) !== Number(plan.amount)) return false
 

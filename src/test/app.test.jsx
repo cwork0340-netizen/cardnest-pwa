@@ -733,3 +733,103 @@ describe('各卡狀態：上期與本期累積', () => {
     expect(summary.textContent).toContain('到期 6/18')
   })
 })
+
+describe('從刷卡記錄設為訂閱', () => {
+  const storedState = () => JSON.parse(localStorage.getItem('cardnest_v1'))
+
+  it('名稱只有「自動匯入」的扣款，改個名字設為訂閱後就被認領，不會再被訂閱小計多算一次', () => {
+    seed({
+      transactions: [
+        { id: 'chat', name: '自動匯入・永豐', card: '永豐卡', cardId: 'c1', category: '訂閱', amount: 690, date: '2026-06-10', postedDate: '2026-06-11' },
+      ],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+    fireEvent.click(screen.getAllByRole('button', { name: '設為訂閱或分期' })[0])
+    fireEvent.change(screen.getByLabelText('訂閱名稱'), { target: { value: 'ChatGPT' } })
+    fireEvent.click(screen.getByRole('button', { name: '設為訂閱' }))
+
+    expect(screen.getByText('訂閱：ChatGPT')).toBeInTheDocument()
+    const state = storedState()
+    expect(state.plans).toHaveLength(1)
+    expect(state.plans[0]).toMatchObject({ type: 'subscription', name: 'ChatGPT', amount: 690, card: '永豐卡' })
+    expect(state.transactions[0].planId).toBe(state.plans[0].id)
+  })
+
+  it('同卡同名的訂閱已經存在時不重複建立，只把這筆認領給既有的訂閱', () => {
+    seed({
+      plans: [{ id: 'p1', type: 'subscription', name: 'ChatGPT', card: '永豐卡', cardId: 'c1', amount: 690, billingDay: 10, active: true }],
+      transactions: [
+        { id: 'chat2', name: '自動匯入・永豐', card: '永豐卡', cardId: 'c1', category: '訂閱', amount: 700, date: '2026-06-10', postedDate: '2026-06-11' },
+      ],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+    fireEvent.click(screen.getAllByRole('button', { name: '設為訂閱或分期' })[0])
+    fireEvent.change(screen.getByLabelText('訂閱名稱'), { target: { value: 'chatgpt' } })
+    fireEvent.click(screen.getByRole('button', { name: '設為訂閱' }))
+
+    const state = storedState()
+    expect(state.plans).toHaveLength(1)
+    expect(state.transactions[0].planId).toBe('p1')
+  })
+
+  it('重新開啟 App 後，認領的標記還在', () => {
+    seed({
+      plans: [{ id: 'p1', type: 'subscription', name: 'ChatGPT', card: '永豐卡', cardId: 'c1', amount: 690, billingDay: 10, active: true }],
+      transactions: [
+        { id: 'x', name: '自動匯入・永豐', card: '永豐卡', cardId: 'c1', category: '訂閱', amount: 700, date: '2026-06-10', planId: 'p1' },
+      ],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+    expect(screen.getByText('訂閱：ChatGPT')).toBeInTheDocument()
+  })
+
+  it('分期那一邊還是原本的轉分期流程', () => {
+    seed({
+      transactions: [
+        { id: 'big', name: '電腦', card: '永豐卡', cardId: 'c1', category: '購物', amount: 30000, date: '2026-06-10', postedDate: '2026-06-11' },
+      ],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+    fireEvent.click(screen.getAllByRole('button', { name: '設為訂閱或分期' })[0])
+    fireEvent.click(screen.getByRole('button', { name: '分期' }))
+    expect(screen.getByRole('button', { name: '確認轉分期' })).toBeInTheDocument()
+  })
+})
+
+describe('手動記退款', () => {
+  it('退款存成帶標記的負數，備註寫「取消付款」也不會被當成繳款', () => {
+    seed()
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+    fireEvent.click(document.querySelector('.fab'))
+    fireEvent.click(screen.getByRole('button', { name: '退款' }))
+    fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '1254' } })
+    fireEvent.change(screen.getByPlaceholderText('選填'), { target: { value: 'momo 取消付款' } })
+    fireEvent.submit(document.querySelector('form.qtf'))
+
+    const saved = JSON.parse(localStorage.getItem('cardnest_v1')).transactions[0]
+    expect(saved).toMatchObject({ amount: -1254, kind: 'refund', name: '退款', note: 'momo 取消付款' })
+  })
+})
+
+describe('部分繳款：待繳帳單', () => {
+  it('上一期只繳了一部分，剩下的跟新的一期一起累積在待繳帳單', () => {
+    seed({
+      cards: [{
+        id: 'c1', name: '永豐卡', color: '#5E7CE2', billingDay: 12, dueDay: 2, budget: 20000,
+        billingCycles: [{ id: 'may', cycleKey: '2026-05', closeDate: '2026-05-12', dueDate: '2026-05-14', amount: 10000, amountIsActual: true, manuallyCalibrated: true, paid: false, paidAmount: 4000 }],
+      }],
+      transactions: [
+        { id: 'n', name: '新消費', card: '永豐卡', cardId: 'c1', category: '日常', amount: 2000, date: '2026-06-01', postedDate: '2026-06-02' },
+      ],
+    })
+    render(<App />)
+    const summary = document.querySelector('.credit-card-summary')
+    expect(summary.textContent).toContain('NT$8,000')
+  })
+})
+

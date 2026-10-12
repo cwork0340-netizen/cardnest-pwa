@@ -254,7 +254,7 @@ export async function syncTransactionsToSheet({ accessToken, sheetId, transactio
 }
 
 const CYCLE_SHEET_TITLE = '帳單週期'
-const CYCLE_HEADER = ['卡片', '帳單月份', '結帳日', '到期日', '金額', '是否已繳', '已繳日期']
+const CYCLE_HEADER = ['卡片', '帳單月份', '結帳日', '到期日', '金額', '是否已繳', '已繳日期', '已繳金額']
 
 function cycleToRow(cardName, cycle) {
   return [
@@ -265,6 +265,7 @@ function cycleToRow(cardName, cycle) {
     cycle.amount ?? 0,
     cycle.paid ? '已繳' : '未繳',
     cycle.paidAt ?? '',
+    cycle.paidAmount ?? '',
   ]
 }
 
@@ -338,3 +339,14 @@ export async function syncBillingCyclesToSheet({ accessToken, sheetId, cards }) 
   const rows = [CYCLE_HEADER, ...dataRows]
   return writeRows(sheetId, accessToken, CYCLE_SHEET_TITLE, rows)
 }
+
+// 設定頁的「連結並立即同步」跟總覽的同步提醒共用這一份，免得兩邊各寫一套、
+// 之後只改到其中一邊。
+export async function runSheetSync({ accessToken, sheetId, transactions, cards, planSummary }) {
+  const count = await syncTransactionsToSheet({ accessToken, sheetId, transactions })
+  const cycleCount = await syncBillingCyclesToSheet({ accessToken, sheetId, cards })
+  const planUpdated = Number(planSummary?.income) > 0
+  if (planUpdated) await syncMonthlyPlanToSheet({ accessToken, sheetId, summary: planSummary })
+  return { count, cycleCount, planUpdated }
+}
+

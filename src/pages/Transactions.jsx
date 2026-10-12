@@ -4,9 +4,9 @@ import SectionHeader from '../components/SectionHeader'
 import TransactionItem from '../components/TransactionItem'
 import BottomSheet from '../components/BottomSheet'
 import QuickTransactionForm from '../components/QuickTransactionForm'
-import ConvertToInstallmentForm from '../components/ConvertToInstallmentForm'
+import ConvertToPlanForm from '../components/ConvertToPlanForm'
 import EmptyState from '../components/EmptyState'
-import { isBillableTransaction, matchesCard, parseISODate, resolveCardId, toISODate } from '../utils/financeData'
+import { isBillableTransaction, matchesCard, parseISODate, resolveCardId, toISODate, transactionRepresentsPlan } from '../utils/financeData'
 import { buildStatementCalibration } from '../utils/statementCalibration'
 import { isImportedTransaction, isPendingReconciliation } from '../utils/importSheetSync'
 
@@ -101,7 +101,7 @@ function hasImportedPostedDate(tx) {
 
 export default function Transactions({
   showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction,
-  onConvertToInstallment, cardImport, importingCardNotifications, onImportCardNotifications,
+  onConvertToInstallment, onMarkAsSubscription, cardImport, importingCardNotifications, onImportCardNotifications,
   plans = [], onUpdateCycle,
 }) {
   const [showSheet, setShowSheet] = useState(false)
@@ -124,11 +124,18 @@ export default function Transactions({
   const selectedCalibrationCard = filteredCard
     ?? cards.find((card) => card.id === calibrationCardId)
     ?? cards[0]
-  const calibrationCycles = [...(selectedCalibrationCard?.billingCycles ?? [])]
-    .filter((cycle) => !cycle.paid)
+  // 銀行寄來的最新一期帳單常常已經繳掉了，只列未繳的話就會落回很舊的未繳帳期
+  // （例如停在七月），根本核對不到手上這張帳單。已繳的最近三期也要列出來，
+  // 預設選「結帳日已到的最新一期」。
+  const sortedCycles = [...(selectedCalibrationCard?.billingCycles ?? [])]
     .sort((a, b) => b.closeDate.localeCompare(a.closeDate))
+  const recentPaidCycles = sortedCycles.filter((cycle) => cycle.paid).slice(0, 3)
+  const calibrationCycles = sortedCycles.filter((cycle) => !cycle.paid || recentPaidCycles.includes(cycle))
   const [calibrationCycleId, setCalibrationCycleId] = useState('')
-  const selectedCalibrationCycle = calibrationCycles.find((cycle) => cycle.id === calibrationCycleId) ?? calibrationCycles[0]
+  const todayIso = toISODate()
+  const selectedCalibrationCycle = calibrationCycles.find((cycle) => cycle.id === calibrationCycleId)
+    ?? calibrationCycles.find((cycle) => cycle.closeDate <= todayIso)
+    ?? calibrationCycles[0]
   const [calibrationForm, setCalibrationForm] = useState({ amount: '', closeDate: '', dueDate: '' })
   const [calibrationDetailOpen, setCalibrationDetailOpen] = useState(false)
   const effectiveCloseDate = calibrationForm.closeDate || selectedCalibrationCycle?.closeDate || ''
@@ -180,11 +187,12 @@ export default function Transactions({
     setEditingTx(null)
   }
 
-  function handleSubmit({ amount, category, cardId, card, date, postedDate, name, note }) {
+  function handleSubmit({ amount, isRefund, category, cardId, card, date, postedDate, name, note }) {
     const selectedCard = cards.find((c) => c.id === (cardId || resolveCardId({ card }, cards)))
     const fields = {
-      name: name.trim() || category,
+      name: name.trim() || (isRefund ? '退款' : category),
       category,
+      kind: isRefund ? 'refund' : undefined,
       cardId: selectedCard?.id,
       card: selectedCard?.name ?? card,
       amount,
@@ -213,9 +221,18 @@ export default function Transactions({
   }
 
   function handleConvertSubmit(plan) {
-    onConvertToInstallment(convertingTx.id, plan)
-    showToast(`已轉為分期，「${plan.name}」改由分期計畫追蹤`)
+    if (plan.type === 'subscription') {
+      onMarkAsSubscription(plan, convertingTx.id)
+    } else {
+      onConvertToInstallment(convertingTx.id, plan)
+      showToast(`已轉為分期，「${plan.name}」改由分期計畫追蹤`)
+    }
     setConvertingTx(null)
+  }
+
+  // 這筆刷卡記錄對應到哪個訂閱就標出來，讓人看得到「設為訂閱」之後有沒有生效
+  function linkedSubscriptionName(tx) {
+    return plans.find((p) => p.type === 'subscription' && (p.active ?? true) && transactionRepresentsPlan(tx, p, cards))?.name
   }
 
   function handleSaveCalibration() {
@@ -373,10 +390,10 @@ export default function Transactions({
                     disabled={calibrationCycles.length === 0}
                   >
                     {calibrationCycles.length === 0 ? (
-                      <option value="">沒有待繳帳期</option>
+                      <option value="">沒有帳期</option>
                     ) : calibrationCycles.map((cycle) => (
                       <option key={cycle.id} value={cycle.id}>
-                        {cycle.closeDate}・NT${Number(cycle.amount || 0).toLocaleString()}
+                        {cycle.closeDate}・NT${Number(cycle.amount || 0).toLocaleString()}{cycle.paid ? '（已繳）' : ''}
                       </option>
                     ))}
                   </select>
@@ -506,7 +523,7 @@ export default function Transactions({
         {filteredTransactions.length > 0 && (
           <div className="tx-total-bar">
             <span className="tx-total-label">{cardFilter === 'all' ? '全部' : cards.find((c) => c.id === cardFilter || c.name === cardFilter)?.name} 合計（{filteredTransactions.length} 筆）</span>
-            <span className="tx-total-amount">-NT${filteredTotal.toLocaleString()}</span>
+            <span className="tx-total-amount">{filteredTotal < 0 ? '+' : '-'}NT${Math.abs(filteredTotal).toLocaleString()}</span>
           </div>
         )}
         {transactions.length === 0 ? (
@@ -526,7 +543,7 @@ export default function Transactions({
         ) : (
           filteredTransactions.map((tx) => (
             <div className="card" key={tx.id}>
-              <TransactionItem tx={tx} onDelete={handleDelete} onEdit={setEditingTx} onConvert={setConvertingTx} onReconcile={handleReconcile} />
+              <TransactionItem tx={tx} onDelete={handleDelete} onEdit={setEditingTx} onConvert={setConvertingTx} onReconcile={handleReconcile} linkedPlanName={linkedSubscriptionName(tx)} />
             </div>
           ))
         )}
@@ -557,10 +574,10 @@ export default function Transactions({
       <BottomSheet
         open={!!convertingTx}
         onClose={() => setConvertingTx(null)}
-        title="轉為分期"
+        title="設為訂閱或分期"
       >
         {convertingTx && (
-          <ConvertToInstallmentForm
+          <ConvertToPlanForm
             tx={convertingTx}
             onSubmit={handleConvertSubmit}
             onClose={() => setConvertingTx(null)}
