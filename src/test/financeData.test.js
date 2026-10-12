@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isBillableTransaction, isCreditCardPayment, isInstallmentConversionCredit, normalizeFinanceData, toISODate, transactionCycleDate } from '../utils/financeData'
+import { planAmountNotRecorded, transactionRepresentsPlan, isBillableTransaction, isCreditCardPayment, isInstallmentConversionCredit, normalizeFinanceData, toISODate, transactionCycleDate } from '../utils/financeData'
 
 describe('finance transaction classification', () => {
   it('uses posted date as the card billing cycle date when available', () => {
@@ -61,3 +61,26 @@ describe('toISODate 收斂三種來源格式', () => {
     expect(toISODate('', near)).toBe('2026-08-15')
   })
 })
+
+describe('設為訂閱的明確認領', () => {
+  const cards = [{ id: 'c1', name: '國泰' }]
+  const plan = { id: 'p1', type: 'subscription', name: 'ChatGPT', card: '國泰', cardId: 'c1', amount: 690 }
+  const placeholder = { id: 't1', name: '自動匯入・國泰世華', cardId: 'c1', card: '國泰', category: '訂閱', amount: 700, date: '2026-09-10' }
+
+  it('名稱與金額都對不上，沒有認領就不算', () => {
+    expect(transactionRepresentsPlan(placeholder, plan, cards)).toBe(false)
+  })
+
+  it('tx.planId 指向這個訂閱就算，不看名稱與金額', () => {
+    expect(transactionRepresentsPlan({ ...placeholder, planId: 'p1' }, plan, cards)).toBe(true)
+    expect(transactionRepresentsPlan({ ...placeholder, planId: 'other' }, plan, cards)).toBe(false)
+  })
+
+  it('認領後這期不再重複估算，而且依入帳日歸期', () => {
+    const claimed = { ...placeholder, planId: 'p1', date: '2026-09-11', postedDate: '2026-09-14' }
+    const win = (start, end) => ({ windowStart: new Date(...start), windowEnd: new Date(...end) })
+    expect(planAmountNotRecorded({ plan, transactions: [claimed], cards, ...win([2026, 8, 12], [2026, 9, 12]) })).toBe(0)
+    expect(planAmountNotRecorded({ plan, transactions: [claimed], cards, ...win([2026, 7, 12], [2026, 8, 12]) })).toBe(690)
+  })
+})
+

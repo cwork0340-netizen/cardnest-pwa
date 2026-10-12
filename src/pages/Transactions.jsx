@@ -4,9 +4,9 @@ import SectionHeader from '../components/SectionHeader'
 import TransactionItem from '../components/TransactionItem'
 import BottomSheet from '../components/BottomSheet'
 import QuickTransactionForm from '../components/QuickTransactionForm'
-import ConvertToInstallmentForm from '../components/ConvertToInstallmentForm'
+import ConvertToPlanForm from '../components/ConvertToPlanForm'
 import EmptyState from '../components/EmptyState'
-import { isBillableTransaction, matchesCard, parseISODate, resolveCardId, toISODate } from '../utils/financeData'
+import { isBillableTransaction, matchesCard, parseISODate, resolveCardId, toISODate, transactionRepresentsPlan } from '../utils/financeData'
 import { buildStatementCalibration } from '../utils/statementCalibration'
 import { isImportedTransaction, isPendingReconciliation } from '../utils/importSheetSync'
 
@@ -101,7 +101,7 @@ function hasImportedPostedDate(tx) {
 
 export default function Transactions({
   showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction,
-  onConvertToInstallment, cardImport, importingCardNotifications, onImportCardNotifications,
+  onConvertToInstallment, onMarkAsSubscription, cardImport, importingCardNotifications, onImportCardNotifications,
   plans = [], onUpdateCycle,
 }) {
   const [showSheet, setShowSheet] = useState(false)
@@ -220,9 +220,18 @@ export default function Transactions({
   }
 
   function handleConvertSubmit(plan) {
-    onConvertToInstallment(convertingTx.id, plan)
-    showToast(`已轉為分期，「${plan.name}」改由分期計畫追蹤`)
+    if (plan.type === 'subscription') {
+      onMarkAsSubscription(plan, convertingTx.id)
+    } else {
+      onConvertToInstallment(convertingTx.id, plan)
+      showToast(`已轉為分期，「${plan.name}」改由分期計畫追蹤`)
+    }
     setConvertingTx(null)
+  }
+
+  // 這筆刷卡記錄對應到哪個訂閱就標出來，讓人看得到「設為訂閱」之後有沒有生效
+  function linkedSubscriptionName(tx) {
+    return plans.find((p) => p.type === 'subscription' && (p.active ?? true) && transactionRepresentsPlan(tx, p, cards))?.name
   }
 
   function handleSaveCalibration() {
@@ -533,7 +542,7 @@ export default function Transactions({
         ) : (
           filteredTransactions.map((tx) => (
             <div className="card" key={tx.id}>
-              <TransactionItem tx={tx} onDelete={handleDelete} onEdit={setEditingTx} onConvert={setConvertingTx} onReconcile={handleReconcile} />
+              <TransactionItem tx={tx} onDelete={handleDelete} onEdit={setEditingTx} onConvert={setConvertingTx} onReconcile={handleReconcile} linkedPlanName={linkedSubscriptionName(tx)} />
             </div>
           ))
         )}
@@ -564,10 +573,10 @@ export default function Transactions({
       <BottomSheet
         open={!!convertingTx}
         onClose={() => setConvertingTx(null)}
-        title="轉為分期"
+        title="設為訂閱或分期"
       >
         {convertingTx && (
-          <ConvertToInstallmentForm
+          <ConvertToPlanForm
             tx={convertingTx}
             onSubmit={handleConvertSubmit}
             onClose={() => setConvertingTx(null)}

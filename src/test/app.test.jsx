@@ -733,3 +733,58 @@ describe('各卡狀態：上期與本期累積', () => {
     expect(summary.textContent).toContain('到期 6/18')
   })
 })
+
+describe('從刷卡記錄設為訂閱', () => {
+  const storedState = () => JSON.parse(localStorage.getItem('cardnest_v1'))
+
+  it('名稱只有「自動匯入」的扣款，改個名字設為訂閱後就被認領，不會再被訂閱小計多算一次', () => {
+    seed({
+      transactions: [
+        { id: 'chat', name: '自動匯入・永豐', card: '永豐卡', cardId: 'c1', category: '訂閱', amount: 690, date: '2026-06-10', postedDate: '2026-06-11' },
+      ],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+    fireEvent.click(screen.getAllByRole('button', { name: '設為訂閱或分期' })[0])
+    fireEvent.change(screen.getByLabelText('訂閱名稱'), { target: { value: 'ChatGPT' } })
+    fireEvent.click(screen.getByRole('button', { name: '設為訂閱' }))
+
+    expect(screen.getByText('訂閱：ChatGPT')).toBeInTheDocument()
+    const state = storedState()
+    expect(state.plans).toHaveLength(1)
+    expect(state.plans[0]).toMatchObject({ type: 'subscription', name: 'ChatGPT', amount: 690, card: '永豐卡' })
+    expect(state.transactions[0].planId).toBe(state.plans[0].id)
+  })
+
+  it('同卡同名的訂閱已經存在時不重複建立，只把這筆認領給既有的訂閱', () => {
+    seed({
+      plans: [{ id: 'p1', type: 'subscription', name: 'ChatGPT', card: '永豐卡', cardId: 'c1', amount: 690, billingDay: 10, active: true }],
+      transactions: [
+        { id: 'chat2', name: '自動匯入・永豐', card: '永豐卡', cardId: 'c1', category: '訂閱', amount: 700, date: '2026-06-10', postedDate: '2026-06-11' },
+      ],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+    fireEvent.click(screen.getAllByRole('button', { name: '設為訂閱或分期' })[0])
+    fireEvent.change(screen.getByLabelText('訂閱名稱'), { target: { value: 'chatgpt' } })
+    fireEvent.click(screen.getByRole('button', { name: '設為訂閱' }))
+
+    const state = storedState()
+    expect(state.plans).toHaveLength(1)
+    expect(state.transactions[0].planId).toBe('p1')
+  })
+
+  it('分期那一邊還是原本的轉分期流程', () => {
+    seed({
+      transactions: [
+        { id: 'big', name: '電腦', card: '永豐卡', cardId: 'c1', category: '購物', amount: 30000, date: '2026-06-10', postedDate: '2026-06-11' },
+      ],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+    fireEvent.click(screen.getAllByRole('button', { name: '設為訂閱或分期' })[0])
+    fireEvent.click(screen.getByRole('button', { name: '分期' }))
+    expect(screen.getByRole('button', { name: '確認轉分期' })).toBeInTheDocument()
+  })
+})
+

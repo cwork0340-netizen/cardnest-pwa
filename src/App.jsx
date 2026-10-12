@@ -533,6 +533,23 @@ export default function App() {
     } : t))
   }, [normalizePlan])
 
+  // 從刷卡記錄「設為訂閱」：這筆刷卡記錄要保留（它就是本期的真實扣款），只新增訂閱計畫
+  // 追蹤之後的扣款，並在這筆記錄上記下 planId，明確認領——不靠名稱猜。
+  // 同卡同名的訂閱已經存在就不重複建立，直接把這筆記錄認領給既有的那個。
+  const handleMarkAsSubscription = useCallback((plan, txId) => {
+    const existing = plans.find((p) => (
+      p.type === 'subscription'
+      && (p.active ?? true)
+      && matchesCard(p, { id: plan.cardId, name: plan.card })
+      && String(p.name).trim().toLowerCase() === String(plan.name).trim().toLowerCase()
+    ))
+    if (!existing) setPlans(p => [normalizePlan(plan), ...p])
+    setTransactions(p => p.map(t => t.id === txId ? { ...t, planId: existing?.id ?? plan.id } : t))
+    showToast(existing
+      ? `已經有「${plan.name}」的訂閱了，這筆記錄視為本期扣款，不重複建立`
+      : `已設為訂閱，「${plan.name}」這筆視為本期扣款，之後的扣款會自動對應`)
+  }, [plans, normalizePlan, showToast])
+
   // 匯入寫回：新增的接在最前面，補正入帳日的就地換掉，並把這次的 permalink
   // 記進 importedKeys 當去重鍵，下次匯入同一封信才不會再記一筆。
   const handleImportTransactions = useCallback((newTxs, updatedTxs, newKeys, summary = {}) => {
@@ -940,6 +957,7 @@ export default function App() {
         onUpdateTransaction={handleUpdateTransaction}
         onDeleteTransaction={handleDeleteTransaction}
         onConvertToInstallment={handleConvertToInstallment}
+        onMarkAsSubscription={handleMarkAsSubscription}
         cardImport={cardImport}
         importingCardNotifications={importingCardNotifications}
         onImportCardNotifications={handleImportCardNotifications}

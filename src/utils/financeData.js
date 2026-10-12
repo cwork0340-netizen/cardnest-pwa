@@ -121,6 +121,9 @@ export function isBillableTransaction(tx) {
 }
 
 export function transactionRepresentsPlan(tx, plan, cards) {
+  // 使用者在刷卡記錄上按「設為訂閱」就是明確認領：名稱對不上（匯入常只有「自動匯入・銀行」）
+  // 也算這個訂閱本期的扣款，不再靠猜。
+  if (tx?.planId && tx.planId === plan.id) return true
   if (!matchesCard(tx, { id: resolveCardId(plan, cards), name: plan.card })) return false
   if (Number(tx.amount) !== Number(plan.amount)) return false
 
@@ -135,7 +138,7 @@ export function transactionRepresentsPlan(tx, plan, cards) {
 
 export function planAmountNotRecorded({ plan, transactions, cards, windowStart, windowEnd }) {
   const represented = transactions.some((tx) => {
-    const date = parseISODate(tx.date, windowEnd)
+    const date = parseISODate(transactionCycleDate(tx), windowEnd)
     return date && date > windowStart && date <= windowEnd && transactionRepresentsPlan(tx, plan, cards)
   })
   return represented ? 0 : Number(plan.amount) || 0
