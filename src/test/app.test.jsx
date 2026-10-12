@@ -865,3 +865,22 @@ describe('按錯已繳：復原', () => {
   })
 })
 
+describe('同一期出現兩筆（自動產生＋校準過）', () => {
+  it('待繳帳單只算校準過的那一筆', () => {
+    seed({
+      cards: [{
+        id: 'c1', name: '永豐卡', color: '#5E7CE2', billingDay: 12, dueDay: 2, budget: 20000,
+        billingCycles: [
+          { id: 'auto', cycleKey: '2026-06', closeDate: '2026-06-12', dueDate: '2026-06-14', amount: 3850, estimatedAmount: 3850, paid: false },
+          { id: 'cal', cycleKey: '2026-06', closeDate: '2026-06-12', dueDate: '2026-06-15', amount: 2596, estimatedAmount: 3850, amountIsActual: true, manuallyCalibrated: true, paid: false },
+        ],
+      }],
+    })
+    render(<App />)
+    const summary = document.querySelector('.credit-card-summary')
+    expect(summary.querySelector('.credit-card-summary-amount-value:not(.credit-card-summary-amount-value-main)').textContent).toBe('NT$2,596')
+    fireEvent.click(summary.querySelector('.credit-card-summary-row'))
+    expect(summary.querySelectorAll('.credit-card-cycle-row')).toHaveLength(1)
+  })
+})
+

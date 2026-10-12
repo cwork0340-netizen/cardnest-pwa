@@ -166,7 +166,7 @@ export function ensureBillingCycles(card, { transactions, plans, today = new Dat
 //
 // 這裡只回傳覆蓋後的副本，不寫回 state：算給畫面看就好，存起來只會再度過期。
 export function withLiveCycleEstimates(card, { transactions = [], plans = [] } = {}) {
-  const cycles = card?.billingCycles ?? []
+  const cycles = dedupeCyclesByCloseDate(card?.billingCycles ?? [])
   if (cycles.length === 0) return card
 
   const billingDay = Number(card.billingDay) || 1
@@ -197,6 +197,20 @@ export function withLiveCycleEstimates(card, { transactions = [], plans = [] } =
   }
 }
 
+// 同一個結帳日只該有一期（一個結帳日只會有一張帳單）。校準時把結帳日改成跟另一期相同、
+// 或舊資料留下的重複，都只留一筆，不然同一張帳單會被算兩次。
+// 留哪一筆：已繳 > 校準過 > 銀行實際金額 > 其他估算；同等級取較後面的。
+export function dedupeCyclesByCloseDate(cycles = []) {
+  const rank = (c) => (c.paid ? 3 : c.manuallyCalibrated ? 2 : c.amountIsActual ? 1 : 0)
+  const best = new Map()
+  for (const c of cycles) {
+    if (!c.closeDate) continue
+    const current = best.get(c.closeDate)
+    if (!current || rank(c) >= rank(current)) best.set(c.closeDate, c)
+  }
+  return cycles.filter((c) => !c.closeDate || best.get(c.closeDate) === c)
+}
+
 // 這一期還欠多少：帳單金額扣掉已經繳過的部分。沒有 paidAmount 的舊資料，
 // 剩下的就是整張帳單，跟以前完全一樣。
 export function cycleRemaining(cycle) {
@@ -206,7 +220,7 @@ export function cycleRemaining(cycle) {
 // 未繳清的週期，依到期日排序（最早到期的在前面）。amount 仍是帳單金額，
 // remaining 才是還要繳的；只繳一部分的那期沒繳的錢會一直留著，累積到後面的帳單。
 export function unpaidCycles(card) {
-  return [...(card.billingCycles ?? [])]
+  return dedupeCyclesByCloseDate(card.billingCycles ?? [])
     .filter((c) => !c.paid && cycleRemaining(c) > 0)
     .map((c) => ({ ...c, remaining: cycleRemaining(c) }))
     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
@@ -233,6 +247,8 @@ export function applyCycleUpdate(cycles = [], cycleId, fields = {}) {
   return updated.filter((cycle) => {
     if (cycle.id === cycleId) return true
     const closeDate = parseYmd(cycle.closeDate)
-    return closeDate <= calibratedClose || cycle.paid || cycle.manuallyCalibrated || cycle.amountIsActual
+    // 校準後的結帳日剛好是另一期的結帳日：那是同一張帳單，沒確認過的估算那一期就不留了
+    if (closeDate.getTime() === calibratedClose.getTime()) return cycle.paid || cycle.manuallyCalibrated || cycle.amountIsActual
+    return closeDate < calibratedClose || cycle.paid || cycle.manuallyCalibrated || cycle.amountIsActual
   })
 }
