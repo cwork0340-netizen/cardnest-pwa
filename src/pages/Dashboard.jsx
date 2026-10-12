@@ -18,7 +18,7 @@ export default function Dashboard({
   income = 0, essentialTotal = 0, cardEstimateTotal = 0, lifeBalance = 0, onGoToChecklist,
   onGoToTransactions, reconciliationSummary = null,
   forecastSummary = null,
-  salarySchedule = null, monthlyIncome = 0,
+  salarySchedule = null, monthlyIncome = 0, syncReminder = null,
 }) {
   const pendingBillTotal = cards.reduce((sum, card) => sum + Number(card.unpaidTotal ?? 0), 0)
   const currentCycleTotal = cards.reduce((sum, card) => sum + Number(card.currentCycleAmount ?? 0), 0)
@@ -44,6 +44,21 @@ export default function Dashboard({
       <div className="section">
         <CardForecastCard forecast={forecastSummary} salarySchedule={salarySchedule} monthlyIncome={monthlyIncome} />
       </div>
+
+      {syncReminder && (
+        <div className="section">
+          <div className="dashboard-sync-reminder">
+            <span>
+              {syncReminder.daysSince == null
+                ? '還沒有同步過到 Google Sheet'
+                : `已經 ${syncReminder.daysSince} 天沒有同步到 Google Sheet`}
+            </span>
+            <button type="button" onClick={syncReminder.onSync} disabled={syncReminder.syncing}>
+              {syncReminder.syncing ? '同步中…' : '立即同步'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <PaymentReminderCard reminders={paymentReminders} onMarkPaid={onMarkCardPaid} />
 

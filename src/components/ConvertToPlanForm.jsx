@@ -60,9 +60,8 @@ export default function ConvertToPlanForm({ tx, onSubmit, onClose }) {
         <ConvertToInstallmentForm tx={tx} onSubmit={onSubmit} onClose={onClose} />
       ) : (
         <form className="apf" onSubmit={handleSubmit}>
-          <p className="apf-convert-hint">
-            這筆刷卡記錄（NT${Number(tx.amount).toLocaleString()}）會保留，並標記為這個訂閱本期的扣款，
-            所以不會再被「訂閱小計」多算一次。之後每月只要有名稱、金額、卡片都相符的刷卡記錄，也會自動對應。
+          <p className="apf-convert-hint" style={{ marginTop: 12 }}>
+            {`這筆刷卡記錄（NT$${Number(tx.amount).toLocaleString()}）會保留，並標記為這個訂閱本期的扣款，所以不會再被「訂閱小計」多算一次。之後每月只要有名稱、金額、卡片都相符的刷卡記錄，也會自動對應。`}
           </p>
           <div className="apf-fields">
             <div className="apf-field">

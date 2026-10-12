@@ -4,7 +4,7 @@ import SectionHeader from '../components/SectionHeader'
 import BottomSheet from '../components/BottomSheet'
 import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
-import { getAccessToken, syncTransactionsToSheet, syncBillingCyclesToSheet, syncMonthlyPlanToSheet, describeClientIdProblem, sanitizeClientId } from '../utils/googleSheetSync'
+import { getAccessToken, runSheetSync, describeClientIdProblem, sanitizeClientId } from '../utils/googleSheetSync'
 import { CARD_MATCH_REASON, SKIP_REASON_INVALID_ROW } from '../utils/importSheetSync'
 import { backupToSheet, restoreFromSheet } from '../services/sheetsSync'
 
@@ -89,12 +89,8 @@ export default function Settings({
     setSyncing(true)
     try {
       const token = await getAccessToken(sanitizeClientId(clientId))
-      const count = await syncTransactionsToSheet({ accessToken: token, sheetId: sheetId.trim(), transactions })
-      const cycleCount = await syncBillingCyclesToSheet({ accessToken: token, sheetId: sheetId.trim(), cards })
-      if (planSummary?.income > 0) {
-        await syncMonthlyPlanToSheet({ accessToken: token, sheetId: sheetId.trim(), summary: planSummary })
-      }
-      onGoogleSyncChange({ clientId: sanitizeClientId(clientId), sheetId: sheetId.trim(), lastSyncAt: Date.now(), lastSyncCount: count })
+      const { count, cycleCount } = await runSheetSync({ accessToken: token, sheetId: sheetId.trim(), transactions, cards, planSummary })
+      onGoogleSyncChange({ ...googleSync, clientId: sanitizeClientId(clientId), sheetId: sheetId.trim(), lastSyncAt: Date.now(), lastSyncCount: count })
       showToast(`已同步 ${count} 筆刷卡紀錄、${cycleCount} 筆帳單週期，並更新本月規劃總帳`)
     } catch (e) {
       showToast(e.message || '同步失敗，請稍後再試')

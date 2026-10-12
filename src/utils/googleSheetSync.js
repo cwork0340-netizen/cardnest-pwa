@@ -338,3 +338,14 @@ export async function syncBillingCyclesToSheet({ accessToken, sheetId, cards }) 
   const rows = [CYCLE_HEADER, ...dataRows]
   return writeRows(sheetId, accessToken, CYCLE_SHEET_TITLE, rows)
 }
+
+// 設定頁的「連結並立即同步」跟總覽的同步提醒共用這一份，免得兩邊各寫一套、
+// 之後只改到其中一邊。
+export async function runSheetSync({ accessToken, sheetId, transactions, cards, planSummary }) {
+  const count = await syncTransactionsToSheet({ accessToken, sheetId, transactions })
+  const cycleCount = await syncBillingCyclesToSheet({ accessToken, sheetId, cards })
+  const planUpdated = Number(planSummary?.income) > 0
+  if (planUpdated) await syncMonthlyPlanToSheet({ accessToken, sheetId, summary: planSummary })
+  return { count, cycleCount, planUpdated }
+}
+

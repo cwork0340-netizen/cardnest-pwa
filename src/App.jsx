@@ -7,7 +7,7 @@ import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
-import { getAccessToken } from './utils/googleSheetSync'
+import { getAccessToken, runSheetSync, describeClientIdProblem, sanitizeClientId } from './utils/googleSheetSync'
 import { categoryColor } from './utils/categoryColors'
 import {
   fetchImportRows, findImportedTransaction, importedConsumedDate, importedPostedDate,
@@ -546,8 +546,8 @@ export default function App() {
     if (!existing) setPlans(p => [normalizePlan(plan), ...p])
     setTransactions(p => p.map(t => t.id === txId ? { ...t, planId: existing?.id ?? plan.id } : t))
     showToast(existing
-      ? `已經有「${plan.name}」的訂閱了，這筆記錄視為本期扣款，不重複建立`
-      : `已設為訂閱，「${plan.name}」這筆視為本期扣款，之後的扣款會自動對應`)
+      ? `「${plan.name}」已有訂閱，這筆算本期扣款`
+      : `已設為訂閱「${plan.name}」，這筆算本期扣款`)
   }, [plans, normalizePlan, showToast])
 
   // 匯入寫回：新增的接在最前面，補正入帳日的就地換掉，並把這次的 permalink
@@ -799,6 +799,28 @@ export default function App() {
     setCards(prev => prev.map(c => c.id === cardId ? { ...c, estimatedBill: Number(amount) || 0 } : c))
   }, [])
 
+  const [syncingNow, setSyncingNow] = useState(false)
+  const handleSyncNow = useCallback(async (summary) => {
+    const clientId = googleSync?.clientId?.trim()
+    const sheetId = googleSync?.sheetId?.trim()
+    const problem = describeClientIdProblem(clientId)
+    if (problem) {
+      showToast(problem)
+      return
+    }
+    setSyncingNow(true)
+    try {
+      const token = await getAccessToken(sanitizeClientId(clientId))
+      const { count, cycleCount } = await runSheetSync({ accessToken: token, sheetId, transactions, cards, planSummary: summary })
+      setGoogleSync(prev => ({ ...prev, lastSyncAt: Date.now(), lastSyncCount: count }))
+      showToast(`已同步 ${count} 筆刷卡紀錄、${cycleCount} 筆帳單週期`)
+    } catch (e) {
+      showToast(e.message || '同步失敗，請稍後再試')
+    } finally {
+      setSyncingNow(false)
+    }
+  }, [googleSync, transactions, cards, showToast])
+
   const handleClearData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
     setCards([])
@@ -867,6 +889,24 @@ export default function App() {
     .map(c => ({ id: c.id, name: c.name, amount: Number(c.estimatedBill) }))
   const cardEstimateTotal = cardEstimates.reduce((s, c) => s + c.amount, 0)
   const lifeBalance = income - essentialTotal - cardEstimateTotal
+  const planSummary = {
+    monthKey: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+    income,
+    essentialTotal,
+    essentialSavings,
+    cardEstimateTotal,
+    lifeBalance,
+  }
+
+  // 超過一週沒同步到 Google Sheet 就提醒，點一下才授權同步。不在背景自動跑：
+  // 沒有點擊動作時瀏覽器多半擋掉授權視窗，授權設定有問題時還會直接彈出 Google 的錯誤頁。
+  const SYNC_STALE_MS = 7 * 24 * 60 * 60 * 1000
+  const [openedAt] = useState(() => Date.now())
+  const syncConfigured = Boolean(googleSync?.clientId?.trim() && googleSync?.sheetId?.trim())
+  const syncAgeMs = googleSync?.lastSyncAt ? openedAt - googleSync.lastSyncAt : Infinity
+  const syncReminder = syncConfigured && syncAgeMs > SYNC_STALE_MS
+    ? { daysSince: Number.isFinite(syncAgeMs) ? Math.floor(syncAgeMs / (24 * 60 * 60 * 1000)) : null }
+    : null
   const weekDays = buildWeekDays(plans, enrichedCards)
   const enrichedPlans = enrichPlans(plans)
 
@@ -923,6 +963,7 @@ export default function App() {
   const pages = {
     dashboard: (
       <Dashboard
+        syncReminder={syncReminder && { ...syncReminder, syncing: syncingNow, onSync: () => handleSyncNow(planSummary) }}
         greeting={greeting}
         dateLabel={dateLabel}
         currentMonth={currentMonth}
@@ -1021,14 +1062,7 @@ export default function App() {
         onGoogleSyncChange={setGoogleSync}
         cardImport={cardImport}
         onCardImportChange={setCardImport}
-        planSummary={{
-          monthKey: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
-          income,
-          essentialTotal,
-          essentialSavings,
-          cardEstimateTotal,
-          lifeBalance,
-        }}
+        planSummary={planSummary}
       />
     ),
   }
