@@ -816,3 +816,20 @@ describe('手動記退款', () => {
   })
 })
 
+describe('部分繳款：待繳帳單', () => {
+  it('上一期只繳了一部分，剩下的跟新的一期一起累積在待繳帳單', () => {
+    seed({
+      cards: [{
+        id: 'c1', name: '永豐卡', color: '#5E7CE2', billingDay: 12, dueDay: 2, budget: 20000,
+        billingCycles: [{ id: 'may', cycleKey: '2026-05', closeDate: '2026-05-12', dueDate: '2026-05-14', amount: 10000, amountIsActual: true, manuallyCalibrated: true, paid: false, paidAmount: 4000 }],
+      }],
+      transactions: [
+        { id: 'n', name: '新消費', card: '永豐卡', cardId: 'c1', category: '日常', amount: 2000, date: '2026-06-01', postedDate: '2026-06-02' },
+      ],
+    })
+    render(<App />)
+    const summary = document.querySelector('.credit-card-summary')
+    expect(summary.textContent).toContain('NT$8,000')
+  })
+})
+

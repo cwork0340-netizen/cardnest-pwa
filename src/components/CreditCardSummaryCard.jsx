@@ -56,6 +56,8 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
   const [editDate, setEditDate] = useState('')
   const [calibratingCycleId, setCalibratingCycleId] = useState(null)
   const [calibration, setCalibration] = useState({ amount: '', closeDate: '', dueDate: '' })
+  const [payingCycleId, setPayingCycleId] = useState(null)
+  const [payAmount, setPayAmount] = useState('')
 
   const unpaid = card.unpaidCycles ?? []
   const reconciliationHints = card.reconciliationHints ?? []
@@ -100,6 +102,28 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
       manuallyCalibrated: true,
     })
     setCalibratingCycleId(null)
+  }
+
+  function startPartialPayment(e, cycle) {
+    e.stopPropagation()
+    setPayingCycleId(cycle.id)
+    setPayAmount('')
+  }
+
+  // 這次繳了多少就記多少（會跟之前繳過的累加）。繳不夠的部分不用另外處理：
+  // 這期還是未繳、金額只剩沒繳的那一份，跟之後的帳單一起算進待繳。
+  function savePartialPayment(e, cycle) {
+    e.stopPropagation()
+    const paid = Number(payAmount)
+    if (!Number.isFinite(paid) || paid <= 0) return
+    const totalPaid = Number(cycle.paidAmount ?? 0) + paid
+    const d = new Date()
+    const paidAt = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    onUpdateCycle(card.id, cycle.id, {
+      paidAmount: totalPaid,
+      ...(totalPaid >= Number(cycle.amount ?? 0) && { paid: true, paidAt }),
+    })
+    setPayingCycleId(null)
   }
 
   function calibrationDiff(cycle) {
@@ -152,7 +176,12 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
               {unpaid.map((cycle) => (
                 <div className="credit-card-cycle-row" key={cycle.id}>
                   <div className="credit-card-cycle-info">
-                    <span className="credit-card-cycle-amount">{fmt(cycle.amount)}</span>
+                    <span className="credit-card-cycle-amount">{fmt(cycle.remaining ?? cycle.amount)}</span>
+                    {Number(cycle.paidAmount) > 0 && (
+                      <span className="credit-card-cycle-partial">
+                        帳單 {fmt(cycle.amount)}・已繳 {fmt(cycle.paidAmount)}
+                      </span>
+                    )}
                     {editingCycleId === cycle.id ? (
                       <span className="credit-card-cycle-edit" onClick={(e) => e.stopPropagation()}>
                         <input
@@ -176,6 +205,9 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                     <button className="credit-card-cycle-calibrate" onClick={(e) => startCalibration(e, cycle)}>
                       校準
                     </button>
+                    <button className="credit-card-cycle-calibrate" onClick={(e) => startPartialPayment(e, cycle)}>
+                      部分繳款
+                    </button>
                     <button
                       className="credit-card-cycle-pay"
                       onClick={(e) => { e.stopPropagation(); onMarkPaid(cycle.id) }}
@@ -183,6 +215,26 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                       已繳
                     </button>
                   </div>
+                  {payingCycleId === cycle.id && (
+                    <div className="credit-card-cycle-calibration" onClick={(e) => e.stopPropagation()}>
+                      <label>
+                        這次繳了多少
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={payAmount}
+                          onChange={(e) => setPayAmount(e.target.value)}
+                        />
+                      </label>
+                      <span className="credit-card-cycle-diff">
+                        還欠 {fmt(cycle.remaining ?? cycle.amount)}。沒繳的部分會留在待繳帳單，累積到下一期一起算。
+                      </span>
+                      <div className="credit-card-cycle-calibration-actions">
+                        <button onClick={(e) => savePartialPayment(e, cycle)}>儲存</button>
+                        <button onClick={(e) => { e.stopPropagation(); setPayingCycleId(null) }}>取消</button>
+                      </div>
+                    </div>
+                  )}
                   {calibratingCycleId === cycle.id && (
                     <div className="credit-card-cycle-calibration" onClick={(e) => e.stopPropagation()}>
                       <label>

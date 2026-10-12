@@ -254,7 +254,7 @@ export async function syncTransactionsToSheet({ accessToken, sheetId, transactio
 }
 
 const CYCLE_SHEET_TITLE = '帳單週期'
-const CYCLE_HEADER = ['卡片', '帳單月份', '結帳日', '到期日', '金額', '是否已繳', '已繳日期']
+const CYCLE_HEADER = ['卡片', '帳單月份', '結帳日', '到期日', '金額', '是否已繳', '已繳日期', '已繳金額']
 
 function cycleToRow(cardName, cycle) {
   return [
@@ -265,6 +265,7 @@ function cycleToRow(cardName, cycle) {
     cycle.amount ?? 0,
     cycle.paid ? '已繳' : '未繳',
     cycle.paidAt ?? '',
+    cycle.paidAmount ?? '',
   ]
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCycleUpdate, ensureBillingCycles } from '../utils/billingCycles'
+import { applyCycleUpdate, ensureBillingCycles, cycleRemaining, totalUnpaid, unpaidCycles } from '../utils/billingCycles'
 
 describe('billing cycle calibration', () => {
   it('removes later unconfirmed estimates after a bank statement calibration', () => {
@@ -64,3 +64,26 @@ describe('billing cycle calibration', () => {
     })
   })
 })
+
+describe('部分繳款：沒繳的累積到下一期', () => {
+  const cycle = (id, due, amount, extra = {}) => ({ id, cycleKey: id, closeDate: due, dueDate: due, amount, paid: false, ...extra })
+
+  it('剩下的是帳單扣掉已繳，沒有 paidAmount 的舊資料維持整張帳單', () => {
+    expect(cycleRemaining(cycle('a', '2026-05-20', 10000))).toBe(10000)
+    expect(cycleRemaining(cycle('a', '2026-05-20', 10000, { paidAmount: 4000 }))).toBe(6000)
+    expect(cycleRemaining(cycle('a', '2026-05-20', 10000, { paidAmount: 12000 }))).toBe(0)
+  })
+
+  it('待繳總額用剩下的算，跟下一期一起累積', () => {
+    const card = { billingCycles: [cycle('may', '2026-05-20', 10000, { paidAmount: 4000 }), cycle('jun', '2026-06-20', 2500)] }
+    expect(totalUnpaid(card)).toBe(8500)
+    expect(unpaidCycles(card).map((c) => [c.id, c.remaining])).toEqual([['may', 6000], ['jun', 2500]])
+  })
+
+  it('已經繳清（paid 或剩下 0）的期別不再算待繳', () => {
+    const card = { billingCycles: [cycle('a', '2026-05-20', 100, { paid: true }), cycle('b', '2026-06-20', 100, { paidAmount: 100 })] }
+    expect(unpaidCycles(card)).toHaveLength(0)
+    expect(totalUnpaid(card)).toBe(0)
+  })
+})
+

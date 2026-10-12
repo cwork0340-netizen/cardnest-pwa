@@ -920,7 +920,7 @@ export default function App() {
         cardId: c.id,
         name: c.name,
         color: c.color,
-        amount: cycle.amount,
+        amount: cycle.remaining ?? cycle.amount,
         dueDateLabel: `${Number(cycle.dueDate.slice(5, 7))}/${Number(cycle.dueDate.slice(8, 10))}`,
         daysLeft: cycle.daysLeft,
         reserve: reserve ? { id: reserve.id, name: reserve.name, saved: Number(reserve.saved) } : null,

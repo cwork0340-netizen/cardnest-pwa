@@ -197,15 +197,23 @@ export function withLiveCycleEstimates(card, { transactions = [], plans = [] } =
   }
 }
 
-// 未繳清的週期，依到期日排序（最早到期的在前面）
+// 這一期還欠多少：帳單金額扣掉已經繳過的部分。沒有 paidAmount 的舊資料，
+// 剩下的就是整張帳單，跟以前完全一樣。
+export function cycleRemaining(cycle) {
+  return Math.max(0, Number(cycle?.amount ?? 0) - Number(cycle?.paidAmount ?? 0))
+}
+
+// 未繳清的週期，依到期日排序（最早到期的在前面）。amount 仍是帳單金額，
+// remaining 才是還要繳的；只繳一部分的那期沒繳的錢會一直留著，累積到後面的帳單。
 export function unpaidCycles(card) {
   return [...(card.billingCycles ?? [])]
-    .filter((c) => !c.paid && c.amount > 0)
+    .filter((c) => !c.paid && cycleRemaining(c) > 0)
+    .map((c) => ({ ...c, remaining: cycleRemaining(c) }))
     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
 }
 
 export function totalUnpaid(card) {
-  return unpaidCycles(card).reduce((s, c) => s + c.amount, 0)
+  return unpaidCycles(card).reduce((s, c) => s + c.remaining, 0)
 }
 
 // 逾期天數：用真正的日期相減，不再只比對「號數」，換月也不會誤判
