@@ -833,3 +833,35 @@ describe('部分繳款：待繳帳單', () => {
   })
 })
 
+describe('按錯已繳：復原', () => {
+  const unpaidMay = { id: 'may', cycleKey: '2026-05', closeDate: '2026-05-12', dueDate: '2026-05-14', amount: 10000, amountIsActual: true, manuallyCalibrated: true, paid: false }
+  const cardWith = (cycle) => ({ id: 'c1', name: '永豐卡', color: '#5E7CE2', billingDay: 12, dueDay: 2, budget: 20000, billingCycles: [cycle] })
+  const mayState = () => JSON.parse(localStorage.getItem('cardnest_v1')).cards[0].billingCycles.find((c) => c.id === 'may')
+
+  it('標成已繳之後 5 秒內按「復原」就回到未繳', () => {
+    seed({ cards: [cardWith(unpaidMay)] })
+    render(<App />)
+    const summary = document.querySelector('.credit-card-summary')
+    fireEvent.click(summary.querySelector('.credit-card-summary-row'))
+    fireEvent.click(within(summary).getAllByRole('button', { name: '已繳' })[0])
+    expect(mayState().paid).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: '復原' }))
+    expect(mayState().paid).toBe(false)
+    expect(mayState().paidAt ?? null).toBe(null)
+  })
+
+  it('已經標成已繳的，可以改回未繳並記下實際只繳了多少', () => {
+    seed({ cards: [cardWith({ ...unpaidMay, paid: true, paidAt: '2026-05-13' })] })
+    render(<App />)
+    const summary = document.querySelector('.credit-card-summary')
+    fireEvent.click(summary.querySelector('.credit-card-summary-row'))
+    fireEvent.click(within(summary).getByRole('button', { name: '改回未繳' }))
+    fireEvent.change(within(summary).getByLabelText('其實只繳了多少（沒繳就留空）'), { target: { value: '3000' } })
+    fireEvent.click(within(summary).getAllByRole('button', { name: '改回未繳' })[1])
+
+    expect(mayState()).toMatchObject({ paid: false, paidAmount: 3000, amount: 10000 })
+    expect(document.querySelector('.credit-card-summary').textContent).toContain('NT$7,000')
+  })
+})
+
