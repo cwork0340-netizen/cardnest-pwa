@@ -774,6 +774,18 @@ describe('從刷卡記錄設為訂閱', () => {
     expect(state.transactions[0].planId).toBe('p1')
   })
 
+  it('重新開啟 App 後，認領的標記還在', () => {
+    seed({
+      plans: [{ id: 'p1', type: 'subscription', name: 'ChatGPT', card: '永豐卡', cardId: 'c1', amount: 690, billingDay: 10, active: true }],
+      transactions: [
+        { id: 'x', name: '自動匯入・永豐', card: '永豐卡', cardId: 'c1', category: '訂閱', amount: 700, date: '2026-06-10', planId: 'p1' },
+      ],
+    })
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+    expect(screen.getByText('訂閱：ChatGPT')).toBeInTheDocument()
+  })
+
   it('分期那一邊還是原本的轉分期流程', () => {
     seed({
       transactions: [
@@ -785,6 +797,22 @@ describe('從刷卡記錄設為訂閱', () => {
     fireEvent.click(screen.getAllByRole('button', { name: '設為訂閱或分期' })[0])
     fireEvent.click(screen.getByRole('button', { name: '分期' }))
     expect(screen.getByRole('button', { name: '確認轉分期' })).toBeInTheDocument()
+  })
+})
+
+describe('手動記退款', () => {
+  it('退款存成帶標記的負數，備註寫「取消付款」也不會被當成繳款', () => {
+    seed()
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '刷卡' }))
+    fireEvent.click(document.querySelector('.fab'))
+    fireEvent.click(screen.getByRole('button', { name: '退款' }))
+    fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '1254' } })
+    fireEvent.change(screen.getByPlaceholderText('選填'), { target: { value: 'momo 取消付款' } })
+    fireEvent.submit(document.querySelector('form.qtf'))
+
+    const saved = JSON.parse(localStorage.getItem('cardnest_v1')).transactions[0]
+    expect(saved).toMatchObject({ amount: -1254, kind: 'refund', name: '退款', note: 'momo 取消付款' })
   })
 })
 

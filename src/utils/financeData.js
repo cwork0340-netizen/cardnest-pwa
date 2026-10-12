@@ -103,6 +103,8 @@ export function transactionCycleDate(tx) {
 export function isCreditCardPayment(tx) {
   const amount = Number(tx?.amount) || 0
   if (amount >= 0) return false
+  // 使用者手動記的退款有明確標記，備註寫「取消付款」之類的字也不能被當成繳款排除掉
+  if (tx?.kind === 'refund') return false
   const text = `${tx?.name ?? ''} ${tx?.category ?? ''} ${tx?.note ?? ''}`.toLowerCase()
   return /繳款|付款|條碼繳款|card payment|bill payment|payment/.test(text)
 }
@@ -110,6 +112,7 @@ export function isCreditCardPayment(tx) {
 export function isInstallmentConversionCredit(tx) {
   const amount = Number(tx?.amount) || 0
   if (amount >= 0) return false
+  if (tx?.kind === 'refund') return false
   const text = `${tx?.name ?? ''} ${tx?.category ?? ''} ${tx?.note ?? ''}`.toLowerCase()
   return /轉刷卡樂|分期|installment/.test(text)
 }
@@ -138,7 +141,7 @@ export function transactionRepresentsPlan(tx, plan, cards) {
 
 export function planAmountNotRecorded({ plan, transactions, cards, windowStart, windowEnd }) {
   const represented = transactions.some((tx) => {
-    const date = parseISODate(transactionCycleDate(tx), windowEnd)
+    const date = parseISODate(tx.date, windowEnd)
     return date && date > windowStart && date <= windowEnd && transactionRepresentsPlan(tx, plan, cards)
   })
   return represented ? 0 : Number(plan.amount) || 0

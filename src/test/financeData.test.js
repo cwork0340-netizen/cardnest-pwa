@@ -76,11 +76,28 @@ describe('設為訂閱的明確認領', () => {
     expect(transactionRepresentsPlan({ ...placeholder, planId: 'other' }, plan, cards)).toBe(false)
   })
 
-  it('認領後這期不再重複估算，而且依入帳日歸期', () => {
+  it('認領後這期不再重複估算', () => {
     const claimed = { ...placeholder, planId: 'p1', date: '2026-09-11', postedDate: '2026-09-14' }
     const win = (start, end) => ({ windowStart: new Date(...start), windowEnd: new Date(...end) })
-    expect(planAmountNotRecorded({ plan, transactions: [claimed], cards, ...win([2026, 8, 12], [2026, 9, 12]) })).toBe(0)
-    expect(planAmountNotRecorded({ plan, transactions: [claimed], cards, ...win([2026, 7, 12], [2026, 8, 12]) })).toBe(690)
+    expect(planAmountNotRecorded({ plan, transactions: [claimed], cards, ...win([2026, 8, 5], [2026, 9, 5]) })).toBe(0)
+    expect(planAmountNotRecorded({ plan, transactions: [claimed], cards, ...win([2026, 9, 5], [2026, 10, 5]) })).toBe(690)
+  })
+})
+
+describe('手動記的退款', () => {
+  const refund = { id: 'r', name: '退款', amount: -1254, category: '購物', note: 'momo 取消付款', date: '2026-09-19', card: '富邦M' }
+
+  it('備註有「付款」字樣時，沒標記會被當成繳款排除、有標記才算進帳單', () => {
+    expect(isCreditCardPayment(refund)).toBe(true)
+    expect(isBillableTransaction(refund)).toBe(false)
+    expect(isCreditCardPayment({ ...refund, kind: 'refund' })).toBe(false)
+    expect(isBillableTransaction({ ...refund, kind: 'refund' })).toBe(true)
+  })
+
+  it('標記為退款的負數不會被當成分期沖銷', () => {
+    const t = { ...refund, note: '分期退回', kind: 'refund' }
+    expect(isInstallmentConversionCredit(t)).toBe(false)
+    expect(isBillableTransaction(t)).toBe(true)
   })
 })
 

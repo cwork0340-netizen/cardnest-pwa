@@ -38,7 +38,7 @@ export default function QuickTransactionForm({ onSubmit, onClose, cards, initial
     }
     setError('')
     const selectedCard = cards.find((c) => c.id === cardId)
-    onSubmit({ amount: isRefund ? -num : num, category, cardId, card: selectedCard?.name ?? '', date, postedDate, name, note })
+    onSubmit({ amount: isRefund ? -num : num, isRefund, category, cardId, card: selectedCard?.name ?? '', date, postedDate, name, note })
   }
 
   return (

@@ -14,7 +14,7 @@ describe('refunds in the transaction form', () => {
     fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '1254' } })
     fireEvent.click(screen.getByRole('button', { name: '記一筆' }))
 
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: -1254 }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: -1254, isRefund: true }))
   })
 
   it('still records a normal purchase as a positive amount', () => {

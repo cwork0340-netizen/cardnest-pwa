@@ -187,11 +187,12 @@ export default function Transactions({
     setEditingTx(null)
   }
 
-  function handleSubmit({ amount, category, cardId, card, date, postedDate, name, note }) {
+  function handleSubmit({ amount, isRefund, category, cardId, card, date, postedDate, name, note }) {
     const selectedCard = cards.find((c) => c.id === (cardId || resolveCardId({ card }, cards)))
     const fields = {
-      name: name.trim() || category,
+      name: name.trim() || (isRefund ? '退款' : category),
       category,
+      kind: isRefund ? 'refund' : undefined,
       cardId: selectedCard?.id,
       card: selectedCard?.name ?? card,
       amount,
