@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCycleUpdate, ensureBillingCycles, cycleRemaining, totalUnpaid, unpaidCycles } from '../utils/billingCycles'
+import { applyCycleUpdate, ensureBillingCycles, cycleRemaining, totalUnpaid, unpaidCycles, dedupeCyclesByCloseDate } from '../utils/billingCycles'
 
 describe('billing cycle calibration', () => {
   it('removes later unconfirmed estimates after a bank statement calibration', () => {
@@ -84,6 +84,49 @@ describe('部分繳款：沒繳的累積到下一期', () => {
     const card = { billingCycles: [cycle('a', '2026-05-20', 100, { paid: true }), cycle('b', '2026-06-20', 100, { paidAmount: 100 })] }
     expect(unpaidCycles(card)).toHaveLength(0)
     expect(totalUnpaid(card)).toBe(0)
+  })
+})
+
+describe('同一個結帳日只算一期', () => {
+  // 富邦M 2026-10-12：自動產生的一期（估算 3,850、到期 10/27）加上校準過的一期（銀行 2,596、到期 10/28）
+  const auto = { id: 'auto', cycleKey: '2026-10', closeDate: '2026-10-12', dueDate: '2026-10-27', amount: 3850, estimatedAmount: 3850, paid: false }
+  const calibrated = { id: 'cal', cycleKey: '2026-10', closeDate: '2026-10-12', dueDate: '2026-10-28', amount: 2596, estimatedAmount: 3850, amountIsActual: true, manuallyCalibrated: true, paid: false }
+
+  it('待繳只算校準過的那一筆，不會變成 6,446', () => {
+    const card = { billingCycles: [auto, calibrated] }
+    expect(totalUnpaid(card)).toBe(2596)
+    expect(unpaidCycles(card).map((c) => c.id)).toEqual(['cal'])
+    expect(totalUnpaid({ billingCycles: [calibrated, auto] })).toBe(2596)
+  })
+
+  it('留哪一筆：已繳 > 校準過 > 銀行實際 > 估算', () => {
+    const actual = { ...auto, id: 'actual', amountIsActual: true }
+    const paid = { ...auto, id: 'paid', paid: true }
+    expect(dedupeCyclesByCloseDate([auto, actual]).map((c) => c.id)).toEqual(['actual'])
+    expect(dedupeCyclesByCloseDate([actual, calibrated]).map((c) => c.id)).toEqual(['cal'])
+    expect(dedupeCyclesByCloseDate([calibrated, paid]).map((c) => c.id)).toEqual(['paid'])
+  })
+
+  it('結帳日不同的不會被合併，沒有結帳日的也不動', () => {
+    const sep = { ...auto, id: 'sep', closeDate: '2026-09-12' }
+    const odd = { id: 'odd', amount: 1 }
+    expect(dedupeCyclesByCloseDate([sep, auto, odd]).map((c) => c.id)).toEqual(['sep', 'auto', 'odd'])
+  })
+
+  it('把另一期校準成已存在的結帳日時，那個結帳日的估算期不再留著', () => {
+    const sep = { id: 'sep', cycleKey: '2026-09', closeDate: '2026-09-12', dueDate: '2026-09-27', amount: 3000, paid: false }
+    const result = applyCycleUpdate([sep, auto], 'sep', {
+      amount: 2596, closeDate: '2026-10-12', dueDate: '2026-10-28', cycleKey: '2026-10', amountIsActual: true, manuallyCalibrated: true,
+    })
+    expect(result.map((c) => c.id)).toEqual(['sep'])
+    expect(result[0]).toMatchObject({ closeDate: '2026-10-12', amount: 2596 })
+  })
+
+  it('同結帳日的另一期如果已繳或校準過，校準不會刪掉它', () => {
+    const paid = { ...auto, id: 'paid', paid: true }
+    const sep = { id: 'sep', cycleKey: '2026-09', closeDate: '2026-09-12', dueDate: '2026-09-27', amount: 3000, paid: false }
+    const result = applyCycleUpdate([sep, paid], 'sep', { amount: 1, closeDate: '2026-10-12', manuallyCalibrated: true })
+    expect(result.map((c) => c.id)).toEqual(['sep', 'paid'])
   })
 })
 

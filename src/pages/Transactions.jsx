@@ -8,6 +8,7 @@ import ConvertToPlanForm from '../components/ConvertToPlanForm'
 import EmptyState from '../components/EmptyState'
 import { isBillableTransaction, matchesCard, parseISODate, resolveCardId, toISODate, transactionRepresentsPlan } from '../utils/financeData'
 import { buildStatementCalibration } from '../utils/statementCalibration'
+import { dedupeCyclesByCloseDate } from '../utils/billingCycles'
 import { isImportedTransaction, isPendingReconciliation } from '../utils/importSheetSync'
 
 const PERIOD_TABS = [
@@ -127,7 +128,7 @@ export default function Transactions({
   // 銀行寄來的最新一期帳單常常已經繳掉了，只列未繳的話就會落回很舊的未繳帳期
   // （例如停在七月），根本核對不到手上這張帳單。已繳的最近三期也要列出來，
   // 預設選「結帳日已到的最新一期」。
-  const sortedCycles = [...(selectedCalibrationCard?.billingCycles ?? [])]
+  const sortedCycles = dedupeCyclesByCloseDate(selectedCalibrationCard?.billingCycles ?? [])
     .sort((a, b) => b.closeDate.localeCompare(a.closeDate))
   const recentPaidCycles = sortedCycles.filter((cycle) => cycle.paid).slice(0, 3)
   const calibrationCycles = sortedCycles.filter((cycle) => !cycle.paid || recentPaidCycles.includes(cycle))
