@@ -19,7 +19,8 @@ function mdToIso(md) {
 
 export default function QuickTransactionForm({ onSubmit, onClose, cards, initialValues = null }) {
   const isEditing = !!initialValues
-  const [amount, setAmount] = useState(initialValues ? String(initialValues.amount) : '')
+  const [amount, setAmount] = useState(initialValues ? String(Math.abs(Number(initialValues.amount))) : '')
+  const [isRefund, setIsRefund] = useState(Number(initialValues?.amount) < 0)
   const [category, setCategory] = useState(initialValues?.category ?? CATEGORIES[0])
   const [cardId, setCardId] = useState(resolveCardId(initialValues, cards) ?? cards[0]?.id ?? '')
   const [date, setDate] = useState(initialValues ? mdToIso(initialValues.date) : todayString())
@@ -30,19 +31,23 @@ export default function QuickTransactionForm({ onSubmit, onClose, cards, initial
 
   function handleSubmit(e) {
     e.preventDefault()
-    const num = Number(amount)
-    if (!num || num <= 0) {
+    const num = Math.abs(Number(amount))
+    if (!num) {
       setError('請輸入有效金額')
       return
     }
     setError('')
     const selectedCard = cards.find((c) => c.id === cardId)
-    onSubmit({ amount: num, category, cardId, card: selectedCard?.name ?? '', date, postedDate, name, note })
+    onSubmit({ amount: isRefund ? -num : num, category, cardId, card: selectedCard?.name ?? '', date, postedDate, name, note })
   }
 
   return (
     <form className="qtf" onSubmit={handleSubmit}>
       <div className="qtf-field qtf-amount-field">
+        <div className="qtf-kind" role="group" aria-label="交易類型">
+          <button type="button" className={`qtf-kind-btn${isRefund ? '' : ' qtf-kind-btn-active'}`} aria-pressed={!isRefund} onClick={() => setIsRefund(false)}>消費</button>
+          <button type="button" className={`qtf-kind-btn${isRefund ? ' qtf-kind-btn-active' : ''}`} aria-pressed={isRefund} onClick={() => setIsRefund(true)}>退款</button>
+        </div>
         <input
           className="qtf-amount-input"
           type="number"

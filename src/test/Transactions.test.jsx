@@ -370,4 +370,68 @@ describe('Transactions import entry', () => {
     expect(document.querySelector('.tx-statement-card').textContent).toContain('台新')
     expect(document.querySelector('.tx-statement-card').textContent).not.toContain('國泰')
   })
+
+  const baseProps = () => ({
+    showToast: vi.fn(),
+    onAddTransaction: vi.fn(),
+    onUpdateTransaction: vi.fn(),
+    onDeleteTransaction: vi.fn(),
+    onConvertToInstallment: vi.fn(),
+    cardImport: null,
+    importingCardNotifications: false,
+    onImportCardNotifications: vi.fn(),
+    plans: [],
+    onUpdateCycle: vi.fn(),
+  })
+
+  it('defaults calibration to the latest closed statement even when it is already paid', () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date(2026, 9, 12))
+    const cycle = (id, closeDate, paid) => ({ id, closeDate, dueDate: closeDate, amount: 1000, estimatedAmount: 1000, paid })
+
+    render(
+      <Transactions
+        {...baseProps()}
+        transactions={[]}
+        cards={[{
+          id: 'c1', name: '台新', billingDay: 18, dueDay: 10,
+          billingCycles: [cycle('jul', '2026-07-18', false), cycle('aug', '2026-08-18', true), cycle('sep', '2026-09-18', true)],
+        }]}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '打開校準' }))
+    const select = screen.getByLabelText('帳期')
+    expect(select.value).toBe('sep')
+    expect(select.textContent).toContain('2026-09-18')
+    expect(select.textContent).toContain('（已繳）')
+    expect(select.textContent).toContain('2026-07-18')
+  })
+
+  it('matches the bank statement once the cancelled purchase is recorded as a refund', () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date(2026, 9, 12))
+    const tx = (id, amount, date, postedDate) => ({ id, name: id, cardId: 'fb', card: '富邦M', category: '購物', amount, date, postedDate })
+
+    render(
+      <Transactions
+        {...baseProps()}
+        transactions={[
+          tx('a', 28, '2026-09-11', '2026-09-14'),
+          tx('b', 1988, '2026-09-17', '2026-09-21'),
+          tx('c', 1254, '2026-09-17', '2026-09-21'),
+          tx('r', -1254, '2026-09-19', '2026-09-21'),
+          tx('d', 580, '2026-09-21', '2026-09-23'),
+        ]}
+        cards={[{
+          id: 'fb', name: '富邦M', billingDay: 12, dueDay: 16,
+          billingCycles: [{ id: 'oct', closeDate: '2026-10-12', dueDate: '2026-10-28', amount: 2596, estimatedAmount: 2596, paid: false }],
+        }]}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '打開校準' }))
+    fireEvent.change(screen.getByPlaceholderText('例如 4607'), { target: { value: '2596' } })
+    expect(screen.getByText('銀行帳單和 App 估算一致。')).toBeInTheDocument()
+  })
 })

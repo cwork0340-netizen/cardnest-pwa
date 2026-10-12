@@ -100,6 +100,10 @@
   color: var(--color-text-main);
 }
 
+.tx-amount-refund {
+  color: var(--color-success);
+}
+
 .tx-note {
   font-size: 13px;
   color: var(--color-text-muted);

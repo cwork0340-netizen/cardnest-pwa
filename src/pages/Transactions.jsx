@@ -124,11 +124,18 @@ export default function Transactions({
   const selectedCalibrationCard = filteredCard
     ?? cards.find((card) => card.id === calibrationCardId)
     ?? cards[0]
-  const calibrationCycles = [...(selectedCalibrationCard?.billingCycles ?? [])]
-    .filter((cycle) => !cycle.paid)
+  // 銀行寄來的最新一期帳單常常已經繳掉了，只列未繳的話就會落回很舊的未繳帳期
+  // （例如停在七月），根本核對不到手上這張帳單。已繳的最近三期也要列出來，
+  // 預設選「結帳日已到的最新一期」。
+  const sortedCycles = [...(selectedCalibrationCard?.billingCycles ?? [])]
     .sort((a, b) => b.closeDate.localeCompare(a.closeDate))
+  const recentPaidCycles = sortedCycles.filter((cycle) => cycle.paid).slice(0, 3)
+  const calibrationCycles = sortedCycles.filter((cycle) => !cycle.paid || recentPaidCycles.includes(cycle))
   const [calibrationCycleId, setCalibrationCycleId] = useState('')
-  const selectedCalibrationCycle = calibrationCycles.find((cycle) => cycle.id === calibrationCycleId) ?? calibrationCycles[0]
+  const todayIso = toISODate()
+  const selectedCalibrationCycle = calibrationCycles.find((cycle) => cycle.id === calibrationCycleId)
+    ?? calibrationCycles.find((cycle) => cycle.closeDate <= todayIso)
+    ?? calibrationCycles[0]
   const [calibrationForm, setCalibrationForm] = useState({ amount: '', closeDate: '', dueDate: '' })
   const [calibrationDetailOpen, setCalibrationDetailOpen] = useState(false)
   const effectiveCloseDate = calibrationForm.closeDate || selectedCalibrationCycle?.closeDate || ''
@@ -373,10 +380,10 @@ export default function Transactions({
                     disabled={calibrationCycles.length === 0}
                   >
                     {calibrationCycles.length === 0 ? (
-                      <option value="">沒有待繳帳期</option>
+                      <option value="">沒有帳期</option>
                     ) : calibrationCycles.map((cycle) => (
                       <option key={cycle.id} value={cycle.id}>
-                        {cycle.closeDate}・NT${Number(cycle.amount || 0).toLocaleString()}
+                        {cycle.closeDate}・NT${Number(cycle.amount || 0).toLocaleString()}{cycle.paid ? '（已繳）' : ''}
                       </option>
                     ))}
                   </select>
@@ -506,7 +513,7 @@ export default function Transactions({
         {filteredTransactions.length > 0 && (
           <div className="tx-total-bar">
             <span className="tx-total-label">{cardFilter === 'all' ? '全部' : cards.find((c) => c.id === cardFilter || c.name === cardFilter)?.name} 合計（{filteredTransactions.length} 筆）</span>
-            <span className="tx-total-amount">-NT${filteredTotal.toLocaleString()}</span>
+            <span className="tx-total-amount">{filteredTotal < 0 ? '+' : '-'}NT${Math.abs(filteredTotal).toLocaleString()}</span>
           </div>
         )}
         {transactions.length === 0 ? (

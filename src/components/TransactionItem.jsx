@@ -41,8 +41,8 @@ export default function TransactionItem({ tx, onDelete, onEdit, onConvert, onRec
         </div>
       </div>
       <div className="tx-right">
-        <span className="tx-amount">
-          -{'NT$' + Number(tx.amount).toLocaleString()}
+        <span className={`tx-amount${Number(tx.amount) < 0 ? ' tx-amount-refund' : ''}`}>
+          {Number(tx.amount) < 0 ? '+' : '-'}{'NT$' + Math.abs(Number(tx.amount)).toLocaleString()}
         </span>
         {tx.note ? <span className="tx-note">{tx.note}</span> : null}
       </div>
