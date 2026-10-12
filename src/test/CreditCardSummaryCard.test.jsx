@@ -97,3 +97,44 @@ describe('CreditCardSummaryCard 部分繳款', () => {
   })
 })
 
+describe('CreditCardSummaryCard 按錯已繳可以改回來', () => {
+  const card = {
+    id: 'c1', name: '國泰', color: '#0E9F8E', unpaidTotal: 0, unpaidCycles: [],
+    recentPaidCycles: [{ id: 'cy1', cycleKey: '2026-09', closeDate: '2026-09-25', dueDate: '2026-10-10', amount: 10000, paid: true, paidAt: '2026-10-09' }],
+  }
+  const open = (onUpdateCycle = vi.fn()) => {
+    render(<CreditCardSummaryCard card={card} onMarkPaid={vi.fn()} onMarkAllPaid={vi.fn()} onUpdateCycle={onUpdateCycle} />)
+    fireEvent.click(screen.getByRole('button', { name: /國泰/ }))
+    fireEvent.click(screen.getByRole('button', { name: '改回未繳' }))
+    return onUpdateCycle
+  }
+
+  it('沒有未繳帳單時，仍列出最近已繳的，並可改回未繳', () => {
+    render(<CreditCardSummaryCard card={card} onMarkPaid={vi.fn()} onMarkAllPaid={vi.fn()} onUpdateCycle={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /國泰/ }))
+    expect(screen.getByText('目前沒有未繳的帳單')).toBeInTheDocument()
+    expect(screen.getByText('NT$10,000')).toBeInTheDocument()
+    expect(screen.getByText('結帳 2026-09-25・已繳 2026-10-09')).toBeInTheDocument()
+  })
+
+  it('其實只繳一部分：改回未繳並記下實際繳的金額', () => {
+    const onUpdateCycle = open()
+    fireEvent.change(screen.getByLabelText('其實只繳了多少（沒繳就留空）'), { target: { value: '4000' } })
+    fireEvent.click(screen.getAllByRole('button', { name: '改回未繳' })[1])
+    expect(onUpdateCycle).toHaveBeenCalledWith('c1', 'cy1', { paid: false, paidAt: null, paidAmount: 4000 })
+  })
+
+  it('金額留空：只改回未繳，不動已繳金額', () => {
+    const onUpdateCycle = open()
+    fireEvent.click(screen.getAllByRole('button', { name: '改回未繳' })[1])
+    expect(onUpdateCycle).toHaveBeenCalledWith('c1', 'cy1', { paid: false, paidAt: null })
+  })
+
+  it('填的金額大於等於帳單就等於繳清，不做任何改動', () => {
+    const onUpdateCycle = open()
+    fireEvent.change(screen.getByLabelText('其實只繳了多少（沒繳就留空）'), { target: { value: '10000' } })
+    fireEvent.click(screen.getAllByRole('button', { name: '改回未繳' })[1])
+    expect(onUpdateCycle).not.toHaveBeenCalled()
+  })
+})
+

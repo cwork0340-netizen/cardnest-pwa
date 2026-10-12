@@ -236,6 +236,11 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, plans = [
     const unpaid = unpaidCycles(cardWithLiveCycles)
     const unpaidTotal = totalUnpaid(cardWithLiveCycles)
     const unpaidWithDaysLeft = unpaid.map(c => ({ ...c, daysLeft: daysUntilDue(c) }))
+    // 最近三期已繳的帳單：只給畫面用，讓按錯「已繳」可以改回來，不參與任何金額計算
+    const recentPaidCycles = [...(cardWithLiveCycles.billingCycles ?? [])]
+      .filter(c => c.paid)
+      .sort((a, b) => String(b.closeDate).localeCompare(String(a.closeDate)))
+      .slice(0, 3)
     const postedDateCount = allCardTx.filter(tx => tx.postedDate && tx.postedDate !== tx.date).length
     const paymentCount = allCardTx.filter(isCreditCardPayment).length
     const installmentCreditCount = allCardTx.filter(isInstallmentConversionCredit).length
@@ -254,7 +259,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, plans = [
     return {
       ...card, used, currentCycleAmount, currentCyclePurchaseAmount, currentCyclePendingAmount, spendingWarningTotal,
       subsOnCard, instOnCard,
-      unpaidCycles: unpaidWithDaysLeft, unpaidTotal,
+      unpaidCycles: unpaidWithDaysLeft, unpaidTotal, recentPaidCycles,
       reconciliationHints,
       nextCloseLabel: formatMD(nextClose),
       nextDueLabel: formatMD(nextDue),
@@ -759,6 +764,7 @@ export default function App() {
   // 可選擇從連動的儲蓄帳戶扣款
   const handleMarkCardPaid = useCallback((cycleId, opts = {}) => {
     const paidAt = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
+    const before = cards.flatMap(c => c.billingCycles ?? []).find(cy => cy.id === cycleId)
     setCards(prev => prev.map(c => {
       if (!c.billingCycles?.some(cy => cy.id === cycleId)) return c
       return {
@@ -768,12 +774,22 @@ export default function App() {
     }))
     if (opts.fromSavingId && Number(opts.amount) > 0) {
       handleSpendSaving(opts.fromSavingId, Number(opts.amount), 'Card payment')
+    } else if (before && !before.paid) {
+      // 按錯「已繳」很常見，5 秒內可以直接復原（從儲蓄帳戶扣款的那種不提供，錢已經動了）
+      showUndoToast('已標記這期已繳', () => {
+        setCards(prev => prev.map(c => ({
+          ...c,
+          billingCycles: (c.billingCycles ?? []).map(cy => cy.id === cycleId ? { ...cy, paid: false, paidAt: before.paidAt ?? null } : cy),
+        })))
+        setToast(null)
+      })
     }
-  }, [handleSpendSaving])
+  }, [cards, handleSpendSaving, showUndoToast])
 
   // 一次把某張卡所有未繳的期數都標記已繳（例如補繳好幾期積欠的帳單）
   const handleMarkAllCyclesPaid = useCallback((cardId) => {
     const paidAt = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`
+    const flipped = new Set((cards.find(c => c.id === cardId)?.billingCycles ?? []).filter(cy => !cy.paid).map(cy => cy.id))
     setCards(prev => prev.map(c => {
       if (c.id !== cardId) return c
       return {
@@ -781,7 +797,16 @@ export default function App() {
         billingCycles: (c.billingCycles ?? []).map(cy => cy.paid ? cy : { ...cy, paid: true, paidAt }),
       }
     }))
-  }, [])
+    if (flipped.size > 0) {
+      showUndoToast(`已標記 ${flipped.size} 期已繳`, () => {
+        setCards(prev => prev.map(c => c.id !== cardId ? c : {
+          ...c,
+          billingCycles: (c.billingCycles ?? []).map(cy => flipped.has(cy.id) ? { ...cy, paid: false, paidAt: null } : cy),
+        }))
+        setToast(null)
+      })
+    }
+  }, [cards, showUndoToast])
 
   // 手動改某一期的到期日（延後繳款），或編輯金額（銀行實際帳單跟估算不同時）
   const handleUpdateCycle = useCallback((cardId, cycleId, fields) => {

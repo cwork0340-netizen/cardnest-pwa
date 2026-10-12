@@ -58,8 +58,11 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
   const [calibration, setCalibration] = useState({ amount: '', closeDate: '', dueDate: '' })
   const [payingCycleId, setPayingCycleId] = useState(null)
   const [payAmount, setPayAmount] = useState('')
+  const [restoringCycleId, setRestoringCycleId] = useState(null)
+  const [restoreAmount, setRestoreAmount] = useState('')
 
   const unpaid = card.unpaidCycles ?? []
+  const recentPaid = card.recentPaidCycles ?? []
   const reconciliationHints = card.reconciliationHints ?? []
   const currentCyclePurchaseAmount = card.currentCyclePurchaseAmount ?? card.currentCycleAmount ?? 0
   const currentCyclePendingAmount = card.currentCyclePendingAmount ?? Math.max(0, currentCyclePurchaseAmount - Number(card.currentCycleAmount ?? 0))
@@ -124,6 +127,30 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
       ...(totalPaid >= Number(cycle.amount ?? 0) && { paid: true, paidAt }),
     })
     setPayingCycleId(null)
+  }
+
+  function startRestore(e, cycle) {
+    e.stopPropagation()
+    setRestoringCycleId(cycle.id)
+    setRestoreAmount('')
+  }
+
+  // 按錯「已繳」就改回未繳。如果其實只繳了一部分，可以順便填實際繳了多少
+  // （這期已繳的總額），沒繳的部分就會留在待繳帳單。
+  function saveRestore(e, cycle) {
+    e.stopPropagation()
+    const amount = Number(restoreAmount)
+    const hasAmount = restoreAmount.trim() !== '' && Number.isFinite(amount) && amount > 0
+    if (hasAmount && amount >= Number(cycle.amount ?? 0)) {
+      setRestoringCycleId(null)
+      return
+    }
+    onUpdateCycle(card.id, cycle.id, {
+      paid: false,
+      paidAt: null,
+      ...(hasAmount && { paidAmount: amount }),
+    })
+    setRestoringCycleId(null)
   }
 
   function calibrationDiff(cycle) {
@@ -305,6 +332,46 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
             </>
           )}
 
+          {recentPaid.length > 0 && (
+            <>
+              <p className="credit-card-summary-breakdown-note">最近已繳的帳單（按錯可以改回來）：</p>
+              {recentPaid.map((cycle) => (
+                <div className="credit-card-cycle-row" key={cycle.id}>
+                  <div className="credit-card-cycle-info">
+                    <span className="credit-card-cycle-amount">{fmt(cycle.amount)}</span>
+                    <span className="credit-card-cycle-partial">
+                      結帳 {cycle.closeDate}{cycle.paidAt ? `・已繳 ${cycle.paidAt}` : '・已繳'}
+                    </span>
+                  </div>
+                  <div className="credit-card-cycle-actions">
+                    <button className="credit-card-cycle-calibrate" onClick={(e) => startRestore(e, cycle)}>
+                      改回未繳
+                    </button>
+                  </div>
+                  {restoringCycleId === cycle.id && (
+                    <div className="credit-card-cycle-calibration" onClick={(e) => e.stopPropagation()}>
+                      <label>
+                        其實只繳了多少（沒繳就留空）
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={restoreAmount}
+                          onChange={(e) => setRestoreAmount(e.target.value)}
+                        />
+                      </label>
+                      <span className="credit-card-cycle-diff">
+                        這期會回到未繳；有填金額的話，帳單 {fmt(cycle.amount)} 扣掉已繳的，剩下的留在待繳帳單。
+                      </span>
+                      <div className="credit-card-cycle-calibration-actions">
+                        <button onClick={(e) => saveRestore(e, cycle)}>改回未繳</button>
+                        <button onClick={(e) => { e.stopPropagation(); setRestoringCycleId(null) }}>取消</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
           <p className="credit-card-summary-breakdown-note">App 估算帳單組成：</p>
           {reconciliationHints.length > 0 && (
             <div className="credit-card-reconcile-box">
