@@ -16,7 +16,7 @@
 
 .sheet-panel {
   position: relative;
-  background: #FFFFFF;
+  background: var(--color-surface);
   border-radius: 28px 28px 0 0;
   padding: 12px 20px 40px;
   max-width: 430px;
