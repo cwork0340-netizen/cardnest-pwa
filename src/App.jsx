@@ -16,7 +16,7 @@ import {
   isImportedTransaction, isPendingReconciliation, SKIP_REASON_INVALID_ROW,
 } from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
-import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue, withLiveCycleEstimates } from './utils/billingCycles'
+import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue, withLiveCycleEstimates, latestCloseDate } from './utils/billingCycles'
 import { buildCardForecast } from './utils/cardForecast'
 import { getSalarySchedule, normalizeSalarySettings } from './utils/salarySchedule'
 import {
@@ -179,11 +179,15 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, plans = [
     const allCardTx = transactions.filter(tx => matchesCard(tx, card))
     const cardTx = allCardTx.filter(isBillableTransaction)
     const bounds = billingCycleBounds(card.billingDay, today)
-    // 同一張卡有好幾個「這個月花多少」，看的東西不一樣，不要混用：
-    // used＝上一期帳單（結帳日之前）的消費；currentCycleAmount＝本月已被銀行入帳的；
-    // currentCyclePurchaseAmount＝本月刷了多少（不管入帳沒）；
-    // currentCyclePendingAmount＝其中還沒入帳的那部分。
+    // 同一張卡有好幾個「這段時間花多少」，看的東西不一樣，不要混用：
+    // used＝上一期帳單（結帳日之前）的消費；
+    // currentCyclePurchaseAmount＝「上次結帳日之後」刷了多少（還沒出帳、正在累積的，跟銀行 App 的
+    //   「目前刷卡消費金額」同一個意思；以入帳日歸期，沒有入帳日就用消費日）；
+    // currentCycleAmount＝其中銀行已經入帳的；currentCyclePendingAmount＝其中還沒入帳的。
+    // 已經結帳的那一期歸「待繳帳單」，兩邊不重複、不遺漏。
     let used, currentCycleAmount, currentCyclePurchaseAmount, currentCyclePendingAmount
+    const lastCloseISO = latestCloseDate(card, today)
+    const lastClose = lastCloseISO ? parseISODate(lastCloseISO) : bounds?.lastBillingDate ?? null
     const monthPurchases = cardTx.filter(tx => isThisMonth(tx.date, today))
     const monthPostedAmount = cardTx
       .filter(tx => tx.postedDate && isThisMonth(tx.postedDate, today))
@@ -196,9 +200,13 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, plans = [
       used = cardTx
         .filter(tx => { const dt = resolveNearDate(transactionCycleDate(tx), today); return dt && dt > bounds.prevBillingDate && dt <= bounds.lastBillingDate })
         .reduce((s, tx) => s + tx.amount, 0)
-      currentCycleAmount = monthPostedAmount
-      currentCyclePurchaseAmount = monthPurchaseAmount
-      currentCyclePendingAmount = monthPendingAmount
+      const unbilled = cardTx.filter(tx => {
+        const dt = resolveNearDate(transactionCycleDate(tx), today)
+        return dt && dt > lastClose
+      })
+      currentCyclePurchaseAmount = unbilled.reduce((s, tx) => s + tx.amount, 0)
+      currentCycleAmount = unbilled.filter(tx => tx.postedDate).reduce((s, tx) => s + tx.amount, 0)
+      currentCyclePendingAmount = unbilled.filter(tx => !tx.postedDate).reduce((s, tx) => s + tx.amount, 0)
     } else {
       // 沒設結帳日：退回用日曆月當作一期
       used = monthPurchaseAmount
@@ -213,7 +221,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, plans = [
         plan: p,
         transactions,
         cards,
-        windowStart: bounds?.lastBillingDate ?? new Date(today.getFullYear(), today.getMonth(), 1),
+        windowStart: lastClose ?? new Date(today.getFullYear(), today.getMonth(), 1),
         windowEnd: today,
       }), 0)
     const monthEnd = endOfMonth(today)
@@ -223,7 +231,7 @@ function computeDashboard(transactions, cards, fixedMonthlyAmount = 0, plans = [
         plan: p,
         transactions,
         cards,
-        windowStart: bounds?.lastBillingDate ?? new Date(today.getFullYear(), today.getMonth(), 1),
+        windowStart: lastClose ?? new Date(today.getFullYear(), today.getMonth(), 1),
         windowEnd: monthEnd,
       }), 0)
     const spendingWarningTotal = currentCyclePurchaseAmount + subsOnCard + instOnCard

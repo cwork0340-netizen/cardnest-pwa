@@ -57,11 +57,25 @@ describe('富邦M 2026-10-12（對照銀行 App 的 2,596）', () => {
     expect(card()).not.toContain('NT$3,850')
   })
 
-  // 已知還沒修：結帳日當天，銀行的「目前刷卡消費金額」仍是 2,596，
-  // 但 App 的「目前累計刷卡」按日曆月份算，是 NT$0（錢已經移到待繳帳單）。
-  it.fails('「目前累計刷卡」與銀行的未出帳單消費一致', () => {
+  // 結帳日當天，銀行 App 在帳單還沒產生前仍把這 2,596 當作「目前刷卡消費金額」；
+  // CardNest 把結帳日當天的消費歸給那天結帳的那一期（待繳帳單），所以「目前累計刷卡」是 0，
+  // 錢只出現在待繳一處，不會同時算兩次。隔天起新的消費才開始累積。
+  it('結帳日當天，這一期的錢在待繳帳單，目前累計刷卡是 0', () => {
     seed(); render(<App />)
     const row = document.querySelector('.credit-card-summary-row').textContent
-    expect(row).toMatch(/目前累計刷卡NT\$2,(596|[0-9]{3})/)
+    expect(row).toMatch(/目前累計刷卡NT\$0/)
+    expect(row).toMatch(/待繳帳單.*NT\$3,850/)
+  })
+
+  it('隔天起，新的消費才算目前累計刷卡', () => {
+    seed()
+    vi.setSystemTime(new Date(2026, 9, 13, 9, 0))
+    const stored = JSON.parse(localStorage.getItem('cardnest_v1'))
+    stored.transactions.push(tx('new', 120, '2026-10-13', '2026-10-13'))
+    localStorage.setItem('cardnest_v1', JSON.stringify(stored))
+    render(<App />)
+    const row = document.querySelector('.credit-card-summary-row').textContent
+    expect(row).toMatch(/目前累計刷卡NT\$120/)
+    expect(row).toMatch(/待繳帳單.*NT\$3,850/)
   })
 })
