@@ -4,6 +4,7 @@ import Toast from './components/Toast'
 import Dashboard from './pages/Dashboard'
 import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
+import More from './pages/More'
 import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
@@ -1090,7 +1091,11 @@ export default function App() {
         planSummary={planSummary}
       />
     ),
+    more: <More onOpen={setTab} />,
   }
+
+  // 規劃、設定都收在「更多」底下，所以在這兩頁時，導覽列亮的是「更多」
+  const activeNav = tab === 'checklist' || tab === 'settings' ? 'more' : tab
 
   if (cards.length === 0 && tab !== 'settings') {
     return (
@@ -1106,7 +1111,7 @@ export default function App() {
       <main className="app-page">
         {pages[tab]}
       </main>
-      <BottomNav active={tab} onChange={setTab} />
+      <BottomNav active={activeNav} onChange={setTab} />
       {toast && <Toast message={toast.message} onUndo={toast.onUndo} />}
     </div>
   )

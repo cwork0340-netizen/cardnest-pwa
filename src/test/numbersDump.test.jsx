@@ -8,6 +8,7 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { writeFileSync } from 'node:fs'
 import App from '../App.jsx'
 import { designSeed as data } from './fixtures/designSeed.js'
+import { goTo } from './helpers/nav'
 
 const NUM = /^[−－-]?\s?NT\$\s?[−－-]?[\d,]+(\.\d+)?$|^[\d,]+\s?(筆|期|天|張)$|^\d+%$/
 function leafTexts(root) {
@@ -41,9 +42,9 @@ describe.skipIf(!process.env.DIFF_OUT)('numbers dump', () => {
       out[`${tn}/dashboard`] = dump(document.body, 'dash')
       document.querySelectorAll('.credit-card-summary-row').forEach((r) => fireEvent.click(r))
       out[`${tn}/dashboard-expanded`] = dump(document.body, 'dash-x')
-      fireEvent.click(screen.getByRole('button', { name: '規劃', exact: true }))
+      goTo('規劃')
       out[`${tn}/plan`] = dump(document.body, 'plan')
-      fireEvent.click(screen.getByRole('button', { name: '刷卡', exact: true }))
+      goTo('刷卡')
       out[`${tn}/tx`] = dump(document.body, 'tx')
       fireEvent.click(screen.getByRole('button', { name: '打開校準' }))
       out[`${tn}/tx-calib`] = dump(document.body, 'calib')

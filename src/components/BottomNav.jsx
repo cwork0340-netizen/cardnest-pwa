@@ -14,17 +14,6 @@ const tabs = [
     ),
   },
   {
-    id: 'checklist',
-    label: '規劃',
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <rect x="4" y="3" width="14" height="16" rx="3" stroke="currentColor" strokeWidth="1.8"/>
-        <path d="M7.5 9l1.6 1.6L12 7.7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M7.5 14h7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  {
     id: 'transactions',
     label: '刷卡',
     icon: (
@@ -36,12 +25,14 @@ const tabs = [
     ),
   },
   {
-    id: 'settings',
-    label: '設定',
+    id: 'more',
+    label: '更多',
+    minor: true,
     icon: (
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-        <circle cx="11" cy="11" r="3" stroke="currentColor" strokeWidth="1.8"/>
-        <path d="M11 2v2M11 18v2M2 11h2M18 11h2M4.22 4.22l1.42 1.42M16.36 16.36l1.42 1.42M4.22 17.78l1.42-1.42M16.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+        <circle cx="4.5" cy="11" r="1.7" fill="currentColor"/>
+        <circle cx="11" cy="11" r="1.7" fill="currentColor"/>
+        <circle cx="17.5" cy="11" r="1.7" fill="currentColor"/>
       </svg>
     ),
   },
@@ -54,7 +45,7 @@ export default function BottomNav({ active, onChange }) {
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className={`bottom-nav-item${active === tab.id ? ' bottom-nav-item--active' : ''}`}
+            className={`bottom-nav-item${tab.minor ? ' bottom-nav-item--minor' : ''}${active === tab.id ? ' bottom-nav-item--active' : ''}`}
             onClick={() => onChange(tab.id)}
             aria-label={tab.label}
           >

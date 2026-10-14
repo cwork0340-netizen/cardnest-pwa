@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import App from '../App.jsx'
+import { goTo } from './helpers/nav'
 
 // 富邦M：結帳日 12 號、繳款日再 16 天（10/28）。資料與金額取自 2026-10-12 銀行 App 的
 // 「未出帳單消費」畫面：580、−1,254（09/19 退款）、1,254、1,988、28，合計 2,596。
@@ -17,7 +18,7 @@ const seed = () => localStorage.setItem('cardnest_v1', JSON.stringify({
   ],
 }))
 const openCalibration = () => {
-  fireEvent.click(screen.getByRole('button', { name: '刷卡', exact: true }))
+  goTo('刷卡')
   fireEvent.click(screen.getByRole('button', { name: '打開校準' }))
   fireEvent.change(screen.getByPlaceholderText('例如 4607'), { target: { value: '2596' } })
 }
@@ -38,7 +39,7 @@ describe('富邦M 2026-10-12（對照銀行 App 的 2,596）', () => {
     seed(); render(<App />)
     expect(card()).toContain('NT$3,850')
 
-    fireEvent.click(screen.getByRole('button', { name: '刷卡', exact: true }))
+    goTo('刷卡')
     fireEvent.click(document.querySelector('.fab'))
     fireEvent.click(screen.getByRole('button', { name: '退款' }))
     fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '1254' } })
@@ -51,7 +52,7 @@ describe('富邦M 2026-10-12（對照銀行 App 的 2,596）', () => {
     fireEvent.change(screen.getByPlaceholderText('例如 4607'), { target: { value: '2596' } })
     expect(screen.getByText('銀行帳單和 App 估算一致。')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '總覽' }))
+    goTo('總覽')
     expect(card()).toContain('NT$2,596')
     expect(card()).not.toContain('NT$3,850')
   })
