@@ -11,9 +11,8 @@ import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken, runSheetSync, describeClientIdProblem, sanitizeClientId } from './utils/googleSheetSync'
 import { categoryColor } from './utils/categoryColors'
 import {
-  fetchImportRows, findImportedTransaction, importedConsumedDate, importedPostedDate,
-  isUsableImportRow, resolveImportedCardResult, summarizeImportRowsByBank, describeSkippedRow,
-  isImportedTransaction, isPendingReconciliation, SKIP_REASON_INVALID_ROW,
+  fetchImportRows, buildNotificationImport,
+  isImportedTransaction, isPendingReconciliation,
 } from './utils/importSheetSync'
 import { nextOccurrence, daysUntil, formatMD, statusForDaysLeft, dayFromMD } from './utils/recurrence'
 import { applyCycleUpdate, ensureBillingCycles, unpaidCycles, totalUnpaid, daysUntilDue, withLiveCycleEstimates, latestCloseDate } from './utils/billingCycles'
@@ -564,17 +563,16 @@ export default function App() {
       : `已設為訂閱「${plan.name}」，這筆算本期扣款`)
   }, [plans, normalizePlan, showToast])
 
-  // 匯入寫回：新增的接在最前面，補正入帳日的就地換掉，並把這次的 permalink
-  // 記進 importedKeys 當去重鍵，下次匯入同一封信才不會再記一筆。
+  // 匯入寫回：交易逐筆去重。同封信補抓的其他交易仍可匯入。
   const handleImportTransactions = useCallback((newTxs, updatedTxs, newKeys, summary = {}) => {
     const updates = new Map(updatedTxs.map((tx) => [tx.id, normalizeTransaction(tx)]))
     setTransactions(p => [...newTxs.map(normalizeTransaction), ...p.map((tx) => updates.get(tx.id) ?? tx)])
     setCardImport(prev => ({
       ...prev,
-      importedKeys: [...prev.importedKeys, ...newKeys],
+      importedKeys: [...new Set([...(prev.importedKeys ?? []), ...newKeys])],
       lastImportAt: Date.now(),
       lastImportCount: newTxs.length,
-      lastImportUpdatedCount: updatedTxs.length,
+      lastImportUpdatedCount: summary.postedUpdatedCount ?? 0,
       lastImportDuplicateCount: summary.duplicateCount ?? 0,
       lastImportSkippedUnmapped: summary.skippedUnmapped ?? 0,
       lastImportInvalidCount: summary.invalidCount ?? 0,
@@ -597,81 +595,13 @@ export default function App() {
     try {
       const token = await getAccessToken(clientId)
       const rows = await fetchImportRows({ accessToken: token, sheetId: importSheetId })
-      const importedKeys = new Set([
-        ...(cardImport?.importedKeys ?? []),
-        ...transactions.map((tx) => tx.source?.permalink).filter(Boolean),
-      ])
-
-      const newTxs = []
-      const updatedTxs = []
-      const newKeys = []
-      const skippedRows = []
-      let skippedUnmapped = 0
-      let duplicateCount = 0
-      let invalidCount = 0
-
-      rows.forEach((row) => {
-        if (!isUsableImportRow(row)) {
-          invalidCount++
-          skippedRows.push(describeSkippedRow({ row, reason: SKIP_REASON_INVALID_ROW }))
-          return
-        }
-        const { card: mappedCard, reason } = resolveImportedCardResult({
-          row, cards, bankCardMap: cardImport?.bankCardMap,
-        })
-        if (!mappedCard) {
-          skippedUnmapped++
-          skippedRows.push(describeSkippedRow({ row, reason }))
-          return
-        }
-        const existingTx = findImportedTransaction({ row, card: mappedCard, transactions })
-        const postedDate = importedPostedDate(row)
-        if (existingTx) {
-          if (postedDate && existingTx.postedDate !== postedDate) {
-            updatedTxs.push({
-              ...existingTx,
-              postedDate,
-              source: existingTx.source ?? {
-                provider: 'card-import', permalink: row.permalink, bank: row.bank, cardLast4: row.cardLast4,
-              },
-            })
-          } else {
-            duplicateCount++
-          }
-          return
-        }
-        if (importedKeys.has(row.permalink)) {
-          duplicateCount++
-          return
-        }
-        newTxs.push({
-          id: crypto.randomUUID(),
-          name: row.merchant || row.bank,
-          category: row.transactionType || '其他',
-          cardId: mappedCard.id,
-          card: mappedCard.name,
-          amount: row.amount,
-          date: importedConsumedDate(row),
-          ...(postedDate && { postedDate }),
-          note: `自動匯入・${row.bank}`,
-          source: {
-            provider: 'card-import',
-            permalink: row.permalink,
-            bank: row.bank,
-            cardLast4: row.cardLast4,
-          },
-        })
-        newKeys.push(row.permalink)
+      const result = buildNotificationImport({
+        rows, cards, transactions,
+        bankCardMap: cardImport?.bankCardMap,
+        importedKeys: cardImport?.importedKeys ?? [],
       })
-
-      handleImportTransactions(newTxs, updatedTxs, newKeys, {
-        duplicateCount,
-        skippedUnmapped,
-        invalidCount,
-        rowCount: rows.length,
-        bankCounts: summarizeImportRowsByBank(rows),
-        skippedRows,
-      })
+      const { newTxs, updatedTxs, newKeys, skippedUnmapped, duplicateCount, invalidCount, postedUpdatedCount } = result
+      handleImportTransactions(newTxs, updatedTxs, newKeys, result)
 
       // 被跳過的筆數要講完整（之前只印未對應卡片，格式壞掉的列連提都沒提到），
       // 並指路去設定頁看逐列理由，不然使用者只會看到「少了幾筆」卻查不出原因。
@@ -680,9 +610,9 @@ export default function App() {
         invalidCount > 0 && `${invalidCount} 筆格式不符`,
       ].filter(Boolean)
       if (skippedParts.length > 0) {
-        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複 ${duplicateCount} 筆，${skippedParts.join('、')}（設定頁可看原因）`)
+        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${postedUpdatedCount} 筆，重複 ${duplicateCount} 筆，${skippedParts.join('、')}（設定頁可看原因）`)
       } else {
-        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${updatedTxs.length} 筆，重複略過 ${duplicateCount} 筆`)
+        showToast(`新增 ${newTxs.length} 筆，補正入帳日 ${postedUpdatedCount} 筆，重複略過 ${duplicateCount} 筆`)
       }
     } catch (e) {
       showToast(e.message || '更新失敗，請稍後再試')
