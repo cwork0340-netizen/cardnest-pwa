@@ -2,6 +2,7 @@
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import Dashboard from './pages/Dashboard'
+import Home from './pages/Home'
 import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
 import More from './pages/More'
@@ -56,7 +57,7 @@ function loadStorage() {
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const WEEKDAY_NAMES = ['週日', '週一', '週二', '週三', '週四', '週五', '週六']
 
 function getGreeting(hour) {
   if (hour < 5) return '夜深'
@@ -373,6 +374,12 @@ export default function App() {
     : storedChecklist.map(i => ({ ...i, done: false }))
 
   const [tab, setTab] = useState('dashboard')
+  // 從現況「填寫」進記錄頁時，直接套用「待填入帳日」篩選
+  const [txAuditPreset, setTxAuditPreset] = useState('all')
+  const goToTab = useCallback((id) => {
+    setTxAuditPreset('all')
+    setTab(id)
+  }, [])
   const [toast, setToast] = useState(null) // { message, onUndo? }
   const toastTimer = useRef(null)
   const [cards, setCards] = useState(stored?.cards ?? [])
@@ -926,6 +933,24 @@ export default function App() {
 
   const pages = {
     dashboard: (
+      <Home
+        greeting={greeting}
+        dateLabel={dateLabel}
+        cards={dashboardCards}
+        paymentReminders={paymentReminders}
+        onMarkCardPaid={handleMarkCardPaid}
+        cardImport={cardImport}
+        importing={importingCardNotifications}
+        onImport={handleImportCardNotifications}
+        syncReminder={syncReminder && { ...syncReminder, syncing: syncingNow, onSync: () => handleSyncNow(planSummary) }}
+        pendingCount={reconciliationSummary.pendingCount}
+        onGoToPending={() => { setTxAuditPreset('pending'); setTab('transactions') }}
+        onAddTransaction={handleAddTransaction}
+        showToast={showToast}
+        budget={currentMonth.budget}
+      />
+    ),
+    cards: (
       <Dashboard
         syncReminder={syncReminder && { ...syncReminder, syncing: syncingNow, onSync: () => handleSyncNow(planSummary) }}
         greeting={greeting}
@@ -966,6 +991,7 @@ export default function App() {
         cardImport={cardImport}
         importingCardNotifications={importingCardNotifications}
         onImportCardNotifications={handleImportCardNotifications}
+        initialAuditFilter={txAuditPreset}
         plans={plans}
         onUpdateCycle={handleUpdateCycle}
       />
@@ -1029,11 +1055,11 @@ export default function App() {
         planSummary={planSummary}
       />
     ),
-    more: <More onOpen={setTab} />,
+    more: <More onOpen={goToTab} />,
   }
 
-  // 規劃、設定都收在「更多」底下，所以在這兩頁時，導覽列亮的是「更多」
-  const activeNav = tab === 'checklist' || tab === 'settings' ? 'more' : tab
+  // 各卡與帳單、規劃、設定都收在「更多」底下，所以在這兩頁時，導覽列亮的是「更多」
+  const activeNav = tab === 'cards' || tab === 'checklist' || tab === 'settings' ? 'more' : tab
 
   if (cards.length === 0 && tab !== 'settings') {
     return (
@@ -1049,7 +1075,7 @@ export default function App() {
       <main className="app-page">
         {pages[tab]}
       </main>
-      <BottomNav active={activeNav} onChange={setTab} />
+      <BottomNav active={activeNav} onChange={goToTab} />
       {toast && <Toast message={toast.message} onUndo={toast.onUndo} />}
     </div>
   )

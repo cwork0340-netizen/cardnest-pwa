@@ -3,7 +3,7 @@ import './BottomNav.css'
 const tabs = [
   {
     id: 'dashboard',
-    label: '總覽',
+    label: '現況',
     icon: (
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
         <rect x="2" y="2" width="8" height="8" rx="2.5" fill="currentColor" opacity="0.85"/>

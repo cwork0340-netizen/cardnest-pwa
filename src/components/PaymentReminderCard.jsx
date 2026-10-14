@@ -13,7 +13,7 @@ function urgency(daysLeft) {
   return { cls: 'safe', text: `還有 ${daysLeft} 天` }
 }
 
-export default function PaymentReminderCard({ reminders, onMarkPaid }) {
+export default function PaymentReminderCard({ reminders, onMarkPaid, title = '繳費提醒', showCount = true }) {
   const [confirmingId, setConfirmingId] = useState(null)
   if (!reminders || reminders.length === 0) return null
 
@@ -29,8 +29,8 @@ export default function PaymentReminderCard({ reminders, onMarkPaid }) {
   return (
     <div className="card pay-reminder">
       <div className="pay-reminder-head">
-        <span className="pay-reminder-title">繳費提醒</span>
-        <span className="pay-reminder-count">{reminders.length} 張待繳</span>
+        <span className="pay-reminder-title">{title}</span>
+        {showCount && <span className="pay-reminder-count">{reminders.length} 張待繳</span>}
       </div>
       {reminders.map((r) => {
         const u = urgency(r.daysLeft)

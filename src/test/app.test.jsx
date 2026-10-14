@@ -48,7 +48,7 @@ describe('基本渲染', () => {
     seed()
     render(<App />)
     expect(screen.getByText(/早安|午安|午後好|晚安|夜深/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '總覽' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '現況', exact: true })).toBeInTheDocument()
   })
 })
 
@@ -209,6 +209,7 @@ describe('最近 7 個月趨勢', () => {
       ],
     })
     render(<App />)
+    goTo('各卡與帳單')
     const trend = Array.from(document.querySelectorAll('.section'))
       .find(s => s.textContent.includes('最近 7 個月'))
 
@@ -227,6 +228,7 @@ describe('最近 7 個月趨勢', () => {
       ],
     })
     render(<App />)
+    goTo('各卡與帳單')
     const trend = Array.from(document.querySelectorAll('.section'))
       .find(s => s.textContent.includes('最近 7 個月'))
     expect(trend.textContent).toContain('12/2025')
@@ -247,6 +249,7 @@ describe('未償負債總覽', () => {
       ],
     })
     render(<App />)
+    goTo('各卡與帳單')
     // 剩 4 期 × 2000 = 8000，訂閱不算
     const debt = document.querySelector('.debt-overview')
     expect(debt).not.toBeNull()
@@ -278,6 +281,7 @@ describe('本週扣款行事曆', () => {
       }],
     })
     render(<App />)
+    goTo('各卡與帳單')
     // 預設在 dashboard
     expect(screen.getByText('本週扣款')).toBeInTheDocument()
     // 服務名稱、卡片與金額顯示在行事曆元件內
@@ -296,6 +300,7 @@ describe('本週扣款行事曆', () => {
       }],
     })
     render(<App />)
+    goTo('各卡與帳單')
     expect(screen.getByText(/本週沒有預定扣款/)).toBeInTheDocument()
   })
 })
@@ -353,6 +358,7 @@ describe('每月必繳清單', () => {
       checklistMonth: `${d.getFullYear()}-${d.getMonth()}`, // 當月，避免觸發月初重置
     })
     render(<App />)
+    goTo('各卡與帳單')
     // 首頁＝刷卡狀態：只有刷卡 1000，必繳清單不計入
     expect(document.querySelector('.hero-card-amount').textContent).toBe('NT$1,000')
   })
@@ -571,6 +577,7 @@ describe('各卡下期應繳', () => {
       ],
     })
     render(<App />)
+    goTo('各卡與帳單')
     // 永豐卡：下期應繳 = 1000（結帳日之後的刷卡）+ 390（訂閱）+ 600（分期）= 1990
     const cards = document.querySelectorAll('.credit-card-summary')
     const yongfeng = Array.from(cards).find(c => c.textContent.includes('永豐卡'))
@@ -635,6 +642,7 @@ describe('各卡狀態：上期與本期累積', () => {
       ],
     })
     render(<App />)
+    goTo('各卡與帳單')
     const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
       .find(c => c.textContent.includes('台新卡'))
     expect(summary.textContent).toContain('待繳帳單')
@@ -654,6 +662,7 @@ describe('各卡狀態：上期與本期累積', () => {
     })
 
     render(<App />)
+    goTo('各卡與帳單')
 
     const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
       .find(c => c.textContent.includes('國泰卡'))
@@ -672,6 +681,7 @@ describe('各卡狀態：上期與本期累積', () => {
       ],
     })
     render(<App />)
+    goTo('各卡與帳單')
     const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
       .find(c => c.textContent.includes('永豐卡'))
     expect(summary.querySelector('.credit-card-summary-breakdown')).not.toBeInTheDocument()
@@ -701,6 +711,7 @@ describe('各卡狀態：上期與本期累積', () => {
       ],
     })
     render(<App />)
+    goTo('各卡與帳單')
     const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
       .find(c => c.textContent.includes('國泰卡'))
 
@@ -722,6 +733,7 @@ describe('各卡狀態：上期與本期累積', () => {
       ],
     })
     render(<App />)
+    goTo('各卡與帳單')
     const summary = Array.from(document.querySelectorAll('.credit-card-summary'))
       .find(c => c.textContent.includes('台新卡'))
 
@@ -832,6 +844,7 @@ describe('部分繳款：待繳帳單', () => {
       ],
     })
     render(<App />)
+    goTo('各卡與帳單')
     const summary = document.querySelector('.credit-card-summary')
     expect(summary.textContent).toContain('NT$8,000')
   })
@@ -845,6 +858,7 @@ describe('按錯已繳：復原', () => {
   it('標成已繳之後 5 秒內按「復原」就回到未繳', () => {
     seed({ cards: [cardWith(unpaidMay)] })
     render(<App />)
+    goTo('各卡與帳單')
     const summary = document.querySelector('.credit-card-summary')
     fireEvent.click(summary.querySelector('.credit-card-summary-row'))
     fireEvent.click(within(summary).getAllByRole('button', { name: '已繳' })[0])
@@ -858,6 +872,7 @@ describe('按錯已繳：復原', () => {
   it('已經標成已繳的，可以改回未繳並記下實際只繳了多少', () => {
     seed({ cards: [cardWith({ ...unpaidMay, paid: true, paidAt: '2026-05-13' })] })
     render(<App />)
+    goTo('各卡與帳單')
     const summary = document.querySelector('.credit-card-summary')
     fireEvent.click(summary.querySelector('.credit-card-summary-row'))
     fireEvent.click(within(summary).getByRole('button', { name: '改回未繳' }))
@@ -881,6 +896,7 @@ describe('同一期出現兩筆（自動產生＋校準過）', () => {
       }],
     })
     render(<App />)
+    goTo('各卡與帳單')
     const summary = document.querySelector('.credit-card-summary')
     expect(summary.querySelector('.credit-card-summary-amount-value:not(.credit-card-summary-amount-value-main)').textContent).toBe('NT$2,596')
     fireEvent.click(summary.querySelector('.credit-card-summary-row'))
@@ -888,14 +904,15 @@ describe('同一期出現兩筆（自動產生＋校準過）', () => {
   })
 })
 
-describe('三格導覽：總覽、刷卡、更多', () => {
+describe('三格導覽：現況、刷卡、更多', () => {
   const navButtons = () => [...document.querySelectorAll('.bottom-nav-item')].map((b) => b.getAttribute('aria-label'))
 
-  it('導覽列只有三格，規劃與設定收在「更多」', () => {
+  it('導覽列只有三格，各卡與帳單、規劃與設定收在「更多」', () => {
     seed()
     render(<App />)
-    expect(navButtons()).toEqual(['總覽', '刷卡', '更多'])
+    expect(navButtons()).toEqual(['現況', '刷卡', '更多'])
     fireEvent.click(screen.getByRole('button', { name: '更多', exact: true }))
+    expect(screen.getByRole('button', { name: '各卡與帳單', exact: true })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '規劃', exact: true })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '設定', exact: true })).toBeInTheDocument()
   })
@@ -913,9 +930,10 @@ describe('三格導覽：總覽、刷卡、更多', () => {
     expect(document.querySelector('.bottom-nav-item--active').getAttribute('aria-label')).toBe('更多')
   })
 
-  it('總覽上的「去調整」按鈕仍然會開到規劃', () => {
+  it('各卡與帳單上的「去調整」按鈕仍然會開到規劃', () => {
     seed()
     render(<App />)
+    goTo('各卡與帳單')
     fireEvent.click(screen.getByRole('button', { name: /去調整|填月收入|調整必要支出/ }))
     expect(document.querySelector('.bottom-nav-item--active').getAttribute('aria-label')).toBe('更多')
   })

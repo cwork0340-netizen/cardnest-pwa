@@ -39,6 +39,8 @@ describe.skipIf(!process.env.DIFF_OUT)('numbers dump', () => {
       cleanup(); localStorage.clear(); vi.setSystemTime(when)
       localStorage.setItem('cardnest_v1', JSON.stringify(data))
       render(<App />)
+      out[`${tn}/home`] = dump(document.body, 'home')
+      goTo('各卡與帳單')
       out[`${tn}/dashboard`] = dump(document.body, 'dash')
       document.querySelectorAll('.credit-card-summary-row').forEach((r) => fireEvent.click(r))
       out[`${tn}/dashboard-expanded`] = dump(document.body, 'dash-x')
