@@ -51,3 +51,22 @@
   font-weight: 600;
   letter-spacing: 0.01em;
 }
+
+/* 「更多」只放不常用的頁面：做窄一點，不跟日常的兩格搶眼 */
+.bottom-nav-item--minor {
+  flex: 0.55;
+}
+
+.bottom-nav-item--minor .bottom-nav-icon {
+  opacity: 0.8;
+}
+
+/* 新配色下，選中與未選中都是深咖啡色系，差異要靠粗細與濃淡來拉開 */
+.bottom-nav-item:not(.bottom-nav-item--active) .bottom-nav-icon {
+  opacity: 0.65;
+}
+
+.bottom-nav-item--active .bottom-nav-label {
+  font-weight: 700;
+}
+

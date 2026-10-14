@@ -31,7 +31,7 @@
 }
 
 .pay-reminder-row--danger {
-  background: rgba(214, 69, 65, 0.08);
+  background: var(--color-danger-soft);
 }
 
 .pay-reminder-row--warning {

@@ -1,53 +1,76 @@
 :root {
-  /* CardNest palette: calm statement desk */
-  --primary: #3D6A6A;
-  --secondary: #DDEBE6;
-  --bg: #F6F4EF;
-  --card: #FFFDFC;
-  --divider: #E4E0D8;
-  --text: #2F3437;
-  --text-sub: #697477;
-  --text-disabled: #A8B0AE;
-  --status-safe: #3F8F72;
-  --status-warn: #D28A28;
-  --status-danger: #C75C51;
-  --radius-card: 22px;
-  --radius-btn: 16px;
-  --radius-input: 14px;
-  --shadow: 0 6px 18px rgba(82, 58, 41, .08);
+  color-scheme: light;
+  /* CardNest palette: 暖拿鐵（奶油底、咖啡色主色，顏色只傳達狀態／卡片身分／品牌） */
+  --primary: #392F28;
+  --secondary: #E8DFCF;
+  --bg: #F3ECE0;
+  --card: #FBF7F0;
+  --sunken: #E8DFCF;
+  --divider: #D9CDB9;
+  --field-line: #8A7A66;
+  --text: #2B231D;
+  --text-sub: #6A5B4F;
+  /* 舊名沿用，實際是「說明文字」色；真正的 disabled 要另外用 opacity */
+  --text-disabled: #75655A;
+  --on-dark: #F3ECE0;
+  --on-dark-sub: #C9BCA8;
+  --danger-on-dark: #E8A08A;
+  --status-safe: #4F6B4E;
+  --status-warn: #8A5A12;
+  --status-danger: #9C3F2B;
+  --radius-card: 16px;
+  --radius-btn: 12px;
+  --radius-input: 12px;
+  --radius-tag: 6px;
+  --shadow: none;
+
+  /* 卡片識別色：只當小圓點，不當文字色或整塊底色 */
+  --c-sage: #6F8A6D;
+  --c-terra: #A95741;
+  --c-rose: #BC705D;
+  --c-slate: #55708B;
+  --c-taupe: #8C7466;
+  --c-ochre: #A17A2E;
+  --c-plum: #8A6580;
+  --c-teal: #4B7D78;
+
+  /* 數字用系統襯線（iPhone 上是 New York），只套在金額上，中文字不要放進去 */
+  --font-num: ui-serif, "New York", "Source Serif 4", "Songti TC", Georgia, "Noto Serif TC", serif;
 
   /* Colors (aliases onto the palette above) */
   --color-bg: var(--bg);
   --color-surface: var(--card);
   --color-surface-warm: var(--card);
+  --color-surface-alt: var(--sunken);
 
   --color-primary: var(--primary);
-  --color-primary-hover: #93695B;
+  --color-primary-hover: #4A3D34;
   --color-primary-soft: var(--secondary);
 
   --color-text-main: var(--text);
+  --color-text-primary: var(--text);
   --color-text-secondary: var(--text-sub);
   --color-text-muted: var(--text-disabled);
 
   --color-border: var(--divider);
-  --color-border-strong: #D8CABD;
+  --color-border-strong: var(--field-line);
 
   --color-success: var(--status-safe);
-  --color-success-soft: #E9F0EA;
+  --color-success-soft: #DDE6D6;
 
   --color-warning: var(--status-warn);
-  --color-warning-soft: #FBEFDD;
+  --color-warning-soft: #F1E1BF;
 
   --color-danger: var(--status-danger);
-  --color-danger-soft: #F8E9E6;
+  --color-danger-soft: #F3DDD3;
 
-  --color-subscription: #35718F;
+  --color-subscription: var(--c-slate);
   --color-installment: var(--status-warn);
   --color-transaction: var(--status-safe);
 
-  /* Shadows */
+  /* Shadows：卡片不要陰影，只有彈窗、提示條、浮動按鈕會浮起來 */
   --shadow-card: var(--shadow);
-  --shadow-floating: 0 10px 28px rgba(82, 58, 41, .16);
+  --shadow-floating: 0 8px 24px rgba(43, 35, 29, .14);
 
   /* Spacing */
   --page-padding-x: 20px;
@@ -57,10 +80,11 @@
   --hero-padding: 20px;
 
   /* Radius */
-  --radius-hero: 26px;
+  --radius-hero: 20px;
+  --radius-md: 12px;
   --radius-button: var(--radius-btn);
   --radius-pill: 999px;
-  --radius-sheet: 26px;
+  --radius-sheet: 24px;
 }
 
 *, *::before, *::after {
@@ -76,7 +100,7 @@ html {
 body {
   background: var(--color-bg);
   color: var(--color-text-main);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Noto Sans TC", "PingFang TC", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -118,7 +142,7 @@ input, select, textarea {
   border-radius: var(--radius-card);
   padding: var(--card-padding);
   box-shadow: var(--shadow-card);
-  border: 1px solid rgba(64, 52, 46, 0.04);
+  border: 1px solid var(--color-border);
 }
 
 /* Buttons */
@@ -301,3 +325,30 @@ input, select, textarea {
     scroll-behavior: auto !important;
   }
 }
+
+/* 金額用襯線數字。只改字體，不改任何版面；掛在既有的 class 上，不必逐一改 JSX。 */
+.num,
+.hero-card-amount,
+.mb-card-amount,
+.credit-card-summary-amount-value,
+.credit-card-cycle-amount,
+.pay-reminder-amount,
+.debt-amount,
+.debt-summary-amount,
+.plan-amount,
+.plan-remaining-total,
+.tx-amount,
+.tx-total-amount,
+.tx-statement-detail-amount,
+.week-cal-item-amount,
+.category-amount,
+.cl-amount,
+.checklist-summary-amount,
+.checklist-budget-amount,
+.card-forecast-metric strong,
+.card-forecast-safe strong,
+.hero-card-metric strong {
+  font-family: var(--font-num);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+

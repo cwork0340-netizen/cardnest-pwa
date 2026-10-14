@@ -4,8 +4,8 @@
   "description": "溫柔整理信用卡帳務的小窩",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F8F5EF",
-  "theme_color": "#5E7CE2",
+  "background_color": "#F3ECE0",
+  "theme_color": "#F3ECE0",
   "orientation": "portrait",
   "icons": [
     {
@@ -17,6 +17,12 @@
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
