@@ -53,10 +53,13 @@ describe('Google Sheet 同步提醒', () => {
     await waitFor(() => expect(screen.queryByText(/沒有同步到 Google Sheet/)).not.toBeInTheDocument())
     expect(getAccessToken).toHaveBeenCalledTimes(1)
     expect(runSheetSync).toHaveBeenCalledWith(expect.objectContaining({ accessToken: 'token', sheetId: 'sheet1' }))
-    const saved = JSON.parse(localStorage.getItem('cardnest_v1')).googleSync
-    expect(saved.lastSyncCount).toBe(12)
-    expect(Date.now() - saved.lastSyncAt).toBeLessThan(60 * 1000)
-    expect(saved.lastBackupAt).toBe('keep-me')
+    // 畫面更新之後，App 才把新的同步時間寫進 localStorage，所以要等寫入完成再檢查
+    await waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem('cardnest_v1')).googleSync
+      expect(saved.lastSyncCount).toBe(12)
+      expect(Date.now() - saved.lastSyncAt).toBeLessThan(60 * 1000)
+      expect(saved.lastBackupAt).toBe('keep-me')
+    })
   })
 
   it('Client ID 有問題時不去授權，直接說明原因', async () => {
