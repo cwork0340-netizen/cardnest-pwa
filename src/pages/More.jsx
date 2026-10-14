@@ -1,6 +1,7 @@
 import './More.css'
 
 const ITEMS = [
+  { id: 'cards', title: '各卡與帳單', sub: '每張卡的帳單、校準、分期、花費分類' },
   { id: 'checklist', title: '規劃', sub: '收入、必要支出、訂閱與分期、儲蓄' },
   { id: 'settings', title: '設定', sub: '信用卡、信件匯入、同步、備份' },
 ]

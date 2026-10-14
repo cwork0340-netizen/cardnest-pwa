@@ -6,9 +6,10 @@ import BottomSheet from '../components/BottomSheet'
 import QuickTransactionForm from '../components/QuickTransactionForm'
 import ConvertToPlanForm from '../components/ConvertToPlanForm'
 import EmptyState from '../components/EmptyState'
-import { isBillableTransaction, matchesCard, parseISODate, resolveCardId, toISODate, transactionRepresentsPlan } from '../utils/financeData'
+import { isBillableTransaction, matchesCard, parseISODate, toISODate, transactionRepresentsPlan } from '../utils/financeData'
 import { buildStatementCalibration } from '../utils/statementCalibration'
 import { dedupeCyclesByCloseDate } from '../utils/billingCycles'
+import { buildManualTransactionFields } from '../utils/manualTransaction'
 import { isImportedTransaction, isPendingReconciliation } from '../utils/importSheetSync'
 
 const PERIOD_TABS = [
@@ -102,7 +103,7 @@ function hasImportedPostedDate(tx) {
 
 export default function Transactions({
   showToast, transactions, cards, onAddTransaction, onUpdateTransaction, onDeleteTransaction,
-  onConvertToInstallment, onMarkAsSubscription, cardImport, importingCardNotifications, onImportCardNotifications,
+  onConvertToInstallment, onMarkAsSubscription, cardImport, importingCardNotifications, onImportCardNotifications, initialAuditFilter = 'all',
   plans = [], onUpdateCycle,
 }) {
   const [showSheet, setShowSheet] = useState(false)
@@ -111,7 +112,7 @@ export default function Transactions({
   const [keyword, setKeyword] = useState('')
   const [cardFilter, setCardFilter] = useState('all')
   const [periodFilter, setPeriodFilter] = useState('all')
-  const [auditFilter, setAuditFilter] = useState('all')
+  const [auditFilter, setAuditFilter] = useState(initialAuditFilter)
   const [rangeStart, setRangeStart] = useState('')
   const [rangeEnd, setRangeEnd] = useState('')
   const [calibrationOpen, setCalibrationOpen] = useState(false)
@@ -188,19 +189,8 @@ export default function Transactions({
     setEditingTx(null)
   }
 
-  function handleSubmit({ amount, isRefund, category, cardId, card, date, postedDate, name, note }) {
-    const selectedCard = cards.find((c) => c.id === (cardId || resolveCardId({ card }, cards)))
-    const fields = {
-      name: name.trim() || (isRefund ? '退款' : category),
-      category,
-      kind: isRefund ? 'refund' : undefined,
-      cardId: selectedCard?.id,
-      card: selectedCard?.name ?? card,
-      amount,
-      date: toISODate(date),
-      ...(postedDate ? { postedDate: toISODate(postedDate) } : { postedDate: undefined }),
-      note,
-    }
+  function handleSubmit(form) {
+    const fields = buildManualTransactionFields(form, cards)
     if (editingTx) {
       onUpdateTransaction({ ...editingTx, ...fields })
       showToast('記錄已更新')
