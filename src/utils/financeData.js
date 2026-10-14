@@ -141,7 +141,7 @@ export function transactionRepresentsPlan(tx, plan, cards) {
 
 export function planAmountNotRecorded({ plan, transactions, cards, windowStart, windowEnd }) {
   const represented = transactions.some((tx) => {
-    const date = parseISODate(tx.date, windowEnd)
+    const date = parseISODate(transactionCycleDate(tx), windowEnd)
     return date && date > windowStart && date <= windowEnd && transactionRepresentsPlan(tx, plan, cards)
   })
   return represented ? 0 : Number(plan.amount) || 0
@@ -163,7 +163,7 @@ export function installmentAmountNotRecordedInWindow(args) {
   })
   if (!occurrence) return 0
   const represented = args.transactions.some((tx) => {
-    const date = parseISODate(tx.date, args.windowEnd)
+    const date = parseISODate(transactionCycleDate(tx), args.windowEnd)
     return date && date > args.windowStart && date <= args.windowEnd
       && Number(tx.amount) === Number(occurrence.amount)
       && transactionRepresentsPlan(tx, { ...args.plan, amount: occurrence.amount }, args.cards)

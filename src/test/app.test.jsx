@@ -558,6 +558,8 @@ describe('資料備份：匯入還原', () => {
 
 describe('各卡下期應繳', () => {
   it('卡片下期應繳＝該卡刷卡＋訂閱＋未繳分期', () => {
+    // 6/12 是結帳日；結帳日當天的消費屬於那天結帳的那一期（歸待繳），所以改在結帳後兩天測
+    vi.setSystemTime(new Date(2026, 5, 14))
     seed({
       transactions: [
         { id: 't1', name: '購物', card: '永豐卡', category: '購物', amount: 1000, date: todayMD() },
@@ -569,7 +571,7 @@ describe('各卡下期應繳', () => {
       ],
     })
     render(<App />)
-    // 永豐卡：上期應繳 = 1000（已過結帳日的刷卡）+ 390（訂閱）+ 600（分期）= 1990
+    // 永豐卡：下期應繳 = 1000（結帳日之後的刷卡）+ 390（訂閱）+ 600（分期）= 1990
     const cards = document.querySelectorAll('.credit-card-summary')
     const yongfeng = Array.from(cards).find(c => c.textContent.includes('永豐卡'))
     const amountValues = yongfeng.querySelectorAll('.credit-card-summary-amount-value')
@@ -660,9 +662,10 @@ describe('各卡狀態：上期與本期累積', () => {
   })
 
   it('點卡片可展開看刷卡／訂閱／分期小計', () => {
-    vi.setSystemTime(new Date(2026, 5, 12))
+    // 結帳日（6/12）之後的消費才算「目前刷卡紀錄」
+    vi.setSystemTime(new Date(2026, 5, 14))
     seed({
-      transactions: [{ id: 't1', card: '永豐卡', amount: 1000, date: '6/12', category: '購物', name: '購物' }],
+      transactions: [{ id: 't1', card: '永豐卡', amount: 1000, date: '6/13', category: '購物', name: '購物' }],
       plans: [
         { id: 's1', type: 'subscription', name: 'Netflix', card: '永豐卡', currency: 'TWD', amount: 390, period: '月', nextDate: '6/20', daysLeft: 8, status: 'neutral', active: true },
         { id: 'i1', type: 'installment', name: '手機分期', card: '永豐卡', amount: 600, period: '期', paidCount: 2, totalCount: 6, nextDate: '6/15', daysLeft: 5, status: 'neutral', paid: false },

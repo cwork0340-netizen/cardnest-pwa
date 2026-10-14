@@ -197,6 +197,14 @@ export function withLiveCycleEstimates(card, { transactions = [], plans = [] } =
   }
 }
 
+// 這張卡最近一次已經結帳的日期（YYYY-MM-DD）：看實際存在的帳單週期，所以校準過的結帳日也算。
+// 還沒有任何帳單週期紀錄時回傳 null，由呼叫的人退回用「結帳日」推算。
+export function latestCloseDate(card, today = new Date()) {
+  const limit = ymd(today)
+  const dates = (card?.billingCycles ?? []).map((c) => c.closeDate).filter((d) => d && d <= limit).sort()
+  return dates.length ? dates[dates.length - 1] : null
+}
+
 // 同一個結帳日只該有一期（一個結帳日只會有一張帳單）。校準時把結帳日改成跟另一期相同、
 // 或舊資料留下的重複，都只留一筆，不然同一張帳單會被算兩次。
 // 留哪一筆：已繳 > 校準過 > 銀行實際金額 > 其他估算；同等級取較後面的。
