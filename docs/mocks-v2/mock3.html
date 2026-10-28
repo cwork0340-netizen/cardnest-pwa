@@ -1,0 +1,181 @@
+<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CardNest v3 介面（示意資料）</title><style>
+/* ===== 提案 tokens（色票取樣自使用者的暖拿鐵截圖，文字色已調到 WCAG AA） ===== */
+:root{
+  --bg:#F3ECE0; --surface:#FBF7F0; --sunken:#E8DFCF; --line:#D9CDB9; --field-line:#8A7A66;
+  --ink:#2B231D; --sub:#6A5B4F; --muted:#75655A; --espresso:#392F28;
+  --on-dark:#F3ECE0; --on-dark-sub:#C9BCA8; --danger-on-dark:#E8A08A;
+  --danger:#9C3F2B; --danger-soft:#F3DDD3; --warn:#8A5A12; --warn-soft:#F1E1BF; --success:#4F6B4E; --success-soft:#DDE6D6;
+  --c-sage:#6F8A6D; --c-terra:#A95741; --c-rose:#BC705D; --c-slate:#55708B; --c-taupe:#8C7466; --c-ochre:#A17A2E; --c-plum:#8A6580; --c-teal:#4B7D78;
+  --font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  --font-num:ui-serif,"New York","Source Serif 4","Songti TC",Georgia,"DejaVu Serif",serif;
+  --r-ctl:12px; --r-card:16px; --r-hero:20px; --r-sheet:24px;
+  --shadow-float:0 8px 24px rgba(43,35,29,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#cfc6b8;font-family:var(--font-ui);color:var(--ink);font-size:15px;line-height:1.45;padding:24px;display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.label{width:100%;font:600 13px var(--font-ui);color:#4a4036}
+.phone{width:390px;height:844px;background:var(--bg);position:relative;overflow:hidden;flex:none}
+.scroll{height:100%;overflow:hidden;padding:20px 20px 96px}
+.num{font-family:var(--font-num);font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.01em}
+.muted{color:var(--muted)} .sub{color:var(--sub)} .danger{color:var(--danger)} .ok{color:var(--success)}
+.h-kicker{font-size:13px;color:var(--sub)}
+.h-title{font-size:26px;font-weight:700;line-height:1.2;margin-top:2px}
+.sec{margin-top:28px}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.sec-h h2{font-size:17px;font-weight:700} .sec-h a{font-size:13px;color:var(--sub);text-decoration:none;min-height:44px;display:flex;align-items:center}
+/* hero */
+.hero{background:var(--espresso);color:var(--on-dark);border-radius:var(--r-hero);padding:20px;margin-top:16px}
+.hero .lab{font-size:13px;color:var(--on-dark-sub)}
+.hero .amt{font-size:40px;line-height:1.1;margin-top:6px;font-weight:600}
+.hero .meta{margin-top:10px;font-size:13px;color:var(--on-dark-sub)} .hero .meta b{color:var(--danger-on-dark);font-weight:600}
+/* list rows (no card-in-card; hairlines) */
+.list{background:var(--surface);border-radius:var(--r-card);padding:0 16px}
+.row{display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.row .main{flex:1;min-width:0}
+.row .t{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .s{font-size:13px;color:var(--sub)}
+.row .amt{font-size:17px;font-weight:600;text-align:right}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:var(--r-ctl);font:600 15px var(--font-ui);border:0}
+.btn-sm{min-height:36px;padding:0 14px;font-size:14px} /* 視覺 36px；實作時外圍用透明 padding 補到 44px 點擊區 */
+.btn-primary{background:var(--espresso);color:var(--on-dark)}
+.btn-secondary{background:var(--sunken);color:var(--ink)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-ghost{background:transparent;color:var(--sub);border:1px solid var(--field-line)}
+.chip{display:inline-flex;align-items:center;min-height:32px;padding:0 12px;border-radius:999px;background:var(--sunken);color:var(--ink);font-size:13px;font-weight:600}
+.chip.on{background:var(--espresso);color:var(--on-dark)}
+.tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600}
+.tag.danger{background:var(--danger-soft);color:var(--danger)} .tag.warn{background:var(--warn-soft);color:var(--warn)} .tag.ok{background:var(--success-soft);color:var(--success)} .tag.neutral{background:var(--sunken);color:var(--sub)}
+.note{display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 16px;background:var(--surface);border-radius:var(--r-card);font-size:14px;margin-top:8px}
+.note .dot{background:var(--warn)} .note .go{margin-left:auto;font-weight:600;color:var(--ink);white-space:nowrap}
+.panel{background:var(--surface);border-radius:var(--r-card);padding:16px}
+.bar{height:8px;background:var(--sunken);border-radius:999px;overflow:hidden} .bar i{display:block;height:100%;background:var(--espresso);border-radius:999px}
+/* nav */
+.nav{position:absolute;left:0;right:0;bottom:0;height:84px;background:rgba(248,243,234,.94);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;padding:8px 8px 0}
+.nav div{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-size:11px;font-weight:600;padding-top:4px}
+.nav div.on{color:var(--ink)} .nav svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.nav .lbl{font-size:12px}
+.seg{display:flex;background:var(--sunken);border-radius:var(--r-ctl);padding:3px}
+.seg span{flex:1;text-align:center;min-height:36px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--sub);border-radius:10px}
+.seg span.on{background:var(--surface);color:var(--ink)}
+.field{display:block}.field label{display:block;font-size:13px;color:var(--sub);margin-bottom:6px}
+.input{height:48px;border:1px solid var(--field-line);border-radius:var(--r-ctl);background:var(--surface);padding:0 14px;display:flex;align-items:center;font-size:16px}
+.input.ph{color:var(--muted)}
+.toast{position:absolute;left:20px;right:20px;bottom:100px;background:var(--espresso);color:var(--on-dark);min-height:48px;border-radius:14px;padding:0 8px 0 16px;display:flex;align-items:center;gap:8px;font-size:14px;box-shadow:var(--shadow-float)}
+.toast b{margin-left:auto;min-height:44px;display:flex;align-items:center;padding:0 12px;color:#F3D9A8;font-weight:700}
+.sheetbg{position:absolute;inset:0;background:rgba(43,35,29,.42)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:var(--r-sheet) var(--r-sheet) 0 0;padding:10px 20px 28px;max-height:92%;box-shadow:var(--shadow-float)}
+.grab{width:36px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
+.stack>*+*{margin-top:12px}
+.cols{display:flex;gap:10px}.cols>*{flex:1}
+.kv{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;font-size:14px}
+.kv .k{color:var(--sub)}
+.hair{border-top:1px solid var(--line)}
+.legend{display:flex;align-items:center;gap:10px;min-height:36px;font-size:14px}
+.stackbar{display:flex;height:10px;border-radius:999px;overflow:hidden;gap:2px}
+.chart{display:flex;align-items:flex-end;gap:10px;height:96px;margin-top:8px}
+.chart div{flex:1;border-radius:6px 6px 2px 2px;background:var(--sunken)} .chart div.now{background:var(--espresso)}
+.chartx{display:flex;gap:10px;font-size:12px;color:var(--muted);margin-top:6px}.chartx span{flex:1;text-align:center}
+.grp{background:var(--surface);border-radius:var(--r-card);padding:0 16px}
+.grp .row{min-height:52px}
+.chev{color:var(--muted);font-size:18px}
+
+/* v2 additions */
+.cta{position:absolute;left:0;right:0;bottom:84px;padding:10px 20px;background:linear-gradient(to top,var(--bg) 78%,rgba(243,236,224,0));display:flex;gap:10px;z-index:5}
+.cta .btn-main{flex:1;min-height:52px;font-size:16px}
+.cta .btn-plus{width:52px;min-height:52px;padding:0;font-size:22px}
+.nav .quiet{flex:.55;opacity:.9}
+.nav .big{flex:1.2}
+.nav .quiet .lbl{font-size:11px}
+.result{background:var(--surface);border-radius:var(--r-card);padding:14px 16px;margin-top:12px}
+.result .line{font-size:15px;font-weight:600}
+.result .todo{display:flex;align-items:center;min-height:44px;border-top:1px solid var(--line);font-size:14px;margin-top:8px}
+.result .todo:first-of-type{margin-top:10px}
+.result .todo .go{margin-left:auto;font-weight:600}
+.fold{display:flex;align-items:center;min-height:44px;color:var(--sub);font-size:14px;margin-top:6px}
+.balance{display:flex;justify-content:space-between;align-items:baseline;background:var(--surface);border-radius:var(--r-card);padding:14px 16px;margin-top:12px}
+.urgent{background:var(--surface);border-radius:var(--r-card);padding:0 16px;margin-top:12px}
+.chips{display:flex;gap:8px;overflow:hidden}
+.cardchips{display:flex;gap:8px;flex-wrap:wrap}
+.cardchips .chip{min-height:40px;padding:0 14px}
+.action-row{display:flex;align-items:center;gap:12px;min-height:52px;border-top:1px solid var(--line);font-size:16px}
+.action-row:first-of-type{border-top:0}
+
+/* v3 additions */
+.sheetbg{z-index:6}.sheet{z-index:7}
+.level{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600}
+.meter{height:10px;background:var(--sunken);border-radius:999px;overflow:hidden;margin-top:10px;position:relative}
+.meter i{display:block;height:100%;border-radius:999px}
+.sayline{font-size:14px;color:var(--sub);margin-top:8px;line-height:1.5}
+.big-n{font-size:30px;font-weight:600;line-height:1.1}
+.cost{background:var(--warn-soft);border-radius:var(--r-card);padding:14px 16px}
+.cost .t{font-size:14px;font-weight:700;color:var(--warn)}
+.cost .n{font-size:22px;font-weight:600;margin-top:4px}
+.good{background:var(--success-soft);border-radius:var(--r-card);padding:14px 16px}
+.fixrow{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:var(--r-card);padding:14px 16px;margin-top:12px;min-height:60px}
+.chart2{display:flex;align-items:flex-end;gap:5px;height:110px;margin-top:10px}
+.chart2 div{flex:1;border-radius:5px 5px 2px 2px;background:var(--sunken)}
+.chart2 div.now{background:var(--espresso)}
+.chartx2{display:flex;gap:5px;font-size:11px;color:var(--muted);margin-top:6px}.chartx2 span{flex:1;text-align:center}
+.cmp{display:grid;grid-template-columns:1fr auto auto;gap:6px 14px;font-size:14px;align-items:baseline}
+.cmp .h{font-size:12px;color:var(--muted)}
+.check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px}
+.box{width:22px;height:22px;border:1.5px solid var(--field-line);border-radius:6px;flex:none}
+</style></head><body><div class="label">1. 現況・目前這位使用者的狀況（循環中、本月已超出）</div><div class="phone" id="home-red"><div class="scroll">
+<div class="h-kicker">10/28 週三</div>
+<div class="hero" style="margin-top:12px"><div class="lab">待繳帳單</div><div class="amt num">NT$34,277</div><div class="meta">2 期・11/10 到期 25,209</div></div>
+<div class="urgent"><div class="row" style="border-top:0"><span class="dot" style="background:var(--c-teal)"></span><div class="main"><div class="t">先繳　國泰 <span class="tag warn" style="margin-left:4px">循環中</span></div><div class="s">剩 <b>9,068</b>・每月利息約 113</div></div><div class="amt num">NT$9,068</div></div>
+<div class="row" style="gap:10px;padding-bottom:12px"><button class="btn btn-primary btn-sm" style="flex:1">全額繳清</button><button class="btn btn-secondary btn-sm" style="flex:1">部分繳款</button></div></div>
+<div class="fold" style="margin-top:2px">還有 1 張待繳 ›</div>
+<div class="panel" style="margin-top:8px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="sub" style="font-size:14px">本月還能花</span><span class="num danger big-n">−NT$3,601</span></div>
+<div class="meter"><i style="width:100%;background:var(--danger)"></i></div>
+<div class="sayline">待繳已經超過本月卡費預算。再刷 1,000，下期就多繳 1,000。</div></div>
+<div class="fixrow"><div><div style="font-size:14px" class="sub">每月固定扣款</div><div class="num" style="font-size:20px;font-weight:600;margin-top:2px">NT$9,133 <span class="muted" style="font-size:13px;font-family:var(--font-ui)">・占收入 15%</span></div></div><span class="chev">›</span></div>
+<div class="fold" style="margin-top:6px;font-size:13px;color:var(--muted)">上次更新 10/27 21:40</div>
+</div><div class="cta"><button class="btn btn-primary btn-main">更新信件刷卡</button><button class="btn btn-secondary btn-plus">＋</button></div><div class="nav"><div class="big on"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg><span class="lbl">現況</span></div><div class="big "><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span class="lbl">記錄</span></div><div class="quiet "><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg><span class="lbl">更多</span></div></div></div><div class="label">2. 現況・狀況良好時：警告全部收起來，只剩三個數字</div><div class="phone" id="home-green"><div class="scroll">
+<div class="h-kicker">10/28 週三</div>
+<div class="hero" style="margin-top:12px"><div class="lab">待繳帳單</div><div class="amt num">NT$12,300</div><div class="meta">2 張・最近 11/10 到期</div></div>
+<div class="urgent"><div class="row" style="border-top:0"><span class="dot" style="background:var(--c-teal)"></span><div class="main"><div class="t">先繳　國泰</div><div class="s">11/10 到期・還有 13 天</div></div><div class="amt num">NT$7,800</div><button class="btn btn-secondary btn-sm">已繳</button></div></div>
+<div class="fold" style="margin-top:2px">還有 1 張待繳 ›</div>
+<div class="panel" style="margin-top:8px"><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="sub" style="font-size:14px">本月還能花</span><span class="num ok big-n">NT$8,700</span></div>
+<div class="meter"><i style="width:43%;background:var(--success)"></i></div>
+<div class="sayline">本月卡費預算已用 43%。</div></div>
+<div class="fixrow"><div><div style="font-size:14px" class="sub">每月固定扣款</div><div class="num" style="font-size:20px;font-weight:600;margin-top:2px">NT$9,133 <span class="muted" style="font-size:13px;font-family:var(--font-ui)">・占收入 15%</span></div></div><span class="chev">›</span></div>
+<div class="fold" style="margin-top:6px;font-size:13px;color:var(--success)">已連續 4 期全額繳清</div>
+</div><div class="cta"><button class="btn btn-primary btn-main">更新信件刷卡</button><button class="btn btn-secondary btn-plus">＋</button></div><div class="nav"><div class="big on"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg><span class="lbl">現況</span></div><div class="big "><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span class="lbl">記錄</span></div><div class="quiet "><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg><span class="lbl">更多</span></div></div></div><div class="label">3. 按「部分繳款」：先看到少繳要付多少利息，預設是全額</div><div class="phone" id="pay"><div class="scroll" style="opacity:.5"><div class="h-kicker">10/28 週三</div><div class="hero" style="margin-top:12px"><div class="lab">待繳帳單</div><div class="amt num">NT$34,277</div></div></div><div class="nav"><div class="big on"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg><span class="lbl">現況</span></div><div class="big "><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span class="lbl">記錄</span></div><div class="quiet "><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg><span class="lbl">更多</span></div></div><div class="sheetbg"></div><div class="sheet"><div class="grab"></div>
+<div class="stack"><div><div style="font-size:18px;font-weight:700">部分繳款・國泰</div><div class="sub" style="font-size:14px;margin-top:2px">10/12 到期，還欠 NT$9,068</div></div>
+<div class="field"><label>這次繳多少</label><div class="input num" style="font-size:22px">5,000</div></div>
+<div class="cardchips"><span class="chip">全額 9,068</span><span class="chip on">5,000</span><span class="chip">自訂</span></div>
+<div class="cost"><div class="t">只繳 5,000：剩 4,068 繼續計息</div><div class="n num">預估每月多付 NT$51～204</div><div style="font-size:13px;color:var(--sub);margin-top:6px;line-height:1.5">估算，以帳單為準。全額繳清 9,068 利息是 0；不繳，一年利息約 1,356，差不多 2 個月 ChatGPT。</div></div>
+<div class="sub" style="font-size:13px;line-height:1.5">循環中的期間，新刷的消費也可能沒有免息期。</div>
+<div class="cols"><button class="btn btn-ghost">取消</button><button class="btn btn-primary">儲存</button></div></div></div></div><div class="label">4. 固定扣款（更多裡的頁面，也可從現況那一列進來）：看見堆疊，也看見什麼時候會釋放</div><div class="phone" id="fixed"><div class="scroll">
+<div class="h-kicker">‹ 現況</div><div class="h-title">固定扣款</div>
+<div class="panel" style="margin-top:14px"><div class="sub" style="font-size:13px">每月固定扣款</div><div class="num big-n" style="margin-top:4px">NT$9,133</div>
+<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><span class="tag warn">占收入 15%・偏高</span><span class="sub" style="font-size:13px">一年約 10.9 萬</span></div>
+<div class="hair" style="margin-top:12px"></div><div class="kv"><span class="k">分期剩餘總負債</span><b class="num">NT$42,899</b></div></div>
+<div class="sec" style="margin-top:20px"><div class="sec-h"><h2>未來 12 個月每月扣款</h2></div><div class="chart2"><div class="now" style="height:100%"></div><div class="" style="height:67%"></div><div class="" style="height:67%"></div><div class="" style="height:67%"></div><div class="" style="height:67%"></div><div class="" style="height:67%"></div><div class="" style="height:67%"></div><div class="" style="height:67%"></div><div class="" style="height:45%"></div><div class="" style="height:45%"></div><div class="" style="height:29%"></div><div class="" style="height:29%"></div></div><div class="chartx2"><span>11</span><span>12</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
+<div class="sayline" style="margin-top:10px">12 月起每月少 3,003，2027/7 起再少 2,017。<span class="ok" style="font-weight:600">先把釋放出來的錢拿去還循環或存起來。</span></div></div>
+<div class="sec" style="margin-top:20px"><div class="sec-h"><h2>分期</h2></div><div class="list">
+<div class="row"><div class="main"><div class="t">印刷橘子數位印藝</div><div class="s">最後 1 期・11 月結束</div></div><div class="amt num">3,003</div></div>
+<div class="row"><div class="main"><div class="t">新光人壽</div><div class="s">剩 8 期・2027/6 結束</div></div><div class="amt num">2,017</div></div>
+<div class="row"><div class="main"><div class="t">飛南山</div><div class="s">剩 10 期・2027/8 結束</div></div><div class="amt num">1,458</div></div>
+<div class="row"><div class="main"><div class="t">飛南山2</div><div class="s">剩 12 期・2027/10 結束</div></div><div class="amt num">765</div></div></div></div>
+<div class="sec" style="margin-top:20px"><div class="sec-h"><h2>訂閱</h2><a>檢查還在用嗎 ›</a></div><div class="list"><div class="row"><div class="main"><div class="t">ChatGPT</div></div><div class="amt num">690</div></div><div class="row"><div class="main"><div class="t">Claude</div></div><div class="amt num">600</div></div></div></div>
+</div><div class="nav"><div class="big "><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg><span class="lbl">現況</span></div><div class="big "><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span class="lbl">記錄</span></div><div class="quiet on"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg><span class="lbl">更多</span></div></div></div><div class="label">5. 新增分期前的承受力檢查：循環中會多一道確認，不直接擋</div><div class="phone" id="inst"><div class="scroll" style="opacity:.5"><div class="h-kicker">‹ 規劃</div><div class="h-title">新增分期</div></div><div class="nav"><div class="big "><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg><span class="lbl">現況</span></div><div class="big "><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span class="lbl">記錄</span></div><div class="quiet on"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg><span class="lbl">更多</span></div></div><div class="sheetbg"></div><div class="sheet"><div class="grab"></div>
+<div class="stack"><div style="font-size:18px;font-weight:700">新增分期前，先看看影響</div>
+<div class="cols"><div class="field"><label>每期金額</label><div class="input num">1,200</div></div><div class="field"><label>期數</label><div class="input num">12</div></div></div>
+<div class="panel" style="background:var(--bg)"><div class="cmp"><span class="h"></span><span class="h">現在</span><span class="h">新增後</span>
+<span>每月固定扣款</span><b class="num">9,133</b><b class="num">10,333</b>
+<span>占收入</span><b class="num">15.2%</b><b class="num warn">17.2%</b>
+<span>未來 12 個月</span><b class="num"></b><b class="num danger">每月少 1,200</b></div></div>
+<div class="cost" style="background:var(--danger-soft)"><div class="t" style="color:var(--danger)">你正在循環中（國泰剩 9,068）</div><div style="font-size:14px;margin-top:6px;line-height:1.5">這時新增分期，接下來 12 個月每月可動用的錢會更少。建議先把循環還清。</div></div>
+<div class="check"><span class="box"></span>我知道，仍要新增</div>
+<div class="cols"><button class="btn btn-primary">先不新增</button><button class="btn btn-ghost" style="opacity:.55">仍要新增</button></div></div></div></div><div class="label">6. 補登一筆：記帳當下直接看到「記完之後還能花多少」；紅燈時多一步（必要／想要）</div><div class="phone" id="add"><div class="scroll" style="opacity:.5"><div class="h-kicker">10/28 週三</div></div><div class="nav"><div class="big on"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg><span class="lbl">現況</span></div><div class="big "><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span class="lbl">記錄</span></div><div class="quiet "><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg><span class="lbl">更多</span></div></div><div class="sheetbg"></div><div class="sheet"><div class="grab"></div>
+<div class="stack"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-size:18px;font-weight:700">補登一筆</div><div class="seg" style="width:150px"><span class="on">消費</span><span>退款</span></div></div>
+<div class="num" style="font-size:40px;font-weight:600;text-align:center;border-bottom:2px solid var(--espresso);padding-bottom:6px">1,280</div>
+<div class="cardchips"><span class="chip">國泰</span><span class="chip on">台新</span><span class="chip">永豐</span><span class="chip">富邦J</span><span class="chip">富邦M</span></div>
+<div class="cost" style="background:var(--danger-soft)"><div class="t" style="color:var(--danger)">記完之後，本月還能花</div><div class="n num danger">−NT$4,881 <span class="sub" style="font-size:13px;font-family:var(--font-ui);font-weight:400">（現在 −3,601）</span></div></div>
+<div class="field"><label>這筆是</label><div class="seg"><span>必要</span><span class="on">想要</span></div></div>
+<div class="muted" style="font-size:13px">更多（日期、名稱、分類、備註）›</div>
+<button class="btn btn-primary" style="width:100%">記一筆</button></div></div></div></body></html>
