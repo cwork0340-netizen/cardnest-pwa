@@ -4,7 +4,7 @@ import { fireEvent, screen } from '@testing-library/react'
 // 導覽列有三格：現況、刷卡、更多；各卡與帳單、規劃、設定在「更多」裡。
 // 舊的「總覽」頁現在叫「各卡與帳單」。
 const DIRECT = new Set(['現況', '刷卡'])
-const UNDER_MORE = new Set(['各卡與帳單', '規劃', '設定'])
+const UNDER_MORE = new Set(['各卡與帳單', '固定扣款', '規劃', '設定'])
 const ALIAS = { 總覽: '各卡與帳單' }
 
 const press = (name) => fireEvent.click(screen.getByRole('button', { name, exact: true }))

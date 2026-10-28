@@ -34,7 +34,7 @@ function urgentText(daysLeft) {
 // 現況：欠多少、先繳哪張、目前刷了多少。更新信件刷卡在底部。
 export default function Home({
   greeting, dateLabel, cards, paymentReminders = [], onMarkCardPaid,
-  cardImport, importing, onImport, syncReminder = null, backupReminder = null, lastBackupAt = null, pendingCount = 0, onGoToPending,
+  cardImport, importing, onImport, syncReminder = null, backupReminder = null, lastBackupAt = null, pendingCount = 0, onGoToPending, fixed = null, onGoToFixed,
   onAddTransaction, showToast, budget = 0,
 }) {
   const [showMoreBills, setShowMoreBills] = useState(false)
@@ -94,6 +94,19 @@ export default function Home({
         </div>
         <strong className={`home-spend-amount home-spend-amount--${spendTone}`}>{fmt(currentSpendTotal)}</strong>
       </section>
+
+      {fixed && fixed.monthly > 0 && (
+        <button type="button" className="home-fixed" onClick={onGoToFixed}>
+          <span className="home-fixed-text">
+            <span className="home-fixed-label">每月固定扣款</span>
+            <strong className="home-fixed-amount">
+              {fmt(fixed.monthly)}
+              {fixed.share != null && <small>・占收入 {Math.round(fixed.share * 100)}%</small>}
+            </strong>
+          </span>
+          <span className="home-fixed-go" aria-hidden="true">›</span>
+        </button>
+      )}
 
       {pendingCount > 0 && (
         <button type="button" className="home-todo" onClick={onGoToPending}>

@@ -3,6 +3,7 @@ import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
 import Dashboard from './pages/Dashboard'
 import Home from './pages/Home'
+import FixedCharges from './pages/FixedCharges'
 import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
 import More from './pages/More'
@@ -12,6 +13,7 @@ import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken, runSheetSync, describeClientIdProblem, sanitizeClientId } from './utils/googleSheetSync'
 import { backupToSheet } from './services/sheetsSync'
 import { parseSetupHash } from './utils/setupLink'
+import { buildFixedCharges } from './utils/fixedCharges'
 import { categoryColor } from './utils/categoryColors'
 import {
   fetchImportRows, buildNotificationImport,
@@ -944,6 +946,7 @@ export default function App() {
   const backupReminder = syncConfigured && !(backupAgeMs <= BACKUP_STALE_MS)
     ? { daysSince: Number.isFinite(backupAgeMs) ? Math.floor(backupAgeMs / (24 * 60 * 60 * 1000)) : null }
     : null
+  const fixedSummary = buildFixedCharges(plans, { income })
   const weekDays = buildWeekDays(plans, enrichedCards)
   const enrichedPlans = enrichPlans(plans)
 
@@ -1012,6 +1015,8 @@ export default function App() {
         backupReminder={backupReminder && { ...backupReminder, backingUp: backingUpNow, onBackup: handleBackupNow }}
         lastBackupAt={googleSync?.lastBackupAt}
         pendingCount={reconciliationSummary.pendingCount}
+        fixed={fixedSummary}
+        onGoToFixed={() => setTab('fixed')}
         onGoToPending={() => { setTxAuditPreset('pending'); setTab('transactions') }}
         onAddTransaction={handleAddTransaction}
         showToast={showToast}
@@ -1123,11 +1128,12 @@ export default function App() {
         planSummary={planSummary}
       />
     ),
+    fixed: <FixedCharges plans={plans} income={income} onBack={() => goToTab('more')} />,
     more: <More onOpen={goToTab} />,
   }
 
   // 各卡與帳單、規劃、設定都收在「更多」底下，所以在這兩頁時，導覽列亮的是「更多」
-  const activeNav = tab === 'cards' || tab === 'checklist' || tab === 'settings' ? 'more' : tab
+  const activeNav = tab === 'cards' || tab === 'fixed' || tab === 'checklist' || tab === 'settings' ? 'more' : tab
 
   if (cards.length === 0 && tab !== 'settings') {
     return (

@@ -118,3 +118,21 @@ button.home-todo-go { min-height: 44px; }
   color: var(--color-text-muted);
   text-align: center;
 }
+
+.home-fixed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 60px;
+  padding: 12px 18px;
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.home-fixed-label { display: block; font-size: 13px; color: var(--color-text-muted); }
+.home-fixed-amount { display: block; margin-top: 2px; font-size: 20px; font-family: var(--font-num, inherit); color: var(--color-text-main); }
+.home-fixed-amount small { font-size: 13px; font-family: inherit; font-weight: 400; color: var(--color-text-muted); }
+.home-fixed-go { font-size: 20px; color: var(--color-text-muted); }
