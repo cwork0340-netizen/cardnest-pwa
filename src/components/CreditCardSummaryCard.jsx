@@ -16,7 +16,8 @@ function dueLabel(cycle) {
 
 function actualDiff(cycle) {
   if (cycle.estimatedAmount == null) return null
-  return Number(cycle.amount || 0) - Number(cycle.estimatedAmount || 0)
+  // 銀行金額含上期未繳時，跟 App 的刷卡估算比的是「這期新增」那一部分
+  return Number(cycle.amount || 0) - Number(cycle.carriedIn || 0) - Number(cycle.estimatedAmount || 0)
 }
 
 function diffLabel(diff) {
@@ -57,7 +58,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
   const [editingCycleId, setEditingCycleId] = useState(null)
   const [editDate, setEditDate] = useState('')
   const [calibratingCycleId, setCalibratingCycleId] = useState(null)
-  const [calibration, setCalibration] = useState({ amount: '', closeDate: '', dueDate: '', mode: 'new' })
+  const [calibration, setCalibration] = useState({ amount: '', closeDate: '', dueDate: '', minDue: '', mode: 'new' })
   const [payingCycleId, setPayingCycleId] = useState(null)
   const [payAmount, setPayAmount] = useState('')
   const [restoringCycleId, setRestoringCycleId] = useState(null)
@@ -90,6 +91,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
       amount: String(cycle.amount ?? ''),
       closeDate: cycle.closeDate ?? '',
       dueDate: cycle.dueDate ?? '',
+      minDue: cycle.minDue ? String(cycle.minDue) : '',
       mode: 'new',
     })
   }
@@ -103,6 +105,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
       // 填的是含上期未繳的應繳總額時，記下來，畫面才解釋得出「帳單金額」為什麼比銀行小
       statementTotal: total ?? undefined,
       carriedIn: carriedIn > 0 ? carriedIn : undefined,
+      minDue: Number(calibration.minDue) > 0 ? Number(calibration.minDue) : undefined,
       closeDate,
       dueDate: calibration.dueDate || cycle.dueDate,
       cycleKey: closeDate?.slice(0, 7) ?? cycle.cycleKey,
@@ -159,8 +162,8 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
   }
 
   function calibrationDiff(cycle) {
-    const { amount } = resolveStatementAmount({ card, cycle, closeDate: calibration.closeDate, raw: calibration.amount, mode: calibration.mode })
-    return (amount ?? Number(cycle.amount || 0)) - Number(cycle.estimatedAmount || 0)
+    const { newAmount } = resolveStatementAmount({ card, cycle, closeDate: calibration.closeDate, raw: calibration.amount, mode: calibration.mode })
+    return (newAmount ?? Number(cycle.amount || 0) - Number(cycle.carriedIn || 0)) - Number(cycle.estimatedAmount || 0)
   }
 
   return (
@@ -214,7 +217,12 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                     )}
                     {cycle.carriedIn > 0 && (
                       <span className="credit-card-cycle-partial">
-                        銀行應繳總額 {fmt(cycle.statementTotal)}（含上期未繳 {fmt(cycle.carriedIn)}）
+                        銀行應繳總額，已含上期未繳 {fmt(cycle.carriedIn)}
+                      </span>
+                    )}
+                    {cycle.minDue > 0 && (
+                      <span className="credit-card-cycle-partial">
+                        最低應繳 {fmt(cycle.minDue)}（繳款截止前至少繳這個）
                       </span>
                     )}
                     {editingCycleId === cycle.id ? (
@@ -287,6 +295,15 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                         onChange={(mode) => setCalibration((prev) => ({ ...prev, mode }))}
                       />
                       <label>
+                        最低應繳（選填）
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={calibration.minDue}
+                          onChange={(e) => setCalibration((prev) => ({ ...prev, minDue: e.target.value }))}
+                        />
+                      </label>
+                      <label>
                         實際結帳日
                         <input
                           type="date"
@@ -317,7 +334,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                     <div className="credit-card-cycle-audit">
                       <div className="credit-card-cycle-audit-grid">
                         <span>銀行實際{cycle.carriedIn > 0 ? '（本期新增）' : ''}</span>
-                        <strong>{fmt(cycle.amount)}</strong>
+                        <strong>{fmt(Number(cycle.amount || 0) - Number(cycle.carriedIn || 0))}</strong>
 
                         <span>App 原估</span>
                         <strong>{fmt(cycle.estimatedAmount)}</strong>

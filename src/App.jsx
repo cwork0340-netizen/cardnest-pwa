@@ -343,7 +343,7 @@ function buildReconciliationSummary({ transactions, cards, cardImport }) {
     const hintCount = card.reconciliationHints?.length ?? 0
     const calibratedDiffs = (card.unpaidCycles ?? [])
       .filter(cycle => cycle.manuallyCalibrated && cycle.estimatedAmount != null)
-      .map(cycle => Number(cycle.amount || 0) - Number(cycle.estimatedAmount || 0))
+      .map(cycle => Number(cycle.amount || 0) - Number(cycle.carriedIn || 0) - Number(cycle.estimatedAmount || 0))
       .filter(diff => Math.abs(diff) >= 100)
 
     return {

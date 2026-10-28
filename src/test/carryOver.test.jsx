@@ -26,6 +26,13 @@ describe('上期未繳要不要算進這期', () => {
     expect(carriedInBefore(card, '2026-09-27', 'c1')).toBe(0)
   })
 
+  it('併進這一期的前期不再算待繳，但對這一期重新校準時還看得到', () => {
+    const rolled = { ...card, billingCycles: [{ ...card.billingCycles[0], rolledInto: 'c2' }, card.billingCycles[1]] }
+    expect(totalUnpaid(rolled)).toBe(25209)
+    expect(carriedInBefore(rolled, '2026-10-26', 'c2')).toBe(9068)
+    expect(carriedInBefore(rolled, '2026-10-26', 'other')).toBe(0)
+  })
+
   it('上期繳清之後，沒有未繳可以帶', () => {
     const paid = { ...card, billingCycles: [{ ...card.billingCycles[0], paid: true }, card.billingCycles[1]] }
     expect(carriedInBefore(paid, '2026-10-26', 'c2')).toBe(0)
@@ -60,25 +67,46 @@ describe('校準：銀行金額是「本期新增」還是「含上期未繳的�
     expect(summary.querySelector('.credit-card-summary-row').textContent).toMatch(/待繳帳單.*NT\$34,277/)
   })
 
-  it('選「含上期未繳」：25,209 裡已經有 9,068，待繳只算 25,209，這期只記 16,141', () => {
-    const summary = open()
+  const saveTotal = (summary) => {
     fireEvent.change(within(summary).getByLabelText('銀行帳單金額'), { target: { value: '25209' } })
     fireEvent.click(within(summary).getByLabelText(/本期應繳總額/))
+    fireEvent.change(within(summary).getByLabelText('實際繳款日'), { target: { value: '2026-11-09' } })
+    fireEvent.change(within(summary).getByLabelText('最低應繳（選填）'), { target: { value: '8116' } })
     fireEvent.click(within(summary).getByText('儲存校準'))
-    expect(summary.querySelector('.credit-card-summary-row').textContent).toMatch(/待繳帳單.*NT\$25,209/)
-    expect(summary.textContent).toContain('NT$16,141')
-    expect(summary.textContent).toContain('銀行應繳總額')
-    expect(summary.textContent).toContain('含上期未繳 NT$9,068')
+  }
+  const dueRow = (summary) => summary.querySelector('.credit-card-summary-row').textContent
+
+  it('選「含上期未繳」：銀行的 25,209 已經包含 9,068，上期併進這一張帳單，只剩一行 25,209，不再有「逾期」', () => {
+    const summary = open()
+    saveTotal(summary)
+    expect(dueRow(summary)).toMatch(/待繳帳單NT\$25,209/)
+    expect(summary.querySelectorAll('.credit-card-cycle-row')).toHaveLength(1)
+    expect(summary.textContent).toContain('已含上期未繳 NT$9,068')
+    expect(summary.textContent).toContain('到期 11/9')
+    expect(summary.textContent).toContain('最低應繳 NT$8,116')
+    expect(summary.textContent).not.toContain('逾期')
   })
 
-  it('含上期未繳校準之後，把上期補繳清，待繳剩 16,141（銀行總額 − 補繳的 9,068）', () => {
+  it('併進去之後，繳 5,000 只剩 20,209；全額繳清就是 0', () => {
     const summary = open()
-    fireEvent.change(within(summary).getByLabelText('銀行帳單金額'), { target: { value: '25209' } })
-    fireEvent.click(within(summary).getByLabelText(/本期應繳總額/))
+    saveTotal(summary)
+    const row = () => summary.querySelector('.credit-card-cycle-row')
+    fireEvent.click(within(row()).getByText('部分繳款'))
+    fireEvent.change(within(row()).getByLabelText('這次繳了多少'), { target: { value: '5000' } })
+    fireEvent.click(within(row()).getByText('儲存'))
+    expect(dueRow(summary)).toMatch(/NT\$20,209/)
+    fireEvent.click(within(row()).getByText('已繳'))
+    expect(dueRow(summary)).toMatch(/NT\$0/)
+  })
+
+  it('選錯了：重新校準改選「本期新增」，上期那 9,068 就放回來', () => {
+    const summary = open()
+    saveTotal(summary)
+    fireEvent.click(within(summary.querySelector('.credit-card-cycle-row')).getByText('校準'))
+    expect(summary.textContent).toContain('上期還有 NT$9,068 沒繳')
+    fireEvent.click(within(summary).getByLabelText(/本期新增消費/))
     fireEvent.click(within(summary).getByText('儲存校準'))
-    const first = summary.querySelectorAll('.credit-card-cycle-row')[0]
-    fireEvent.click(within(first).getByText('已繳'))
-    expect(summary.querySelector('.credit-card-summary-row').textContent).toMatch(/待繳帳單.*NT\$16,141/)
+    expect(dueRow(summary)).toMatch(/待繳帳單（2 期）NT\$34,277/)
   })
 
   it('上期沒有未繳時不問這個問題', () => {

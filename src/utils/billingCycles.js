@@ -229,7 +229,7 @@ export function cycleRemaining(cycle) {
 // remaining 才是還要繳的；只繳一部分的那期沒繳的錢會一直留著，累積到後面的帳單。
 export function unpaidCycles(card) {
   return dedupeCyclesByCloseDate(card.billingCycles ?? [])
-    .filter((c) => !c.paid && cycleRemaining(c) > 0)
+    .filter((c) => !c.paid && !c.rolledInto && cycleRemaining(c) > 0)
     .map((c) => ({ ...c, remaining: cycleRemaining(c) }))
     .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
 }
@@ -242,21 +242,24 @@ export function totalUnpaid(card) {
 // 上期未繳一起算進去；App 的待繳帳單是「各期剩餘」相加，所以校準時要知道這個數字，
 // 才不會把同一筆錢算兩次。
 export function carriedInBefore(card, closeDate, excludeId = null) {
-  return unpaidCycles(card)
-    .filter((c) => c.id !== excludeId && c.closeDate < closeDate)
-    .reduce((s, c) => s + c.remaining, 0)
+  return dedupeCyclesByCloseDate(card?.billingCycles ?? [])
+    // 已經併進別張帳單的前期不再算；併進「這一期」的仍然算（重新校準時還要看得到）
+    .filter((c) => c.id !== excludeId && c.closeDate < closeDate && !c.paid && cycleRemaining(c) > 0 && (!c.rolledInto || c.rolledInto === excludeId))
+    .reduce((s, c) => s + cycleRemaining(c), 0)
 }
 
 // 校準時，使用者輸入的銀行金額是哪一種：
-//   new   ＝ 本期新增（只有這個結帳週期刷的錢）
-//   total ＝ 本期應繳總額（銀行會把上期沒繳完的錢一起算進去）
+//   new   ＝ 本期新增（只有這個結帳週期刷的錢），這一期就記這個金額，前面沒繳完的另外算
+//   total ＝ 本期應繳總額（銀行已經把上期沒繳完的錢算進去），這一期就記這個金額，
+//           前面沒繳完的那幾期併進這一期，不再另外算（見 applyCycleUpdate）
 // 有上期未繳時才需要選；沒有的話兩種一樣，不顯示。
+// amount 是要存的帳單金額；newAmount 是「這期新增了多少」，拿來跟 App 的刷卡估算比對。
 export function resolveStatementAmount({ card, cycle, closeDate, raw, mode }) {
   const entered = Number(raw)
   const carriedIn = carriedInBefore(card, closeDate || cycle.closeDate, cycle.id)
-  if (!Number.isFinite(entered) || String(raw).trim() === '') return { amount: null, carriedIn, total: null }
-  if (mode === 'total' && carriedIn > 0) return { amount: entered - carriedIn, carriedIn, total: entered }
-  return { amount: entered, carriedIn: 0, total: null }
+  if (!Number.isFinite(entered) || String(raw).trim() === '') return { amount: null, newAmount: null, carriedIn, total: null }
+  if (mode === 'total' && carriedIn > 0) return { amount: entered, newAmount: entered - carriedIn, carriedIn, total: entered }
+  return { amount: entered, newAmount: entered, carriedIn: 0, total: null }
 }
 
 // 逾期天數：用真正的日期相減，不再只比對「號數」，換月也不會誤判
@@ -269,7 +272,21 @@ export function daysUntilDue(cycle, today = new Date()) {
 }
 
 export function applyCycleUpdate(cycles = [], cycleId, fields = {}) {
-  const updated = cycles.map(cycle => cycle.id === cycleId ? { ...cycle, ...fields } : cycle)
+  let updated = cycles.map(cycle => cycle.id === cycleId ? { ...cycle, ...fields } : cycle)
+
+  // 校準表單：填的是含上期未繳的應繳總額時，前面還沒繳清的那幾期併進這一期（銀行帳單已經包含它們）；
+  // 改回「本期新增」就放回來。
+  if ('statementTotal' in fields) {
+    const target = updated.find((c) => c.id === cycleId)
+    const rolled = Number(fields.carriedIn) > 0
+    updated = updated.map((c) => {
+      if (c.id === cycleId) return c
+      if (rolled && !c.paid && !c.rolledInto && cycleRemaining(c) > 0 && c.closeDate < target.closeDate) return { ...c, rolledInto: cycleId }
+      if (!rolled && c.rolledInto === cycleId) { const { rolledInto, ...rest } = c; void rolledInto; return rest }
+      return c
+    })
+  }
+
   if (!fields.manuallyCalibrated || !fields.closeDate) return updated
 
   const calibratedClose = parseYmd(fields.closeDate)

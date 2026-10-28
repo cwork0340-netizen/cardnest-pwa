@@ -153,7 +153,7 @@ export default function Transactions({
     plans,
     cycle: selectedCalibrationCycle,
     closeDate: effectiveCloseDate,
-    statementAmount: statement.amount ?? calibrationForm.amount,
+    statementAmount: statement.newAmount ?? calibrationForm.amount,
   })
 
   const sheetOpen = showSheet || !!editingTx
@@ -233,7 +233,7 @@ export default function Transactions({
   function handleSaveCalibration() {
     if (!selectedCalibrationCard || !selectedCalibrationCycle || !calibrationResult || !onUpdateCycle) return
     onUpdateCycle(selectedCalibrationCard.id, selectedCalibrationCycle.id, {
-      amount: calibrationResult.statementAmount,
+      amount: statement.amount ?? calibrationResult.statementAmount,
       statementTotal: statement.total ?? undefined,
       carriedIn: statement.carriedIn > 0 ? statement.carriedIn : undefined,
       closeDate: effectiveCloseDate,
