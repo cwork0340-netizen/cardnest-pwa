@@ -10,6 +10,8 @@ import Checklist from './pages/Checklist'
 import Onboarding from './pages/Onboarding'
 import { maybeNotifyDueBills } from './utils/notify'
 import { getAccessToken, runSheetSync, describeClientIdProblem, sanitizeClientId } from './utils/googleSheetSync'
+import { backupToSheet } from './services/sheetsSync'
+import { parseSetupHash } from './utils/setupLink'
 import { categoryColor } from './utils/categoryColors'
 import {
   fetchImportRows, buildNotificationImport,
@@ -392,6 +394,8 @@ export default function App() {
   const [salarySettings, setSalarySettings] = useState(() => normalizeSalarySettings(stored?.salarySettings))
   const [savings, setSavings] = useState(stored?.savings ?? [])
   const [googleSync, setGoogleSync] = useState(stored?.googleSync ?? null)
+  const [backupRequest, setBackupRequest] = useState(null)
+  const [backingUpNow, setBackingUpNow] = useState(false)
   const [cardImport, setCardImport] = useState(
     stored?.cardImport ?? { sheetId: '', bankCardMap: {}, importedKeys: [] }
   )
@@ -609,6 +613,8 @@ export default function App() {
       })
       const { newTxs, updatedTxs, newKeys, skippedUnmapped, duplicateCount, invalidCount, postedUpdatedCount } = result
       handleImportTransactions(newTxs, updatedTxs, newKeys, result)
+      // 剛授權完，順便把整份資料備份到雲端（等這次匯入的結果寫進狀態之後才跑，見下方 effect）
+      setBackupRequest({ token, at: Date.now() })
 
       // 被跳過的筆數要講完整（之前只印未對應卡片，格式壞掉的列連提都沒提到），
       // 並指路去設定頁看逐列理由，不然使用者只會看到「少了幾筆」卻查不出原因。
@@ -784,6 +790,7 @@ export default function App() {
       const token = await getAccessToken(sanitizeClientId(clientId))
       const { count, cycleCount } = await runSheetSync({ accessToken: token, sheetId, transactions, cards, planSummary: summary })
       setGoogleSync(prev => ({ ...prev, lastSyncAt: Date.now(), lastSyncCount: count }))
+      setBackupRequest({ token, at: Date.now() })
       showToast(`已同步 ${count} 筆刷卡紀錄、${cycleCount} 筆帳單週期`)
     } catch (e) {
       showToast(e.message || '同步失敗，請稍後再試')
@@ -791,6 +798,60 @@ export default function App() {
       setSyncingNow(false)
     }
   }, [googleSync, transactions, cards, showToast])
+
+  // 雲端備份：每次更新信件、同步之後自動跑一次。請求是先記在狀態裡、等畫面把這次的
+  // 變更都套用完才執行，備份到的才是最新的資料。失敗只提示，不影響剛剛做的事。
+  const latestBackup = useRef(null)
+  useEffect(() => {
+    latestBackup.current = {
+      sheetId: googleSync?.sheetId?.trim(),
+      data: { cards, plans, transactions, checklist, checklistMonth, fxSettings, income, salarySettings, savings, googleSync, cardImport },
+    }
+  })
+  useEffect(() => {
+    if (!backupRequest) return
+    const { sheetId, data } = latestBackup.current
+    if (!sheetId) return
+    let alive = true
+    setBackingUpNow(true)
+    backupToSheet(backupRequest.token, sheetId, data)
+      .then((savedAt) => { if (alive) setGoogleSync(prev => ({ ...prev, lastBackupAt: savedAt })) })
+      .catch((e) => showToast(`已更新，但雲端備份失敗：${e.message || '請稍後再試'}`))
+      .finally(() => setBackingUpNow(false))
+    return () => { alive = false }
+  }, [backupRequest, showToast])
+
+  const handleBackupNow = useCallback(async () => {
+    const clientId = googleSync?.clientId?.trim()
+    const problem = describeClientIdProblem(clientId)
+    if (problem) {
+      showToast(problem)
+      return
+    }
+    try {
+      const token = await getAccessToken(sanitizeClientId(clientId))
+      setBackupRequest({ token, at: Date.now() })
+    } catch (e) {
+      showToast(e.message || '備份失敗，請稍後再試')
+    }
+  }, [googleSync, showToast])
+
+  // 換手機：打開設定連結（網址 # 後面帶 Client ID 和 Sheet ID），自動帶進設定並跳到設定頁。
+  // 這台已經有設定時不覆蓋。
+  useEffect(() => {
+    const incoming = parseSetupHash(window.location.hash)
+    if (!incoming) return
+    window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    if (googleSync?.clientId?.trim() || googleSync?.sheetId?.trim()) {
+      showToast('這台已經有 Google 設定，沒有被連結覆蓋')
+      return
+    }
+    setGoogleSync({ clientId: incoming.clientId, sheetId: incoming.sheetId })
+    setTab('settings')
+    showToast('已帶入雲端設定，往下按「還原整份資料」')
+  // 只在打開 App 時檢查一次
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleClearData = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY)
@@ -878,6 +939,11 @@ export default function App() {
   const syncReminder = syncConfigured && syncAgeMs > SYNC_STALE_MS
     ? { daysSince: Number.isFinite(syncAgeMs) ? Math.floor(syncAgeMs / (24 * 60 * 60 * 1000)) : null }
     : null
+  const BACKUP_STALE_MS = 3 * 24 * 60 * 60 * 1000
+  const backupAgeMs = googleSync?.lastBackupAt ? openedAt - Date.parse(googleSync.lastBackupAt) : Infinity
+  const backupReminder = syncConfigured && !(backupAgeMs <= BACKUP_STALE_MS)
+    ? { daysSince: Number.isFinite(backupAgeMs) ? Math.floor(backupAgeMs / (24 * 60 * 60 * 1000)) : null }
+    : null
   const weekDays = buildWeekDays(plans, enrichedCards)
   const enrichedPlans = enrichPlans(plans)
 
@@ -943,6 +1009,8 @@ export default function App() {
         importing={importingCardNotifications}
         onImport={handleImportCardNotifications}
         syncReminder={syncReminder && { ...syncReminder, syncing: syncingNow, onSync: () => handleSyncNow(planSummary) }}
+        backupReminder={backupReminder && { ...backupReminder, backingUp: backingUpNow, onBackup: handleBackupNow }}
+        lastBackupAt={googleSync?.lastBackupAt}
         pendingCount={reconciliationSummary.pendingCount}
         onGoToPending={() => { setTxAuditPreset('pending'); setTab('transactions') }}
         onAddTransaction={handleAddTransaction}

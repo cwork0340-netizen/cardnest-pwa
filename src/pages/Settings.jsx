@@ -6,7 +6,8 @@ import CardForm from '../components/CardForm'
 import { notifySupported, notifyPermission, requestNotifyPermission, sendTestNotification } from '../utils/notify'
 import { getAccessToken, runSheetSync, describeClientIdProblem, sanitizeClientId } from '../utils/googleSheetSync'
 import { CARD_MATCH_REASON, SKIP_REASON_INVALID_ROW } from '../utils/importSheetSync'
-import { backupToSheet, restoreFromSheet } from '../services/sheetsSync'
+import { backupToSheet, listBackups } from '../services/sheetsSync'
+import { buildSetupLink } from '../utils/setupLink'
 
 // card-import（projects/card-import/Code.gs）目前支援的銀行。之後那支腳本加新銀行，
 // 這裡也要跟著加一行，才有對應的卡片可以選。
@@ -39,6 +40,8 @@ export default function Settings({
   const [syncing, setSyncing] = useState(false)
   const [backingUp, setBackingUp] = useState(false)
   const [restoring, setRestoring] = useState(false)
+  // 還原前先列出雲端有哪幾份、讓你選一份並看清楚會取代什麼
+  const [restoreChoices, setRestoreChoices] = useState(null)
   const clientIdProblem = describeClientIdProblem(clientId)
   const pageOrigin = typeof window !== 'undefined' ? window.location.origin : ''
 
@@ -133,17 +136,38 @@ export default function Settings({
     setRestoring(true)
     try {
       const token = await getAccessToken(sanitizeClientId(clientId))
-      const result = await restoreFromSheet(token, sheetId.trim())
-      if (!result) {
+      const backups = await listBackups(token, sheetId.trim())
+      if (backups.length === 0) {
         showToast('這個 Sheet 裡還沒有備份過，請先在舊裝置按「備份整份資料」')
         return
       }
-      const ok = onImportData(result.backupData)
-      showToast(ok ? '已從 Google Sheet 還原整份資料' : '雲端備份格式不正確')
+      setRestoreChoices({ backups, selectedId: backups[0].id })
     } catch (e) {
       showToast(e.message || '還原失敗，請稍後再試')
     } finally {
       setRestoring(false)
+    }
+  }
+
+  function confirmRestore() {
+    const chosen = restoreChoices?.backups.find((b) => b.id === restoreChoices.selectedId)
+    if (!chosen) return
+    const ok = onImportData(chosen.backupData)
+    setRestoreChoices(null)
+    showToast(ok ? '已從 Google Sheet 還原整份資料' : '雲端備份格式不正確')
+  }
+
+  async function handleCopySetupLink() {
+    if (!clientId.trim() || !sheetId.trim()) {
+      showToast('請先填入 Client ID 跟 Sheet ID')
+      return
+    }
+    const link = buildSetupLink(pageOrigin, { clientId: sanitizeClientId(clientId), sheetId: sheetId.trim() })
+    try {
+      await navigator.clipboard.writeText(link)
+      showToast('已複製換機連結，傳到新手機打開')
+    } catch {
+      showToast(link)
     }
   }
 
@@ -320,6 +344,35 @@ export default function Settings({
         <CardForm onSubmit={handleSaveCard} onClose={() => setEditingCard(null)} initialValues={editingCard} />
       </BottomSheet>
 
+      <BottomSheet open={!!restoreChoices} onClose={() => setRestoreChoices(null)} title="還原整份資料">
+        {restoreChoices && (
+          <div className="settings-restore">
+            <p className="settings-backup-hint">
+              選一份雲端備份。還原後，這台裝置目前的資料（{backupData.cards?.length ?? 0} 張卡、{backupData.transactions?.length ?? 0} 筆刷卡）會被取代。
+            </p>
+            {restoreChoices.backups.map((b) => (
+              <label key={b.id} className="settings-restore-option">
+                <input
+                  type="radio"
+                  name="restore-choice"
+                  checked={restoreChoices.selectedId === b.id}
+                  onChange={() => setRestoreChoices((prev) => ({ ...prev, selectedId: b.id }))}
+                />
+                <span>
+                  {new Date(b.savedAt).toLocaleString('zh-TW')}
+                  {b.legacy ? '（舊版格式）' : ''}
+                  <small>{b.backupData?.cards?.length ?? 0} 張卡・{b.backupData?.transactions?.length ?? 0} 筆刷卡</small>
+                </span>
+              </label>
+            ))}
+            <div className="settings-backup-actions">
+              <button className="button-secondary" onClick={() => setRestoreChoices(null)}>取消</button>
+              <button className="button-primary" onClick={confirmRestore}>用這份還原</button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+
       <BottomSheet open={showAddCard} onClose={() => setShowAddCard(false)} title="新增信用卡">
         <CardForm onSubmit={handleAddCard} onClose={() => setShowAddCard(false)} initialValues={null} />
       </BottomSheet>
@@ -418,7 +471,8 @@ export default function Settings({
           </div>
 
           <p className="settings-backup-hint">
-            換手機的話用下面這兩顆：「備份整份資料」存的是完整帳務（含必繳清單、儲蓄目標），跟「資料備份」區的匯出備份是同一份內容，只是存進這個 Sheet 而不是下載檔案；換新手機後填同一組 Client ID／Sheet ID，按「還原整份資料」就拿得回來。
+            整份帳務（含必繳清單、儲蓄目標）會備份在你自己的 Google Sheet 裡，每次按「更新信件刷卡」或「立即同步」之後也會自動備份，並保留最近 5 份。
+            換手機：在這台按「複製換機連結」傳給新手機，打開後會自動帶入設定，再登入 Google、按「還原整份資料」就拿得回來。
           </p>
           <span className="settings-cloud-sync-status">
             {googleSync?.lastBackupAt
@@ -432,6 +486,7 @@ export default function Settings({
             <button className="button-secondary" onClick={handleRestoreFromSheet} disabled={restoring}>
               {restoring ? '還原中…' : '還原整份資料'}
             </button>
+            <button className="button-secondary" onClick={handleCopySetupLink}>複製換機連結</button>
           </div>
         </div>
       </div>

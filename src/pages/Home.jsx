@@ -18,6 +18,13 @@ function formatUpdatedAt(ms) {
   return `上次更新 ${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+function formatBackedUpAt(iso) {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `已備份 ${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 function urgentText(daysLeft) {
   if (daysLeft < 0) return `逾期 ${-daysLeft} 天`
   if (daysLeft === 0) return '今天到期'
@@ -27,7 +34,7 @@ function urgentText(daysLeft) {
 // 現況：欠多少、先繳哪張、目前刷了多少。更新信件刷卡在底部。
 export default function Home({
   greeting, dateLabel, cards, paymentReminders = [], onMarkCardPaid,
-  cardImport, importing, onImport, syncReminder = null, pendingCount = 0, onGoToPending,
+  cardImport, importing, onImport, syncReminder = null, backupReminder = null, lastBackupAt = null, pendingCount = 0, onGoToPending,
   onAddTransaction, showToast, budget = 0,
 }) {
   const [showMoreBills, setShowMoreBills] = useState(false)
@@ -108,7 +115,23 @@ export default function Home({
         </div>
       )}
 
-      <p className="home-updated">{formatUpdatedAt(cardImport?.lastImportAt)}</p>
+      {backupReminder && (
+        <div className="home-todo home-todo--static">
+          <span>
+            {backupReminder.daysSince == null
+              ? '還沒有備份到雲端，換手機會拿不回來'
+              : `已經 ${backupReminder.daysSince} 天沒有備份到雲端`}
+          </span>
+          <button type="button" className="home-todo-go" onClick={backupReminder.onBackup} disabled={backupReminder.backingUp}>
+            {backupReminder.backingUp ? '備份中…' : '立即備份'}
+          </button>
+        </div>
+      )}
+
+      <p className="home-updated">
+        {formatUpdatedAt(cardImport?.lastImportAt)}
+        {lastBackupAt && `・${formatBackedUpAt(lastBackupAt)}`}
+      </p>
 
       <ActionBar importing={importing} onImport={onImport} onAdd={() => setAdding(true)} />
 

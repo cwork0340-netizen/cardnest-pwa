@@ -7,6 +7,11 @@ vi.mock('../utils/googleSheetSync', async () => ({
   runSheetSync: vi.fn(async () => ({ count: 12, cycleCount: 3, planUpdated: false })),
 }))
 
+vi.mock('../services/sheetsSync', async () => ({
+  ...(await vi.importActual('../services/sheetsSync')),
+  backupToSheet: vi.fn(async () => '2026-10-28T10:00:00.000Z'),
+}))
+
 import App from '../App.jsx'
 import { getAccessToken, runSheetSync } from '../utils/googleSheetSync'
 
@@ -58,7 +63,8 @@ describe('Google Sheet 同步提醒', () => {
       const saved = JSON.parse(localStorage.getItem('cardnest_v1')).googleSync
       expect(saved.lastSyncCount).toBe(12)
       expect(Date.now() - saved.lastSyncAt).toBeLessThan(60 * 1000)
-      expect(saved.lastBackupAt).toBe('keep-me')
+      // 同步之後順便備份，備份時間跟著更新
+      expect(saved.lastBackupAt).toBe('2026-10-28T10:00:00.000Z')
     })
   })
 

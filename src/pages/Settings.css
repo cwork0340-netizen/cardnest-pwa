@@ -565,3 +565,34 @@
   line-height: 1.5;
   color: var(--color-text-muted);
 }
+
+.settings-restore {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-restore-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 4px;
+  font-size: 14px;
+  color: var(--color-text-main);
+}
+
+.settings-restore-option input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 2px 0 0;
+  flex: 0 0 18px;
+}
+
+.settings-restore-option small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
