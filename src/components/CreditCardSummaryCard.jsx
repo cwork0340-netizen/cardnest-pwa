@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import './CreditCardSummaryCard.css'
+import StatementAmountMode from './StatementAmountMode'
+import { carriedInBefore, resolveStatementAmount } from '../utils/billingCycles'
 
 function fmt(n) {
   return 'NT$' + Number(n).toLocaleString()
@@ -55,7 +57,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
   const [editingCycleId, setEditingCycleId] = useState(null)
   const [editDate, setEditDate] = useState('')
   const [calibratingCycleId, setCalibratingCycleId] = useState(null)
-  const [calibration, setCalibration] = useState({ amount: '', closeDate: '', dueDate: '' })
+  const [calibration, setCalibration] = useState({ amount: '', closeDate: '', dueDate: '', mode: 'new' })
   const [payingCycleId, setPayingCycleId] = useState(null)
   const [payAmount, setPayAmount] = useState('')
   const [restoringCycleId, setRestoringCycleId] = useState(null)
@@ -88,16 +90,19 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
       amount: String(cycle.amount ?? ''),
       closeDate: cycle.closeDate ?? '',
       dueDate: cycle.dueDate ?? '',
+      mode: 'new',
     })
   }
 
   function saveCalibration(e, cycle) {
     e.stopPropagation()
-    const rawAmount = calibration.amount.trim()
-    const amount = Number(rawAmount)
     const closeDate = calibration.closeDate || cycle.closeDate
+    const { amount, carriedIn, total } = resolveStatementAmount({ card, cycle, closeDate, raw: calibration.amount, mode: calibration.mode })
     onUpdateCycle(card.id, cycle.id, {
-      amount: rawAmount !== '' && Number.isFinite(amount) ? amount : cycle.amount,
+      amount: amount ?? cycle.amount,
+      // 填的是含上期未繳的應繳總額時，記下來，畫面才解釋得出「帳單金額」為什麼比銀行小
+      statementTotal: total ?? undefined,
+      carriedIn: carriedIn > 0 ? carriedIn : undefined,
       closeDate,
       dueDate: calibration.dueDate || cycle.dueDate,
       cycleKey: closeDate?.slice(0, 7) ?? cycle.cycleKey,
@@ -154,10 +159,8 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
   }
 
   function calibrationDiff(cycle) {
-    const rawAmount = calibration.amount.trim()
-    const amount = Number(rawAmount)
-    const displayAmount = rawAmount !== '' && Number.isFinite(amount) ? amount : Number(cycle.amount || 0)
-    return displayAmount - Number(cycle.estimatedAmount || 0)
+    const { amount } = resolveStatementAmount({ card, cycle, closeDate: calibration.closeDate, raw: calibration.amount, mode: calibration.mode })
+    return (amount ?? Number(cycle.amount || 0)) - Number(cycle.estimatedAmount || 0)
   }
 
   return (
@@ -207,6 +210,11 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                     {Number(cycle.paidAmount) > 0 && (
                       <span className="credit-card-cycle-partial">
                         帳單 {fmt(cycle.amount)}・已繳 {fmt(cycle.paidAmount)}
+                      </span>
+                    )}
+                    {cycle.carriedIn > 0 && (
+                      <span className="credit-card-cycle-partial">
+                        銀行應繳總額 {fmt(cycle.statementTotal)}（含上期未繳 {fmt(cycle.carriedIn)}）
                       </span>
                     )}
                     {editingCycleId === cycle.id ? (
@@ -273,6 +281,11 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                           onChange={(e) => setCalibration((prev) => ({ ...prev, amount: e.target.value }))}
                         />
                       </label>
+                      <StatementAmountMode
+                        carriedIn={carriedInBefore(card, calibration.closeDate || cycle.closeDate, cycle.id)}
+                        mode={calibration.mode}
+                        onChange={(mode) => setCalibration((prev) => ({ ...prev, mode }))}
+                      />
                       <label>
                         實際結帳日
                         <input
@@ -303,8 +316,9 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                   {cycle.manuallyCalibrated && cycle.estimatedAmount != null && (
                     <div className="credit-card-cycle-audit">
                       <div className="credit-card-cycle-audit-grid">
-                        <span>銀行實際</span>
+                        <span>銀行實際{cycle.carriedIn > 0 ? '（本期新增）' : ''}</span>
                         <strong>{fmt(cycle.amount)}</strong>
+
                         <span>App 原估</span>
                         <strong>{fmt(cycle.estimatedAmount)}</strong>
                         <span>差異</span>

@@ -4,11 +4,12 @@ import SectionHeader from '../components/SectionHeader'
 import TransactionItem from '../components/TransactionItem'
 import BottomSheet from '../components/BottomSheet'
 import QuickTransactionForm from '../components/QuickTransactionForm'
+import StatementAmountMode from '../components/StatementAmountMode'
 import ConvertToPlanForm from '../components/ConvertToPlanForm'
 import EmptyState from '../components/EmptyState'
 import { isBillableTransaction, matchesCard, parseISODate, toISODate, transactionRepresentsPlan } from '../utils/financeData'
 import { buildStatementCalibration } from '../utils/statementCalibration'
-import { dedupeCyclesByCloseDate } from '../utils/billingCycles'
+import { carriedInBefore, dedupeCyclesByCloseDate, resolveStatementAmount } from '../utils/billingCycles'
 import { buildManualTransactionFields } from '../utils/manualTransaction'
 import { isImportedTransaction, isPendingReconciliation } from '../utils/importSheetSync'
 
@@ -138,10 +139,13 @@ export default function Transactions({
   const selectedCalibrationCycle = calibrationCycles.find((cycle) => cycle.id === calibrationCycleId)
     ?? calibrationCycles.find((cycle) => cycle.closeDate <= todayIso)
     ?? calibrationCycles[0]
-  const [calibrationForm, setCalibrationForm] = useState({ amount: '', closeDate: '', dueDate: '' })
+  const [calibrationForm, setCalibrationForm] = useState({ amount: '', closeDate: '', dueDate: '', mode: 'new' })
   const [calibrationDetailOpen, setCalibrationDetailOpen] = useState(false)
   const effectiveCloseDate = calibrationForm.closeDate || selectedCalibrationCycle?.closeDate || ''
   const effectiveDueDate = calibrationForm.dueDate || selectedCalibrationCycle?.dueDate || ''
+  const statement = selectedCalibrationCard && selectedCalibrationCycle
+    ? resolveStatementAmount({ card: selectedCalibrationCard, cycle: selectedCalibrationCycle, closeDate: effectiveCloseDate, raw: calibrationForm.amount, mode: calibrationForm.mode })
+    : { amount: null, carriedIn: 0, total: null }
   const calibrationResult = buildStatementCalibration({
     card: selectedCalibrationCard,
     cards,
@@ -149,7 +153,7 @@ export default function Transactions({
     plans,
     cycle: selectedCalibrationCycle,
     closeDate: effectiveCloseDate,
-    statementAmount: calibrationForm.amount,
+    statementAmount: statement.amount ?? calibrationForm.amount,
   })
 
   const sheetOpen = showSheet || !!editingTx
@@ -230,6 +234,8 @@ export default function Transactions({
     if (!selectedCalibrationCard || !selectedCalibrationCycle || !calibrationResult || !onUpdateCycle) return
     onUpdateCycle(selectedCalibrationCard.id, selectedCalibrationCycle.id, {
       amount: calibrationResult.statementAmount,
+      statementTotal: statement.total ?? undefined,
+      carriedIn: statement.carriedIn > 0 ? statement.carriedIn : undefined,
       closeDate: effectiveCloseDate,
       dueDate: effectiveDueDate,
       cycleKey: effectiveCloseDate.slice(0, 7),
@@ -400,6 +406,11 @@ export default function Transactions({
                     onChange={(e) => setCalibrationForm((prev) => ({ ...prev, amount: e.target.value }))}
                   />
                 </label>
+                <StatementAmountMode
+                  carriedIn={selectedCalibrationCard && selectedCalibrationCycle ? carriedInBefore(selectedCalibrationCard, effectiveCloseDate, selectedCalibrationCycle.id) : 0}
+                  mode={calibrationForm.mode}
+                  onChange={(mode) => setCalibrationForm((prev) => ({ ...prev, mode }))}
+                />
                 <label>
                   實際結帳日
                   <input

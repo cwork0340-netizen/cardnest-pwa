@@ -238,6 +238,27 @@ export function totalUnpaid(card) {
   return unpaidCycles(card).reduce((s, c) => s + c.remaining, 0)
 }
 
+// 這一期結帳之前、還沒繳清的前幾期，合計還欠多少。銀行帳單的「本期應繳總額」會把這筆
+// 上期未繳一起算進去；App 的待繳帳單是「各期剩餘」相加，所以校準時要知道這個數字，
+// 才不會把同一筆錢算兩次。
+export function carriedInBefore(card, closeDate, excludeId = null) {
+  return unpaidCycles(card)
+    .filter((c) => c.id !== excludeId && c.closeDate < closeDate)
+    .reduce((s, c) => s + c.remaining, 0)
+}
+
+// 校準時，使用者輸入的銀行金額是哪一種：
+//   new   ＝ 本期新增（只有這個結帳週期刷的錢）
+//   total ＝ 本期應繳總額（銀行會把上期沒繳完的錢一起算進去）
+// 有上期未繳時才需要選；沒有的話兩種一樣，不顯示。
+export function resolveStatementAmount({ card, cycle, closeDate, raw, mode }) {
+  const entered = Number(raw)
+  const carriedIn = carriedInBefore(card, closeDate || cycle.closeDate, cycle.id)
+  if (!Number.isFinite(entered) || String(raw).trim() === '') return { amount: null, carriedIn, total: null }
+  if (mode === 'total' && carriedIn > 0) return { amount: entered - carriedIn, carriedIn, total: entered }
+  return { amount: entered, carriedIn: 0, total: null }
+}
+
 // 逾期天數：用真正的日期相減，不再只比對「號數」，換月也不會誤判
 export function daysUntilDue(cycle, today = new Date()) {
   const due = parseYmd(cycle.dueDate)
