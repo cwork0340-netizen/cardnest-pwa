@@ -513,7 +513,7 @@ export default function App() {
       const idx = prev.findIndex(x => x.id === id)
       const item = prev[idx]
       const next = prev.filter(x => x.id !== id)
-      showUndoToast(`Deleted ${item.name}`, () => {
+      showUndoToast(`已刪除「${item.name}」`, () => {
         setPlans(p => {
           const r = [...p]
           r.splice(Math.min(idx, r.length), 0, item)
@@ -658,7 +658,7 @@ export default function App() {
       const idx = prev.findIndex(x => x.id === id)
       const item = prev[idx]
       const next = prev.filter(x => x.id !== id)
-      showUndoToast(`Deleted ${item.name}`, () => {
+      showUndoToast(`已刪除「${item.name}」`, () => {
         setTransactions(p => {
           const r = [...p]
           r.splice(Math.min(idx, r.length), 0, item)

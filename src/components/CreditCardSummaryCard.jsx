@@ -63,6 +63,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
   const [payingCycleId, setPayingCycleId] = useState(null)
   const [convertingCycleId, setConvertingCycleId] = useState(null)
   const [payAmount, setPayAmount] = useState('')
+  const [payError, setPayError] = useState('')
   const [restoringCycleId, setRestoringCycleId] = useState(null)
   const [restoreAmount, setRestoreAmount] = useState('')
 
@@ -121,6 +122,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
     e.stopPropagation()
     setPayingCycleId(cycle.id)
     setPayAmount('')
+    setPayError('')
   }
 
   // 這次繳了多少就記多少（會跟之前繳過的累加）。繳不夠的部分不用另外處理：
@@ -128,7 +130,11 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
   function savePartialPayment(e, cycle) {
     e.stopPropagation()
     const paid = Number(payAmount)
-    if (!Number.isFinite(paid) || paid <= 0) return
+    if (!Number.isFinite(paid) || paid <= 0) {
+      setPayError('請填寫這次繳了多少（要大於 0）')
+      return
+    }
+    setPayError('')
     const totalPaid = Number(cycle.paidAmount ?? 0) + paid
     const d = new Date()
     const paidAt = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -291,6 +297,7 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                       <span className="credit-card-cycle-diff">
                         還欠 {fmt(cycle.remaining ?? cycle.amount)}。沒繳的部分會留在待繳帳單，累積到下一期一起算。
                       </span>
+                      {payError && <span className="credit-card-cycle-diff" role="alert">{payError}</span>}
                       <div className="credit-card-cycle-calibration-actions">
                         <button onClick={(e) => savePartialPayment(e, cycle)}>儲存</button>
                         <button onClick={(e) => { e.stopPropagation(); setPayingCycleId(null) }}>取消</button>

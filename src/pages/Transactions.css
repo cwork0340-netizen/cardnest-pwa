@@ -1,6 +1,8 @@
 .tx-page {
   display: flex;
   flex-direction: column;
+  /* 右下角的「記一筆」浮動鈕（距底 88px、高 52px）不能蓋住最後一筆的編輯／刪除 */
+  padding-bottom: 72px;
 }
 
 /* 期間篩選（全部／本週／本月／自訂區間）。這份樣式本來只寫在 Plans.css 裡，
