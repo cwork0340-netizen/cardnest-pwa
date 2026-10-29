@@ -37,6 +37,7 @@ describe('富邦M 2026-10-12（對照銀行 App 的 2,596）', () => {
 
   it('用表單補記退款（9/19、入帳 9/21）之後，校準與待繳帳單都等於銀行', () => {
     seed(); render(<App />)
+    goTo('各卡與帳單')
     expect(card()).toContain('NT$3,850')
 
     goTo('刷卡')
@@ -62,6 +63,7 @@ describe('富邦M 2026-10-12（對照銀行 App 的 2,596）', () => {
   // 錢只出現在待繳一處，不會同時算兩次。隔天起新的消費才開始累積。
   it('結帳日當天，這一期的錢在待繳帳單，目前累計刷卡是 0', () => {
     seed(); render(<App />)
+    goTo('各卡與帳單')
     const row = document.querySelector('.credit-card-summary-row').textContent
     expect(row).toMatch(/目前累計刷卡NT\$0/)
     expect(row).toMatch(/待繳帳單.*NT\$3,850/)
@@ -74,6 +76,7 @@ describe('富邦M 2026-10-12（對照銀行 App 的 2,596）', () => {
     stored.transactions.push(tx('new', 120, '2026-10-13', '2026-10-13'))
     localStorage.setItem('cardnest_v1', JSON.stringify(stored))
     render(<App />)
+    goTo('各卡與帳單')
     const row = document.querySelector('.credit-card-summary-row').textContent
     expect(row).toMatch(/目前累計刷卡NT\$120/)
     expect(row).toMatch(/待繳帳單.*NT\$3,850/)

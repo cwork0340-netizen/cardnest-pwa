@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import App from '../App.jsx'
+import { goTo } from './helpers/nav'
 
 // 「目前累計刷卡」要跟銀行 App 的「目前刷卡消費金額」同一個意思：
 // 這張卡「上次結帳日之後」刷的錢（以入帳日歸期，沒有入帳日就用消費日），
@@ -32,6 +33,7 @@ function show(cards, plans, transactions, when) {
     cards, plans, transactions, fxSettings: { usdRate: 32.5, feeRate: 1.5 },
   }))
   render(<App />)
+  goTo('各卡與帳單')
   const row = document.querySelector('.credit-card-summary-row').textContent
   const money = (label) => Number(row.match(new RegExp(`${label}NT\\$(-?[\\d,]+)`))[1].replace(/,/g, ''))
   return { current: money('目前累計刷卡'), due: money('待繳帳單') }
