@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './CreditCardSummaryCard.css'
 import StatementAmountMode from './StatementAmountMode'
+import ConvertCycleForm from './ConvertCycleForm'
 import { carriedInBefore, resolveStatementAmount } from '../utils/billingCycles'
 
 function fmt(n) {
@@ -53,13 +54,14 @@ function cycleAuditHints(cycle, cardHints) {
   return hints
 }
 
-export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid, onUpdateCycle }) {
+export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid, onUpdateCycle, onConvertCycle }) {
   const [expanded, setExpanded] = useState(false)
   const [editingCycleId, setEditingCycleId] = useState(null)
   const [editDate, setEditDate] = useState('')
   const [calibratingCycleId, setCalibratingCycleId] = useState(null)
   const [calibration, setCalibration] = useState({ amount: '', closeDate: '', dueDate: '', minDue: '', mode: 'new' })
   const [payingCycleId, setPayingCycleId] = useState(null)
+  const [convertingCycleId, setConvertingCycleId] = useState(null)
   const [payAmount, setPayAmount] = useState('')
   const [restoringCycleId, setRestoringCycleId] = useState(null)
   const [restoreAmount, setRestoreAmount] = useState('')
@@ -210,6 +212,9 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                 <div className="credit-card-cycle-row" key={cycle.id}>
                   <div className="credit-card-cycle-info">
                     <span className="credit-card-cycle-amount">{fmt(cycle.remaining ?? cycle.amount)}</span>
+                    {Number(cycle.convertedAmount) > 0 && (
+                      <span className="credit-card-cycle-partial">已轉分期 {fmt(cycle.convertedAmount)}</span>
+                    )}
                     {Number(cycle.paidAmount) > 0 && (
                       <span className="credit-card-cycle-partial">
                         帳單 {fmt(cycle.amount)}・已繳 {fmt(cycle.paidAmount)}
@@ -251,6 +256,11 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                     <button className="credit-card-cycle-calibrate" onClick={(e) => startPartialPayment(e, cycle)}>
                       部分繳款
                     </button>
+                    {onConvertCycle && (
+                      <button className="credit-card-cycle-calibrate" onClick={(e) => { e.stopPropagation(); setConvertingCycleId(cycle.id) }}>
+                        轉分期
+                      </button>
+                    )}
                     <button
                       className="credit-card-cycle-pay"
                       onClick={(e) => { e.stopPropagation(); onMarkPaid(cycle.id) }}
@@ -258,6 +268,15 @@ export default function CreditCardSummaryCard({ card, onMarkPaid, onMarkAllPaid,
                       已繳
                     </button>
                   </div>
+                  {convertingCycleId === cycle.id && (
+                    <ConvertCycleForm
+                      card={card}
+                      cycle={cycle}
+                      remaining={cycle.remaining ?? cycle.amount}
+                      onCancel={() => setConvertingCycleId(null)}
+                      onSubmit={({ plan, amount }) => { onConvertCycle(card.id, cycle.id, plan, amount); setConvertingCycleId(null) }}
+                    />
+                  )}
                   {payingCycleId === cycle.id && (
                     <div className="credit-card-cycle-calibration" onClick={(e) => e.stopPropagation()}>
                       <label>

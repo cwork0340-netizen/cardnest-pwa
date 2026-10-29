@@ -222,7 +222,7 @@ export function dedupeCyclesByCloseDate(cycles = []) {
 // 這一期還欠多少：帳單金額扣掉已經繳過的部分。沒有 paidAmount 的舊資料，
 // 剩下的就是整張帳單，跟以前完全一樣。
 export function cycleRemaining(cycle) {
-  return Math.max(0, Number(cycle?.amount ?? 0) - Number(cycle?.paidAmount ?? 0))
+  return Math.max(0, Number(cycle?.amount ?? 0) - Number(cycle?.paidAmount ?? 0) - Number(cycle?.convertedAmount ?? 0))
 }
 
 // 未繳清的週期，依到期日排序（最早到期的在前面）。amount 仍是帳單金額，

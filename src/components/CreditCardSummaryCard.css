@@ -388,3 +388,18 @@
   padding: 0;
   flex: 0 0 18px;
 }
+
+.convert-cycle-check,
+.credit-card-cycle-calibration .convert-cycle-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.convert-cycle-check input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  flex: 0 0 20px;
+}

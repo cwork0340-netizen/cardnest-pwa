@@ -489,6 +489,23 @@ export default function App() {
       card: plan.card ?? card?.name ?? '',
     }
   }, [cards])
+  // 帳單轉分期：這期還欠的錢（或其中一部分）向銀行申請分期之後，待繳扣掉轉出的金額，
+  // 並新增一筆分期（固定扣款、未償負債都會看到）。5 秒內可以復原。
+  const handleConvertCycleToInstallment = useCallback((cardId, cycleId, plan, amount) => {
+    const before = cards.find(c => c.id === cardId)?.billingCycles?.find(cy => cy.id === cycleId)
+    setPlans(p => [normalizePlan(plan), ...p])
+    setCards(prev => prev.map(c => c.id !== cardId ? c : {
+      ...c,
+      billingCycles: (c.billingCycles ?? []).map(cy => cy.id === cycleId ? { ...cy, convertedAmount: (Number(cy.convertedAmount) || 0) + amount } : cy),
+    }))
+    showUndoToast(`已把 NT$${amount.toLocaleString()} 轉成 ${plan.totalCount} 期分期`, () => {
+      setPlans(p => p.filter(x => x.id !== plan.id))
+      setCards(prev => prev.map(c => c.id !== cardId ? c : {
+        ...c,
+        billingCycles: (c.billingCycles ?? []).map(cy => cy.id === cycleId ? { ...cy, convertedAmount: before?.convertedAmount } : cy),
+      }))
+    })
+  }, [cards, normalizePlan, showUndoToast])
   const handleAddPlan = useCallback((plan) => setPlans(p => [normalizePlan(plan), ...p]), [normalizePlan])
   const handleUpdatePlan = useCallback((updated) => setPlans(p => p.map(pl => pl.id === updated.id ? normalizePlan(updated) : pl)), [normalizePlan])
   const handleDeletePlan = useCallback((id) => {
@@ -1039,6 +1056,7 @@ export default function App() {
         onMarkCardPaid={handleMarkCardPaid}
         onMarkAllCyclesPaid={handleMarkAllCyclesPaid}
         onUpdateCycle={handleUpdateCycle}
+        onConvertCycle={handleConvertCycleToInstallment}
         income={income}
         essentialTotal={essentialTotal}
         cardEstimateTotal={cardEstimateTotal}

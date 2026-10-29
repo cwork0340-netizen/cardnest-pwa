@@ -14,7 +14,7 @@ import CardForecastCard from '../components/CardForecastCard'
 export default function Dashboard({
   greeting, dateLabel, currentMonth, weekDays, cards, categories, trends,
   liabilityItems = [], totalDebt = 0,
-  paymentReminders = [], onMarkCardPaid, onMarkAllCyclesPaid, onUpdateCycle,
+  paymentReminders = [], onMarkCardPaid, onMarkAllCyclesPaid, onUpdateCycle, onConvertCycle,
   income = 0, essentialTotal = 0, cardEstimateTotal = 0, lifeBalance = 0, onGoToChecklist,
   onGoToTransactions, reconciliationSummary = null,
   forecastSummary = null,
@@ -121,6 +121,7 @@ export default function Dashboard({
             onMarkPaid={onMarkCardPaid}
             onMarkAllPaid={onMarkAllCyclesPaid}
             onUpdateCycle={onUpdateCycle}
+            onConvertCycle={onConvertCycle}
           />
         ))}
       </div>
